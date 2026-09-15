@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
-import { api, type ChatResult, type StatusResponse } from './api/client'
+import { api, type ChatResult, type SoulDetail, type SoulListResponse, type StatusResponse } from './api/client'
 import './App.css'
 
 function App() {
   const [status, setStatus] = useState<StatusResponse | null>(null)
   const [provider, setProvider] = useState('')
+  const [souls, setSouls] = useState<SoulListResponse | null>(null)
+  const [soul, setSoul] = useState('')
+  const [soulDetail, setSoulDetail] = useState<SoulDetail | null>(null)
+  const [promptOffen, setPromptOffen] = useState(false)
   const [name, setName] = useState('Daniel')
   const [greeting, setGreeting] = useState<string | null>(null)
   const [message, setMessage] = useState('Stell dich in einem Satz vor.')
@@ -27,7 +31,27 @@ function App() {
       .catch((e: Error) => setError(e.message))
   }, [])
 
+  useEffect(() => {
+    api
+      .souls()
+      .then((s) => {
+        setSouls(s)
+        setSoul(s.activeSoul)
+      })
+      .catch((e: Error) => setError(e.message))
+  }, [])
+
+  // Detail (inkl. gerendertem Prompt) immer zur aktuell gewaehlten SOUL nachladen.
+  useEffect(() => {
+    if (!soul) return
+    api
+      .soul(soul)
+      .then(setSoulDetail)
+      .catch((e: Error) => setError(e.message))
+  }, [soul])
+
   const selected = status?.providers.find((p) => p.id === provider)
+  const gates = soulDetail?.soul.gates ?? []
 
   async function run(action: () => Promise<void>) {
     setBusy(true)
@@ -50,7 +74,16 @@ function App() {
   const askAi = () =>
     run(async () => {
       setResult(null)
-      setResult(await api.chat(message, provider))
+      setResult(await api.chat(message, provider, soul))
+    })
+
+  // Dateien aendern sich ausserhalb der App — neu einlesen ohne Neustart.
+  const reloadSouls = () =>
+    run(async () => {
+      const liste = await api.reloadSouls()
+      setSouls(liste)
+      setSoulDetail(await api.soul(liste.souls.some((s) => s.id === soul) ? soul : liste.activeSoul))
+      if (!liste.souls.some((s) => s.id === soul)) setSoul(liste.activeSoul)
     })
 
   return (
@@ -59,6 +92,7 @@ function App() {
         <h1>KI-Mitarbeiter — Prototyp</h1>
         <p className="status">
           {status ? `${status.providers.length} Provider registriert` : 'Backend wird abgefragt …'}
+          {souls && ` · ${souls.souls.length} SOUL(s)`}
         </p>
       </header>
 
@@ -74,7 +108,50 @@ function App() {
       </section>
 
       <section className="card">
-        <h2>2 · Modellaufruf</h2>
+        <h2>2 · SOUL</h2>
+
+        <div className="row providers">
+          <select value={soul} onChange={(e) => setSoul(e.target.value)} disabled={!souls}>
+            {souls?.souls.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+                {s.rolle ? ` · ${s.rolle}` : ''} · v{s.version}
+              </option>
+            ))}
+          </select>
+          <button onClick={reloadSouls} disabled={busy}>
+            Neu laden
+          </button>
+        </div>
+
+        {soulDetail && (
+          <>
+            {soulDetail.beschreibung && <p className="meta">{soulDetail.beschreibung}</p>}
+
+            {gates.length > 0 && (
+              <ul className="gates">
+                {gates.map((g) => (
+                  <li key={g.id}>
+                    <span className={g.blockiert ? 'badge cloud' : 'badge local'}>
+                      {g.blockiert ? 'blockierend' : 'Hinweis'}
+                    </span>{' '}
+                    {g.frage}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <button onClick={() => setPromptOffen(!promptOffen)}>
+              {promptOffen ? 'Prompt verbergen' : 'Gerenderten Prompt zeigen'}
+            </button>
+            {promptOffen && <pre className="output prompt">{soulDetail.prompt}</pre>}
+            <p className="meta">Quelle: {soulDetail.quelle}</p>
+          </>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>3 · Modellaufruf</h2>
 
         <div className="row providers">
           <select value={provider} onChange={(e) => setProvider(e.target.value)} disabled={!status}>
@@ -106,7 +183,8 @@ function App() {
           <>
             <p className="output">{result.answer}</p>
             <p className="meta">
-              {result.provider} · {result.model ?? 'unbekannt'} · {result.durationMs} ms
+              {result.provider} · {result.model ?? 'unbekannt'} · SOUL {result.soul} v{result.soulVersion} ·{' '}
+              {result.durationMs} ms
               {result.totalTokens != null && ` · ${result.totalTokens} Tokens`}
             </p>
           </>

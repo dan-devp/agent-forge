@@ -20,6 +20,14 @@ services:
       LOCAL_AI_API_KEY: ${LOCAL_AI_API_KEY:-not-needed}
       LOCAL_AI_MODEL: ${LOCAL_AI_MODEL:-local-model}
       LOCAL_AI_ENABLED: ${LOCAL_AI_ENABLED:-true}
+
+      # --- SOUL ---
+      # Fuer eigene SOULs ohne Rebuild: ./souls hier mounten (siehe volumes unten)
+      # und SOUL_LOCATIONS=classpath:souls/,file:/souls/ setzen.
+      SOUL_LOCATIONS: ${SOUL_LOCATIONS:-classpath:souls/}
+      SOUL_ACTIVE: ${SOUL_ACTIVE:-forge}
+    # volumes:
+    #   - ./souls:/souls:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:

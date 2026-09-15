@@ -25,15 +25,17 @@ public class ChatController {
 
 	@PostMapping("/chat")
 	public ChatService.ChatResult chat(@Validated @RequestBody ChatRequest request) {
-		return chatService.ask(request.message(), request.provider());
+		return chatService.ask(request.message(), request.provider(), request.soul());
 	}
 
-	/** {@code provider} ist optional — leer bedeutet Default aus der Konfiguration. */
+	/** {@code provider} und {@code soul} sind optional — leer bedeutet Default bzw. aktive SOUL. */
 	public record ChatRequest(
 			@NotBlank(message = "message darf nicht leer sein")
 			@Size(max = 4000, message = "message ist zu lang (max. 4000 Zeichen)")
 			String message,
 
-			String provider) {
+			String provider,
+
+			String soul) {
 	}
 }

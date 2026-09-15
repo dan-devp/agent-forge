@@ -112,3 +112,22 @@ button {
   background: rgba(200, 60, 60, 0.15);
   border: 1px solid rgba(200, 60, 60, 0.4);
 }
+
+.gates {
+  margin: 0.75rem 0 0;
+  padding-left: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.gates li {
+  margin-bottom: 0.4rem;
+  line-height: 1.5;
+}
+
+.prompt {
+  max-height: 20rem;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+}

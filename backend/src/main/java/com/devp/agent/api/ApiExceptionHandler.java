@@ -3,6 +3,8 @@ package com.devp.agent.api;
 import com.devp.agent.ai.ChatClientRegistry.UnknownProviderException;
 import com.devp.agent.ai.ChatService.AiNotConfiguredException;
 import com.devp.agent.ai.ChatService.ModelCallFailedException;
+import com.devp.agent.soul.SoulParser.SoulParseException;
+import com.devp.agent.soul.SoulRepository.UnknownSoulException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -17,6 +19,21 @@ public class ApiExceptionHandler {
 	public ProblemDetail handleUnknownProvider(UnknownProviderException ex) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
 		problem.setTitle("Unbekannter Provider");
+		return problem;
+	}
+
+	@ExceptionHandler(UnknownSoulException.class)
+	public ProblemDetail handleUnknownSoul(UnknownSoulException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+		problem.setTitle("Unbekannte SOUL");
+		return problem;
+	}
+
+	/** Kaputte SOUL-Datei ist ein Konfigurationsfehler des Betreibers, kein Client-Fehler. */
+	@ExceptionHandler(SoulParseException.class)
+	public ProblemDetail handleSoulParse(SoulParseException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+		problem.setTitle("SOUL fehlerhaft");
 		return problem;
 	}
 

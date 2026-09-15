@@ -32,6 +32,9 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
+	// SOUL-Dateien sind Markdown mit YAML-Frontmatter — direkt genutzt, daher explizit.
+	implementation 'org.yaml:snakeyaml'
+
 	// --- Spring AI ---------------------------------------------------------
 	// Provider-agnostisch: weitere Starter einfach ergaenzen und ueber
 	// spring.ai.model.chat=<provider> in application.properties auswaehlen.
@@ -53,3 +56,4 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+

@@ -19,9 +19,6 @@ public class AiProperties {
 	/** Provider-Id, die genutzt wird, wenn der Aufruf keine angibt. */
 	private String defaultProvider = "openai";
 
-	/** System-Prompt (spaeter: Teil der SOUL des Mitarbeiters). */
-	private String systemPrompt = "Du bist ein hilfreicher KI-Mitarbeiter.";
-
 	private Map<String, Provider> providers = new LinkedHashMap<>();
 
 	public String getDefaultProvider() {
@@ -30,14 +27,6 @@ public class AiProperties {
 
 	public void setDefaultProvider(String defaultProvider) {
 		this.defaultProvider = defaultProvider;
-	}
-
-	public String getSystemPrompt() {
-		return systemPrompt;
-	}
-
-	public void setSystemPrompt(String systemPrompt) {
-		this.systemPrompt = systemPrompt;
 	}
 
 	public Map<String, Provider> getProviders() {

@@ -21,8 +21,38 @@ export type ChatResult = {
   answer: string
   provider: string
   model: string | null
+  soul: string
+  soulVersion: number
   totalTokens: number | null
   durationMs: number
+}
+
+export type SoulGate = {
+  id: string
+  frage: string
+  blockiert: boolean
+}
+
+export type SoulSummary = {
+  id: string
+  name: string
+  rolle: string | null
+  version: number
+  gates: SoulGate[]
+  isActive: boolean
+}
+
+export type SoulListResponse = {
+  activeSoul: string
+  souls: SoulSummary[]
+}
+
+export type SoulDetail = {
+  soul: SoulSummary
+  beschreibung: string | null
+  abschnitte: Record<string, string>
+  quelle: string
+  prompt: string
 }
 
 type ProblemDetail = {
@@ -53,9 +83,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   hello: (name: string) => request<HelloResponse>(`/api/hello?name=${encodeURIComponent(name)}`),
   status: () => request<StatusResponse>('/api/status'),
-  chat: (message: string, provider: string) =>
+  chat: (message: string, provider: string, soul: string) =>
     request<ChatResult>('/api/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, provider }),
+      body: JSON.stringify({ message, provider, soul }),
     }),
+  souls: () => request<SoulListResponse>('/api/souls'),
+  soul: (id: string) => request<SoulDetail>(`/api/souls/${encodeURIComponent(id)}`),
+  reloadSouls: () => request<SoulListResponse>('/api/souls/reload', { method: 'POST' }),
 }

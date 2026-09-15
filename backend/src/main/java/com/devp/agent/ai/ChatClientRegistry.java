@@ -61,9 +61,9 @@ public class ChatClientRegistry {
 				.options(options)
 				.build();
 
-		return ChatClient.builder(model)
-				.defaultSystem(properties.getSystemPrompt())
-				.build();
+		// Kein defaultSystem: der System-Prompt kommt pro Aufruf aus der SOUL, damit ein
+		// Reload sofort wirkt und verschiedene SOULs denselben Client nutzen koennen.
+		return ChatClient.builder(model).build();
 	}
 
 	/** Aufloesung inkl. Fallback auf den Default-Provider. */
