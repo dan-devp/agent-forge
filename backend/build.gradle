@@ -1,0 +1,55 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '4.1.1'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.devp'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	springAiVersion = '2.0.1'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+	}
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// --- Spring AI ---------------------------------------------------------
+	// Provider-agnostisch: weitere Starter einfach ergaenzen und ueber
+	// spring.ai.model.chat=<provider> in application.properties auswaehlen.
+	implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+	// implementation 'org.springframework.ai:spring-ai-starter-model-ollama'      // lokal
+	// implementation 'org.springframework.ai:spring-ai-starter-model-anthropic'   // cloud
+	// implementation 'org.springframework.ai:spring-ai-starter-model-azure-openai'
+	// implementation 'org.springframework.ai:spring-ai-starter-mcp-client'        // Tools via MCP
+	// -----------------------------------------------------------------------
+
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testCompileOnly 'org.projectlombok:lombok'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testAnnotationProcessor 'org.projectlombok:lombok'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

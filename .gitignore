@@ -1,0 +1,49 @@
+# Repo-weite Ignores.
+# backend/.gitignore (Gradle) und frontend/.gitignore (Node) bleiben zusaetzlich
+# bestehen und decken ihre Unterverzeichnisse ab.
+
+# --- Secrets -----------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+!.env.example
+
+# --- Build-Ausgaben ----------------------------------------------------------
+build/
+dist/
+out/
+bin/
+node_modules/
+.gradle/
+
+# --- Python (tools/) ---------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- IDE / Editor ------------------------------------------------------------
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.classpath
+.project
+.settings/
+*.swp
+*~
+
+# --- Betriebssystem ----------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# --- Logs / temporaeres -------------------------------------------------------
+*.log
+logs/
+tmp/
+*.pid

@@ -1,0 +1,41 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    image: agent-backend:dev
+    container_name: agent-backend
+    ports:
+      - "8080:8080"
+    environment:
+      AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-openai}
+
+      # --- Cloud (OpenAI oder jedes OpenAI-kompatible Gateway) ---
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-not-set}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+
+      # --- Lokal (LM Studio, Ollama, vLLM, llama.cpp, LiteLLM) ---
+      # Laeuft der Server auf dem Host, muss hier host.docker.internal stehen.
+      LOCAL_AI_BASE_URL: ${LOCAL_AI_BASE_URL:-http://host.docker.internal:1234/v1}
+      LOCAL_AI_API_KEY: ${LOCAL_AI_API_KEY:-not-needed}
+      LOCAL_AI_MODEL: ${LOCAL_AI_MODEL:-local-model}
+      LOCAL_AI_ENABLED: ${LOCAL_AI_ENABLED:-true}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+    image: agent-frontend:dev
+    container_name: agent-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
