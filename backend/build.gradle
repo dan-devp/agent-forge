@@ -68,6 +68,9 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// Testprofil erzwingen: die Provider zeigen dort auf eine tote Adresse, damit kein
+	// automatischer Test je ein echtes Modell aufruft.
+	systemProperty 'spring.profiles.active', 'test'
 }
 
 
