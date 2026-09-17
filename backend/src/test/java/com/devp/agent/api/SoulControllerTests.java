@@ -43,7 +43,7 @@ class SoulControllerTests {
 	}
 
 	@Test
-	void listetSoulsMitAktiverMarkierung() {
+	void listsSoulsWithActiveMarker() {
 		assertThat(mvc.get().uri("/api/souls")).hasStatusOk()
 				.bodyJson()
 				.extractingPath("$.activeSoul").isEqualTo("forge");
@@ -52,10 +52,10 @@ class SoulControllerTests {
 				.extractingPath("$.souls[?(@.id == 'forge')].isActive").asArray().containsExactly(true);
 	}
 
-	/** Der Detail-Endpunkt liefert bewusst den gerenderten Prompt mit — sonst ist nicht
-	 * pruefbar, was das Modell tatsaechlich sieht. */
+	/** The detail endpoint deliberately includes the rendered prompt — otherwise what the
+	 * model actually sees cannot be verified. */
 	@Test
-	void liefertGerendertenPrompt() {
+	void returnsRenderedPrompt() {
 		assertThat(mvc.get().uri("/api/souls/reviewer")).hasStatusOk()
 				.bodyJson()
 				.extractingPath("$.prompt").asString()
@@ -64,14 +64,14 @@ class SoulControllerTests {
 	}
 
 	@Test
-	void unbekannteSoulGibt404() {
-		assertThat(mvc.get().uri("/api/souls/gibtsnicht")).hasStatus(404)
+	void unknownSoulReturns404() {
+		assertThat(mvc.get().uri("/api/souls/does-not-exist")).hasStatus(404)
 				.bodyJson()
-				.extractingPath("$.title").isEqualTo("Unbekannte SOUL");
+				.extractingPath("$.title").isEqualTo("Unknown SOUL");
 	}
 
 	@Test
-	void reloadLiefertDieListeZurueck() {
+	void reloadReturnsTheList() {
 		assertThat(mvc.post().uri("/api/souls/reload")).hasStatusOk()
 				.bodyJson()
 				.extractingPath("$.souls").asArray().isNotEmpty();

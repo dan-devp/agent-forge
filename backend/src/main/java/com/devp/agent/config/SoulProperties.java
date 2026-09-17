@@ -5,18 +5,18 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Herkunft und Auswahl der SOUL-Definitionen.
+ * Origin and selection of the SOUL definitions.
  *
- * <p>Die Standard-SOULs liegen im Jar; eine externe Location kommt zusaetzlich dazu und
- * gewinnt bei gleicher Id. Damit ist eine SOUL im Betrieb austauschbar, ohne neu zu bauen.
+ * <p>The default SOULs ship inside the jar; an external location is added on top and wins
+ * for the same id. A SOUL is thus replaceable in operation without a rebuild.
  */
 @ConfigurationProperties(prefix = "app.soul")
 public class SoulProperties {
 
-	/** Spring-Resource-Locations mit {@code *.md}; spaetere Eintraege ueberschreiben fruehere. */
+	/** Spring resource locations containing {@code *.md}; later entries override earlier ones. */
 	private List<String> locations = List.of("classpath:souls/");
 
-	/** SOUL, die genutzt wird, wenn ein Aufruf keine angibt. */
+	/** SOUL used when a call names none. */
 	private String active = "forge";
 
 	public List<String> getLocations() {

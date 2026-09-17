@@ -9,8 +9,8 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Service;
 
 /**
- * Duenne Fassade vor Spring AI. Einziger Ort, an dem der Prototyp das
- * Modell-SDK beruehrt — alles darueber bleibt provider-unabhaengig.
+ * Thin facade over Spring AI. The only place where the prototype touches the model SDK —
+ * everything above stays provider-independent.
  */
 @Service
 public class ChatService {
@@ -26,13 +26,13 @@ public class ChatService {
 	}
 
 	/**
-	 * Ein Turn gegen den gewuenschten Provider, gefuehrt von der gewuenschten SOUL.
+	 * One turn against the requested provider, guided by the requested SOUL.
 	 *
-	 * <p>Die SOUL wird pro Aufruf aufgeloest und gerendert, nicht beim Bau des Clients —
-	 * sonst wuerde {@code /api/souls/reload} erst nach einem Neustart wirken.
+	 * <p>The SOUL is resolved and rendered per call, not when the client is built —
+	 * otherwise {@code /api/souls/reload} would only take effect after a restart.
 	 *
-	 * @param providerId Provider-Id oder {@code null} fuer den Default
-	 * @param soulId     SOUL-Id oder {@code null} fuer die aktive SOUL
+	 * @param providerId provider id or {@code null} for the default
+	 * @param soulId     SOUL id or {@code null} for the active SOUL
 	 */
 	public ChatResult ask(String message, String providerId, String soulId) {
 		ResolvedProvider provider = registry.resolve(providerId);
@@ -40,7 +40,7 @@ public class ChatService {
 
 		if (!provider.config().isConfigured()) {
 			throw new AiNotConfiguredException(
-					"Provider '%s' ist nicht vollstaendig konfiguriert (Basis-URL, Modell und ggf. API-Key pruefen)."
+					"Provider '%s' is not fully configured (check base URL, model and API key)."
 							.formatted(provider.id()));
 		}
 
@@ -55,7 +55,7 @@ public class ChatService {
 		}
 		catch (RuntimeException ex) {
 			throw new ModelCallFailedException(
-					"Aufruf von Provider '%s' (%s) fehlgeschlagen: %s"
+					"Call to provider '%s' (%s) failed: %s"
 							.formatted(provider.id(), provider.config().getBaseUrl(), ex.getMessage()),
 					ex);
 		}
@@ -63,7 +63,7 @@ public class ChatService {
 
 		if (response == null || response.getResult() == null) {
 			throw new ModelCallFailedException(
-					"Provider '%s' lieferte eine leere Antwort.".formatted(provider.id()), null);
+					"Provider '%s' returned an empty response.".formatted(provider.id()), null);
 		}
 
 		String model = response.getMetadata().getModel();
@@ -82,23 +82,23 @@ public class ChatService {
 	}
 
 	/**
-	 * Antwort des Modells inkl. Herkunfts- und Kostenmetadaten.
+	 * The model's answer including provenance and cost metadata.
 	 *
-	 * <p>{@code soul} und {@code soulVersion} sind Provenienz: eine spaetere Bewertung muss
-	 * sich auf die Identitaet beziehen koennen, unter der die Antwort entstanden ist.
+	 * <p>{@code soul} and {@code soulVersion} are provenance: a later evaluation must be able
+	 * to refer to the identity under which the answer was produced.
 	 */
 	public record ChatResult(String answer, String provider, String model, String soul, int soulVersion,
 			Integer totalTokens, long durationMs) {
 	}
 
-	/** Provider ist nicht nutzbar konfiguriert (z. B. fehlender API-Key). */
+	/** Provider is not usably configured (e.g. missing API key). */
 	public static class AiNotConfiguredException extends RuntimeException {
 		public AiNotConfiguredException(String message) {
 			super(message);
 		}
 	}
 
-	/** Der Endpunkt war erreichbar-gemeint, hat aber nicht geliefert. */
+	/** The endpoint was supposed to be reachable but did not deliver. */
 	public static class ModelCallFailedException extends RuntimeException {
 		public ModelCallFailedException(String message, Throwable cause) {
 			super(message, cause);

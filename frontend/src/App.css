@@ -152,3 +152,22 @@ button {
   color: rgb(200, 80, 80);
   font-size: 0.8rem;
 }
+
+.scores {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0;
+}
+
+.scores li {
+  margin-bottom: 0.5rem;
+}
+
+.rationale {
+  margin: 0.25rem 0 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  background: rgba(127, 127, 127, 0.08);
+  border-radius: 6px;
+}

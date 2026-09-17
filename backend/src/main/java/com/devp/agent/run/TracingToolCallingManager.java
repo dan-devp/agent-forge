@@ -4,13 +4,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import com.devp.agent.config.AgentProperties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
@@ -21,26 +21,26 @@ import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.stereotype.Component;
 
 /**
- * Der Schleifenkoerper des Agenten.
+ * The agent's loop body.
  *
- * <p>In Spring AI 2.0 fuehrt nicht mehr das ChatModel die Tools aus, sondern der
- * {@code ToolCallingAdvisor} im ChatClient — er ruft fuer jede Runde diesen
- * {@link ToolCallingManager}. Genau hier haengt sich der Agent ein: jede Runde wird als
- * Trace-Schritt geschrieben, und hier greift das Zeitbudget.
+ * <p>In Spring AI 2.0 the ChatModel no longer executes tools; the {@code ToolCallingAdvisor}
+ * in the ChatClient does, calling this {@link ToolCallingManager} for every round. This is
+ * where the agent hooks in: every round is written as a trace step, and the budget is
+ * enforced here.
  *
- * <p>Die Run-Id kommt ueber den {@code toolContext} herein, weil der Manager pro
- * Modell existiert, ein Lauf aber pro Anfrage.
+ * <p>The run id arrives through the {@code toolContext}, because the manager exists per
+ * model while a run exists per request.
  */
 @Component
 public class TracingToolCallingManager implements ToolCallingManager {
 
-	/** Schluessel im toolContext, unter dem der laufende Trace steckt. */
+	/** Key in the toolContext holding the id of the run being traced. */
 	public static final String RUN_ID = "agentRunId";
 
-	/** Schluessel im toolContext, ab wann das Zeitbudget ueberschritten ist. */
+	/** Key in the toolContext holding the epoch millis after which the time budget is spent. */
 	public static final String DEADLINE = "agentDeadline";
 
-	/** Schluessel im toolContext fuer ein Aufrufbudget, das von der globalen Vorgabe abweicht. */
+	/** Key in the toolContext for a call budget that deviates from the global default. */
 	public static final String MAX_TOOL_CALLS = "agentMaxToolCalls";
 
 	private static final Logger log = LoggerFactory.getLogger(TracingToolCallingManager.class);
@@ -67,44 +67,44 @@ public class TracingToolCallingManager implements ToolCallingManager {
 	public ToolExecutionResult executeToolCalls(Prompt prompt, ChatResponse response) {
 		UUID runId = runId(prompt);
 		if (runId == null) {
-			// Aufruf ohne Lauf (z. B. /api/chat) — nichts aufzuzeichnen.
+			// Call without a run (e.g. /api/chat) — nothing to record.
 			return delegate.executeToolCalls(prompt, response);
 		}
 
-		AssistantMessage anfrage = response.getResult().getOutput();
+		AssistantMessage request = response.getResult().getOutput();
 
-		// Erst aufzeichnen, dann pruefen: die Runde ist passiert, auch wenn das Budget sie
-		// stoppt. Sonst fehlt im Trace genau der Schritt, der zum Abbruch fuehrte.
-		schreibeModellschritt(runId, response, anfrage);
+		// Record first, check second: the round happened even if the budget stops it.
+		// Otherwise the trace lacks exactly the step that caused the abort.
+		writeModelStep(runId, response, request);
 
-		pruefeZeitbudget(prompt, runId);
-		pruefeAufrufbudget(prompt, runId, anfrage.getToolCalls().size());
+		checkTimeBudget(prompt, runId);
+		checkCallBudget(prompt, runId, request.getToolCalls().size());
 
 		long start = System.currentTimeMillis();
-		ToolExecutionResult ergebnis;
+		ToolExecutionResult result;
 		try {
-			ergebnis = delegate.executeToolCalls(prompt, response);
+			result = delegate.executeToolCalls(prompt, response);
 		}
 		catch (RuntimeException ex) {
-			// Auch ein gescheiterter Tool-Aufruf gehoert in den Trace, sonst fehlt in der
-			// spaeteren Auswertung genau der interessante Fall.
-			anfrage.getToolCalls().forEach(call -> runs.addStep(runId, new RunStep(
+			// A failed tool call belongs in the trace too — otherwise the later evaluation
+			// misses exactly the interesting case.
+			request.getToolCalls().forEach(call -> runs.addStep(runId, new RunStep(
 					runs.nextStepNumber(runId), StepType.TOOL, call.name(), call.arguments(), null, null,
 					System.currentTimeMillis() - start, ex.getMessage(), Instant.now())));
 			throw ex;
 		}
-		long dauer = System.currentTimeMillis() - start;
+		long duration = System.currentTimeMillis() - start;
 
-		schreibeToolschritte(runId, anfrage, ergebnis, dauer);
-		return ergebnis;
+		writeToolSteps(runId, request, result, duration);
+		return result;
 	}
 
-	private void schreibeModellschritt(UUID runId, ChatResponse response, AssistantMessage anfrage) {
+	private void writeModelStep(UUID runId, ChatResponse response, AssistantMessage request) {
 		Integer tokens = response.getMetadata().getUsage() == null
 				? null
 				: response.getMetadata().getUsage().getTotalTokens();
 
-		String angefordert = anfrage.getToolCalls().stream()
+		String requested = request.getToolCalls().stream()
 				.map(call -> call.name() + "(" + call.arguments() + ")")
 				.reduce((a, b) -> a + ", " + b)
 				.orElse("");
@@ -113,8 +113,8 @@ public class TracingToolCallingManager implements ToolCallingManager {
 				runs.nextStepNumber(runId),
 				StepType.MODEL,
 				response.getMetadata().getModel(),
-				anfrage.getText() == null || anfrage.getText().isBlank() ? null : anfrage.getText(),
-				"fordert Tools an: " + angefordert,
+				request.getText() == null || request.getText().isBlank() ? null : request.getText(),
+				"requests tools: " + requested,
 				tokens,
 				null,
 				null,
@@ -122,65 +122,62 @@ public class TracingToolCallingManager implements ToolCallingManager {
 	}
 
 	/**
-	 * Die Ergebnisse stehen am Ende des zurueckgegebenen Verlaufs. Zugeordnet wird ueber
-	 * die Tool-Call-Id, nicht ueber die Reihenfolge — bei parallelen Aufrufen stimmt die
-	 * Reihenfolge nicht zwingend.
+	 * The results sit at the end of the returned history. They are matched by tool call id,
+	 * not by position — with parallel calls the order is not guaranteed.
 	 */
-	private void schreibeToolschritte(UUID runId, AssistantMessage anfrage, ToolExecutionResult ergebnis,
-			long dauer) {
-
-		Map<String, String> antworten = ergebnis.conversationHistory().stream()
+	private void writeToolSteps(UUID runId, AssistantMessage request, ToolExecutionResult result, long duration) {
+		Map<String, String> responses = result.conversationHistory().stream()
 				.filter(ToolResponseMessage.class::isInstance)
 				.map(ToolResponseMessage.class::cast)
-				.flatMap(nachricht -> nachricht.getResponses().stream())
-				.collect(java.util.stream.Collectors.toMap(
+				.flatMap(message -> message.getResponses().stream())
+				.collect(Collectors.toMap(
 						ToolResponseMessage.ToolResponse::id,
-						antwort -> antwort.responseData() == null ? "" : antwort.responseData(),
-						(alt, neu) -> neu));
+						toolResponse -> toolResponse.responseData() == null ? "" : toolResponse.responseData(),
+						(previous, next) -> next));
 
-		for (AssistantMessage.ToolCall call : anfrage.getToolCalls()) {
+		for (AssistantMessage.ToolCall call : request.getToolCalls()) {
 			runs.addStep(runId, new RunStep(
 					runs.nextStepNumber(runId),
 					StepType.TOOL,
 					call.name(),
 					call.arguments(),
-					antworten.get(call.id()),
+					responses.get(call.id()),
 					null,
-					dauer,
+					duration,
 					null,
 					Instant.now()));
-			log.debug("Lauf {}: Tool {} ausgefuehrt", runId, call.name());
+			log.debug("Run {}: tool {} executed", runId, call.name());
 		}
 	}
 
 	/**
-	 * Eigene Zaehlung statt nur der Grenze im {@link ToolCallingManager}: dessen Zaehler
-	 * sieht nur Aufrufe aus <em>frueheren</em> Runden. Fordert das Modell in einer Runde
-	 * zehn Tools parallel an, waeren die alle schon ausgefuehrt, bevor die Grenze greift.
+	 * Own count in addition to the limit inside the {@link ToolCallingManager}: its counter
+	 * only sees calls from <em>earlier</em> rounds. If the model requests ten tools in one
+	 * round, all of them would already have run before the limit applies.
 	 */
-	private void pruefeAufrufbudget(Prompt prompt, UUID runId, int angefordert) {
-		// Eine Aufgabe darf ein eigenes Budget vorgeben; ohne Angabe gilt die Konfiguration.
-		int grenze = toolContext(prompt).get(MAX_TOOL_CALLS) instanceof Integer vorgabe ? vorgabe : maxToolCalls;
+	private void checkCallBudget(Prompt prompt, UUID runId, int requested) {
+		// A task may set its own budget; without one the configuration applies.
+		int limit = toolContext(prompt).get(MAX_TOOL_CALLS) instanceof Integer override ? override : maxToolCalls;
 
-		int bisher = runs.countToolSteps(runId);
-		if (bisher + angefordert > grenze) {
+		int soFar = runs.countToolSteps(runId);
+		if (soFar + requested > limit) {
 			throw new BudgetExceededException(
-					"Lauf %s wuerde mit %d weiteren Aufrufen das Budget von %d Tool-Aufrufen ueberschreiten (bisher %d)."
-							.formatted(runId, angefordert, grenze, bisher));
+					"Run %s would exceed the budget of %d tool calls with %d more calls (so far: %d)."
+							.formatted(runId, limit, requested, soFar));
 		}
 	}
 
-	private void pruefeZeitbudget(Prompt prompt, UUID runId) {
+	private void checkTimeBudget(Prompt prompt, UUID runId) {
 		Object deadline = toolContext(prompt).get(DEADLINE);
-		if (deadline instanceof Long ende && System.currentTimeMillis() > ende) {
+		if (deadline instanceof Long end && System.currentTimeMillis() > end) {
 			throw new BudgetExceededException(
-					"Zeitbudget des Laufs %s aufgebraucht — Lauf abgebrochen.".formatted(runId));
+					"Time budget of run %s is spent — run aborted.".formatted(runId));
 		}
 	}
 
 	private static UUID runId(Prompt prompt) {
-		Object wert = toolContext(prompt).get(RUN_ID);
-		return wert instanceof UUID id ? id : null;
+		Object value = toolContext(prompt).get(RUN_ID);
+		return value instanceof UUID id ? id : null;
 	}
 
 	private static Map<String, Object> toolContext(Prompt prompt) {
@@ -189,12 +186,7 @@ public class TracingToolCallingManager implements ToolCallingManager {
 				: Map.of();
 	}
 
-	/** Nur zum Lesbarhalten der Signaturen oben. */
-	static List<Message> verlauf(ToolExecutionResult ergebnis) {
-		return ergebnis.conversationHistory();
-	}
-
-	/** Der Lauf hat sein Zeitbudget ueberschritten. */
+	/** The run exceeded its call or time budget. */
 	public static class BudgetExceededException extends RuntimeException {
 		public BudgetExceededException(String message) {
 			super(message);

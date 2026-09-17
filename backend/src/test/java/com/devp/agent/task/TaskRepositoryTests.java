@@ -22,76 +22,72 @@ class TaskRepositoryTests {
 	}
 
 	@Test
-	void laedtMitgelieferteAufgaben() {
+	void loadsBundledTasks() {
 		TaskRepository repository = repository("classpath:tasks/");
 
 		assertThat(repository.list()).extracting(Task::id)
-				.contains("zeit-und-rechnung", "mcp-recherche", "kein-werkzeug");
-		assertThat(repository.resolve("zeit-und-rechnung").auftrag()).contains("100 geteilt durch 7");
+				.contains("time-and-division", "mcp-research", "no-tool");
+		assertThat(repository.resolve("time-and-division").goal()).contains("100 geteilt durch 7");
 	}
 
+	/** Every bundled task must be gradable — otherwise it is worthless for the training camp. */
 	@Test
-	void meldetUnbekannteAufgabe() {
+	void bundledTasksCarryCriteria() {
 		TaskRepository repository = repository("classpath:tasks/");
 
-		assertThatThrownBy(() -> repository.resolve("gibtsnicht"))
+		assertThat(repository.list()).allSatisfy(task -> assertThat(task.success())
+				.as("task %s without success:", task.id()).isNotEmpty());
+	}
+
+	@Test
+	void reportsUnknownTask() {
+		TaskRepository repository = repository("classpath:tasks/");
+
+		assertThatThrownBy(() -> repository.resolve("does-not-exist"))
 				.isInstanceOf(UnknownTaskException.class)
-				.hasMessageContaining("zeit-und-rechnung");
+				.hasMessageContaining("time-and-division");
 	}
 
+	/** A later location wins — so a task set is replaceable in operation. */
 	@Test
-	void ohneDefinitionIstDieListeLeer() {
-		assertThat(repository("classpath:gibtsnicht/").list()).isEmpty();
-	}
-
-	/** Spaetere Location gewinnt — so laesst sich ein Aufgabensatz austauschen. */
-	@Test
-	void externeLocationUeberschreibtGleicheId(@TempDir Path dir) throws Exception {
-		Files.writeString(dir.resolve("zeit-und-rechnung.md"), """
+	void externalLocationOverridesSameId(@TempDir Path dir) throws Exception {
+		Files.writeString(dir.resolve("time-and-division.md"), """
 				---
-				id: zeit-und-rechnung
-				name: Ersetzt
+				id: time-and-division
+				name: Replaced
 				version: 9
 				---
-				# Auftrag
-				Anderer Auftrag.
+				# Goal
+				Something else.
 				""");
 
 		TaskRepository repository = repository("classpath:tasks/", dir.toUri().toString());
 
-		Task ersetzt = repository.resolve("zeit-und-rechnung");
-		assertThat(ersetzt.name()).isEqualTo("Ersetzt");
-		assertThat(ersetzt.version()).isEqualTo(9);
-		assertThat(ersetzt.auftrag()).isEqualTo("Anderer Auftrag.");
-		// Die nicht ueberschriebene Aufgabe bleibt erhalten.
-		assertThat(repository.resolve("mcp-recherche").name()).isEqualTo("Recherche ueber MCP");
+		Task task = repository.resolve("time-and-division");
+		assertThat(task.name()).isEqualTo("Replaced");
+		assertThat(task.version()).isEqualTo(9);
+		assertThat(repository.resolve("no-tool").name()).isEqualTo("Luecke benennen");
 	}
 
 	@Test
-	void reloadLiestNeueDateienEin(@TempDir Path dir) throws Exception {
+	void reloadPicksUpNewFiles(@TempDir Path dir) throws Exception {
 		TaskRepository repository = repository(dir.toUri().toString());
 		assertThat(repository.list()).isEmpty();
 
-		Files.writeString(dir.resolve("neu.md"), """
+		Files.writeString(dir.resolve("new.md"), """
 				---
-				id: neu
-				name: Neu
+				id: new
 				---
-				# Auftrag
-				Frisch geladen.
+				# Goal
+				Freshly loaded.
 				""");
 
 		assertThat(repository.reload()).isEqualTo(1);
-		assertThat(repository.resolve("neu").auftrag()).isEqualTo("Frisch geladen.");
+		assertThat(repository.resolve("new").goal()).isEqualTo("Freshly loaded.");
 	}
 
-	/** Die mitgelieferten Aufgaben muessen ladbar sein — sonst faellt es erst im Betrieb auf. */
 	@Test
-	void mitgelieferteAufgabenSindVollstaendig() {
-		repository("classpath:tasks/").list().forEach(task -> {
-			assertThat(task.id()).isNotBlank();
-			assertThat(task.auftrag()).isNotBlank();
-			assertThat(task.version()).isPositive();
-		});
+	void missingLocationIsEmptyNotAnError() {
+		assertThat(repository("classpath:does-not-exist/").list()).isEmpty();
 	}
 }

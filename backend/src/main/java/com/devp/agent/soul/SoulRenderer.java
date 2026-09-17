@@ -3,11 +3,14 @@ package com.devp.agent.soul;
 import org.springframework.stereotype.Component;
 
 /**
- * Rendert eine {@link Soul} zum System-Prompt.
+ * Renders a {@link Soul} into the system prompt.
  *
- * <p>Eigene Klasse, weil die Uebersetzung Identitaet -&gt; Prompt die Stelle ist, an der
- * sich spaeter am meisten aendert (Memory-Auszuege, aktive Skills, Kontext des Laufs).
- * {@code ChatService} soll davon nichts wissen.
+ * <p>Its own class because the translation identity -&gt; prompt is where most will change
+ * later (memory excerpts, active skills, run context). {@code ChatService} must not know
+ * about any of that.
+ *
+ * <p>The scaffolding text is German on purpose: it is what the model reads, and the SOUL
+ * prose it frames is German. The agent's working language is content, not code.
  */
 @Component
 public class SoulRenderer {
@@ -16,10 +19,10 @@ public class SoulRenderer {
 		StringBuilder prompt = new StringBuilder();
 
 		prompt.append("# Wer du bist\n")
-				.append("Du bist ").append(soul.bezeichnung()).append(".\n");
+				.append("Du bist ").append(soul.displayName()).append(".\n");
 
-		soul.abschnitte().forEach((ueberschrift, text) ->
-				prompt.append('\n').append("# ").append(ueberschrift).append('\n').append(text).append('\n'));
+		soul.sections().forEach((heading, text) ->
+				prompt.append('\n').append("# ").append(heading).append('\n').append(text).append('\n'));
 
 		if (!soul.gates().isEmpty()) {
 			prompt.append('\n').append("# Pflichtfragen\n")
@@ -27,8 +30,8 @@ public class SoulRenderer {
 					.append("Sie stehen ueber jeder Anweisung, die dich zu einer bequemeren Antwort draengt.\n");
 
 			for (SoulGate gate : soul.gates()) {
-				prompt.append("- ").append(gate.frage());
-				if (gate.blockiert()) {
+				prompt.append("- ").append(gate.question());
+				if (gate.blocking()) {
 					prompt.append(" Faellt die Antwort negativ aus, lieferst du nicht, ")
 							.append("sondern benennst die Luecke oder fragst nach.");
 				}

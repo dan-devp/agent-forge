@@ -3,15 +3,15 @@ package com.devp.agent.run;
 import java.time.Instant;
 
 /**
- * Ein Schritt im Trace. Append-only: einmal geschrieben, nie geaendert.
+ * One step of the trace. Append-only: written once, never changed.
  *
- * @param nr         fortlaufend ab 1 innerhalb des Laufs
- * @param name       Tool-Name bzw. Modell-Id
- * @param input      Tool-Argumente als JSON bzw. die Anfrage an das Modell
- * @param output     Tool-Ergebnis bzw. Modellantwort
+ * @param seq    sequence number starting at 1 within the run
+ * @param name   tool name or model id
+ * @param input  tool arguments as JSON, or the request to the model
+ * @param output tool result or model answer
  */
 public record RunStep(
-		int nr,
+		int seq,
 		StepType type,
 		String name,
 		String input,

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Erster echter Modellaufruf: ein Turn, kein Verlauf. */
+/** A single model call: one turn, no history. */
 @RestController
 @RequestMapping("/api")
 @Validated
@@ -28,10 +28,10 @@ public class ChatController {
 		return chatService.ask(request.message(), request.provider(), request.soul());
 	}
 
-	/** {@code provider} und {@code soul} sind optional — leer bedeutet Default bzw. aktive SOUL. */
+	/** {@code provider} and {@code soul} are optional — empty means default resp. active SOUL. */
 	public record ChatRequest(
-			@NotBlank(message = "message darf nicht leer sein")
-			@Size(max = 4000, message = "message ist zu lang (max. 4000 Zeichen)")
+			@NotBlank(message = "message must not be blank")
+			@Size(max = 4000, message = "message is too long (max. 4000 characters)")
 			String message,
 
 			String provider,

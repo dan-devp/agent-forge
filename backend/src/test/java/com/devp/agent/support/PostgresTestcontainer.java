@@ -6,8 +6,8 @@ import org.springframework.context.annotation.Bean;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
- * Echte Postgres-Instanz fuer Tests. Die Migration ist postgres-spezifisch — ein
- * anderer Dialekt im Test wuerde genau die Fehler verstecken, die zaehlen.
+ * Real Postgres instance for tests. The migration is Postgres-specific — a different
+ * dialect in tests would hide exactly the errors that matter.
  */
 @TestConfiguration(proxyBeanMethods = false)
 public class PostgresTestcontainer {

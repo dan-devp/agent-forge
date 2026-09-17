@@ -19,10 +19,10 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
 
 /**
- * Laedt alle Aufgaben aus den konfigurierten Locations und haelt sie im Speicher.
+ * Loads all tasks from the configured locations and keeps them in memory.
  *
- * <p>Gleiches Muster wie {@code SoulRepository}: Definitionen sind Dateien, ihre Historie
- * liegt im Git, und {@link #reload()} macht eine geaenderte Aufgabe ohne Neustart wirksam.
+ * <p>Same pattern as {@code SoulRepository}: definitions are files, their history lives in
+ * Git, and {@link #reload()} makes a changed task effective without a restart.
  */
 @Component
 public class TaskRepository {
@@ -40,54 +40,54 @@ public class TaskRepository {
 		reload();
 	}
 
-	/** Liest alle Locations neu ein. Gibt die Anzahl gefundener Aufgaben zurueck. */
+	/** Re-reads all locations. Returns the number of tasks found. */
 	public int reload() {
-		Map<String, Task> geladen = new LinkedHashMap<>();
+		Map<String, Task> loaded = new LinkedHashMap<>();
 
 		for (String location : properties.getLocations()) {
-			String muster = location.endsWith("/") ? location + "*.md" : location + "/*.md";
-			for (Resource resource : suche(muster)) {
-				Task task = lies(resource);
-				Task vorher = geladen.put(task.id(), task);
-				if (vorher != null) {
-					log.info("Aufgabe '{}' aus {} ueberschreibt {}", task.id(), task.quelle(), vorher.quelle());
+			String pattern = location.endsWith("/") ? location + "*.md" : location + "/*.md";
+			for (Resource resource : find(pattern)) {
+				Task task = read(resource);
+				Task previous = loaded.put(task.id(), task);
+				if (previous != null) {
+					log.info("Task '{}' from {} overrides {}", task.id(), task.source(), previous.source());
 				}
 			}
 		}
 
-		// LinkedHashMap statt Map.copyOf: die Ladereihenfolge bestimmt die Anzeige.
-		this.tasks = Collections.unmodifiableMap(geladen);
-		log.info("{} Aufgabe(n) geladen: {}", geladen.size(), geladen.keySet());
-		return geladen.size();
+		// LinkedHashMap instead of Map.copyOf: load order determines display order.
+		this.tasks = Collections.unmodifiableMap(loaded);
+		log.info("{} task(s) loaded: {}", loaded.size(), loaded.keySet());
+		return loaded.size();
 	}
 
-	private Resource[] suche(String muster) {
+	private Resource[] find(String pattern) {
 		try {
-			return resolver.getResources(muster);
+			return resolver.getResources(pattern);
 		}
 		catch (IOException ex) {
-			// Eine nicht existierende externe Location ist kein Fehler, nur leer.
-			log.warn("Aufgaben-Location '{}' nicht lesbar: {}", muster, ex.getMessage());
+			// A missing external location is not an error, just empty.
+			log.warn("Task location '{}' not readable: {}", pattern, ex.getMessage());
 			return new Resource[0];
 		}
 	}
 
-	private Task lies(Resource resource) {
-		String quelle = resource.getFilename() == null ? resource.getDescription() : resource.getFilename();
+	private Task read(Resource resource) {
+		String source = resource.getFilename() == null ? resource.getDescription() : resource.getFilename();
 		try (var in = resource.getInputStream()) {
-			return TaskParser.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8), quelle);
+			return TaskParser.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8), source);
 		}
 		catch (IOException ex) {
-			throw new UncheckedIOException("Aufgabe '%s' nicht lesbar".formatted(quelle), ex);
+			throw new UncheckedIOException("Task '%s' not readable".formatted(source), ex);
 		}
 	}
 
-	/** Aufgabe zur Id. Anders als bei SOULs gibt es keine aktive Vorgabe — sie wird immer benannt. */
+	/** Task by id. Unlike SOULs there is no active default — a task is always named. */
 	public Task resolve(String id) {
 		Task task = tasks.get(id);
 		if (task == null) {
 			throw new UnknownTaskException(
-					"Unbekannte Aufgabe '%s'. Verfuegbar: %s".formatted(id, tasks.keySet()));
+					"Unknown task '%s'. Available: %s".formatted(id, tasks.keySet()));
 		}
 		return task;
 	}
@@ -96,7 +96,7 @@ public class TaskRepository {
 		return List.copyOf(tasks.values());
 	}
 
-	/** Angefragte Aufgaben-Id existiert nicht. */
+	/** The requested task id does not exist. */
 	public static class UnknownTaskException extends RuntimeException {
 		public UnknownTaskException(String message) {
 			super(message);

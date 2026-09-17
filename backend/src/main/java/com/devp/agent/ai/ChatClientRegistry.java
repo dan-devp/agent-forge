@@ -16,11 +16,11 @@ import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Component;
 
 /**
- * Baut je konfiguriertem Endpunkt einen {@link ChatClient}.
+ * Builds one {@link ChatClient} per configured endpoint.
  *
- * <p>Alle Endpunkte sprechen das OpenAI-Protokoll, unterscheiden sich also nur in
- * Basis-URL, Key und Modell-Id. Ein lokaler Server ist damit kein Sonderfall,
- * sondern ein weiterer Eintrag in {@code app.ai.providers}.
+ * <p>All endpoints speak the OpenAI protocol and differ only in base URL, key and model id.
+ * A local server is therefore not a special case but another entry in
+ * {@code app.ai.providers}.
  */
 @Component
 public class ChatClientRegistry {
@@ -37,23 +37,23 @@ public class ChatClientRegistry {
 
 		properties.getProviders().forEach((id, provider) -> {
 			if (!provider.isEnabled()) {
-				log.info("AI-Provider '{}' ist deaktiviert", id);
+				log.info("AI provider '{}' is disabled", id);
 				return;
 			}
 			clients.put(id, build(provider));
-			log.info("AI-Provider '{}' registriert: {} (Modell {}, konfiguriert={})",
+			log.info("AI provider '{}' registered: {} (model {}, configured={})",
 					id, provider.getBaseUrl(), provider.getModel(), provider.isConfigured());
 		});
 
 		if (clients.isEmpty()) {
-			log.warn("Kein AI-Provider konfiguriert — /api/chat wird mit 503 antworten");
+			log.warn("No AI provider configured — /api/chat will answer with 503");
 		}
 	}
 
 	private ChatClient build(AiProperties.Provider provider) {
 		OpenAiChatOptions options = OpenAiChatOptions.builder()
 				.baseUrl(provider.getBaseUrl())
-				// Lokale Server pruefen den Key meist nicht, das SDK verlangt aber einen Wert.
+				// Local servers usually ignore the key, but the SDK insists on a value.
 				.apiKey(provider.getApiKey() == null || provider.getApiKey().isBlank()
 						? "not-set"
 						: provider.getApiKey())
@@ -65,13 +65,12 @@ public class ChatClientRegistry {
 				.options(options)
 				.build();
 
-		// Kein defaultSystem: der System-Prompt kommt pro Aufruf aus der SOUL, damit ein
-		// Reload sofort wirkt und verschiedene SOULs denselben Client nutzen koennen.
+		// No defaultSystem: the system prompt comes from the SOUL per call, so a reload takes
+		// effect immediately and different SOULs can share one client.
 		//
-		// Die Tool-Schleife dreht in Spring AI 2.0 der ToolCallingAdvisor, nicht mehr das
-		// ChatModel. Der ChatClient wuerde sich selbst einen mit Standard-Manager
-		// registrieren; hier wird stattdessen der aufzeichnende Manager eingehaengt —
-		// sonst gaebe es keinen Trace.
+		// In Spring AI 2.0 the tool loop is driven by the ToolCallingAdvisor, not the
+		// ChatModel. The ChatClient would register one with the default manager on its own;
+		// here the tracing manager is plugged in instead — otherwise there would be no trace.
 		return ChatClient.builder(model)
 				.defaultAdvisors(ToolCallingAdvisor.builder()
 						.toolCallingManager(toolCallingManager)
@@ -79,7 +78,7 @@ public class ChatClientRegistry {
 				.build();
 	}
 
-	/** Aufloesung inkl. Fallback auf den Default-Provider. */
+	/** Resolution including fallback to the default provider. */
 	public ResolvedProvider resolve(String requestedId) {
 		String id = (requestedId == null || requestedId.isBlank())
 				? properties.getDefaultProvider()
@@ -90,12 +89,12 @@ public class ChatClientRegistry {
 
 		if (client == null || config == null) {
 			throw new UnknownProviderException(
-					"Unbekannter Provider '%s'. Verfuegbar: %s".formatted(id, clients.keySet()));
+					"Unknown provider '%s'. Available: %s".formatted(id, clients.keySet()));
 		}
 		return new ResolvedProvider(id, config, client);
 	}
 
-	/** Alle registrierten Provider fuer die Anzeige im Frontend. */
+	/** All registered providers for display in the frontend. */
 	public List<ProviderInfo> list() {
 		return clients.keySet().stream()
 				.map(id -> {
@@ -122,7 +121,7 @@ public class ChatClientRegistry {
 			boolean isDefault) {
 	}
 
-	/** Angeforderte Provider-Id existiert nicht. */
+	/** The requested provider id does not exist. */
 	public static class UnknownProviderException extends RuntimeException {
 		public UnknownProviderException(String message) {
 			super(message);

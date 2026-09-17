@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
-# Baut Backend + Frontend neu und startet den Stack.
-# Nutzung: ./run.ps1        (bauen + starten, Logs folgen)
-#          ./run.ps1 -Down  (stoppen)
+# Rebuilds backend + frontend and starts the stack.
+# Usage: ./run.ps1        (build + start, follow logs)
+#        ./run.ps1 -Down  (stop)
 param([switch]$Down)
 
 $ErrorActionPreference = "Stop"

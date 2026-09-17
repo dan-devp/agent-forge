@@ -3,25 +3,25 @@ package com.devp.agent.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Budget eines Laufs.
+ * Budget of a run.
  *
- * <p>Ein Agent mit Tools kann im Kreis laufen. Die Grenzen sind deshalb Pflicht, nicht
- * Komfort — und sie sind konfigurierbar, weil sie spaeter Teil der Multi-Constraint-
- * Bewertung (Latenz/Kosten/Qualitaet) werden.
+ * <p>An agent with tools can loop forever. The limits are therefore mandatory, not a
+ * convenience — and configurable because they later become part of the multi-constraint
+ * evaluation (latency/cost/quality).
  */
 @ConfigurationProperties(prefix = "app.agent")
 public class AgentProperties {
 
-	/** Obergrenze fuer Tool-Aufrufe im gesamten Lauf. */
+	/** Upper bound for tool calls in the whole run. */
 	private int maxToolCalls = 20;
 
-	/** Obergrenze je einzelnem Tool — faengt die haeufigste Schleife ab: dasselbe Tool immer wieder. */
+	/** Upper bound per single tool — catches the most common loop: the same tool over and over. */
 	private int maxCallsPerTool = 8;
 
-	/** Wanduhr-Budget. Greift auch dann, wenn ein einzelnes Tool lange haengt. */
+	/** Wall-clock budget. Also applies when a single tool hangs for a long time. */
 	private long maxDurationMs = 180_000;
 
-	/** Wie viele Laeufe die Uebersicht hoechstens liefert. */
+	/** How many runs the history lists at most. */
 	private int historyLimit = 50;
 
 	public int getMaxToolCalls() {

@@ -4,29 +4,29 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Identitaet eines KI-Mitarbeiters — eigenstaendig und versioniert, bewusst getrennt
- * vom Task-Prompt.
+ * Identity of an AI co-worker — self-contained and versioned, deliberately separated from
+ * the task prompt.
  *
- * <p>Eine SOUL ist mehr als Prompt-Prosa: die {@link SoulGate Gates} operationalisieren
- * die Persoenlichkeit als Pflichtfragen, die vor jeder Antwort zu beantworten sind. Prosa
- * beschreibt Haltung, Gates erzwingen sie.
+ * <p>A SOUL is more than prompt prose: the {@link SoulGate gates} operationalize the
+ * personality as mandatory questions answered before every reply. Prose describes the
+ * stance, gates enforce it.
  *
- * @param abschnitte Ueberschrift -&gt; Text, in Dateireihenfolge. Bewusst nicht typisiert:
- *                   welche Abschnitte eine SOUL fuehrt, entscheidet die SOUL.
- * @param quelle     Herkunft der Definition, fuer Provenienz in Antworten und Logs.
+ * @param sections heading -&gt; text, in file order. Deliberately untyped: which sections a
+ *                 SOUL carries is up to the SOUL.
+ * @param source   origin of the definition, for provenance in answers and logs.
  */
 public record Soul(
 		String id,
 		String name,
-		String rolle,
+		String role,
 		int version,
-		String beschreibung,
+		String description,
 		List<SoulGate> gates,
-		Map<String, String> abschnitte,
-		String quelle) {
+		Map<String, String> sections,
+		String source) {
 
-	/** Anzeigename mit Rolle, z. B. fuer Logs und das Frontend. */
-	public String bezeichnung() {
-		return rolle == null || rolle.isBlank() ? name : "%s (%s)".formatted(name, rolle);
+	/** Display name with role, e.g. for logs and the frontend. */
+	public String displayName() {
+		return role == null || role.isBlank() ? name : "%s (%s)".formatted(name, role);
 	}
 }

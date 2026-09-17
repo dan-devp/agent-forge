@@ -1,8 +1,10 @@
 package com.devp.agent.run;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,6 +13,7 @@ import com.devp.agent.ai.ChatClientRegistry.ResolvedProvider;
 import com.devp.agent.ai.ChatService.AiNotConfiguredException;
 import com.devp.agent.ai.ChatService.ModelCallFailedException;
 import com.devp.agent.config.AgentProperties;
+import com.devp.agent.eval.EvaluationService;
 import com.devp.agent.run.TracingToolCallingManager.BudgetExceededException;
 import com.devp.agent.soul.Soul;
 import com.devp.agent.soul.SoulRenderer;
@@ -26,13 +29,12 @@ import org.springframework.ai.model.tool.ToolCallLimitExceededException;
 import org.springframework.stereotype.Service;
 
 /**
- * Fuehrt einen Lauf aus: Auftrag rein, Schleife aus Modellrunden und Tool-Aufrufen,
- * Antwort raus — und ein vollstaendiger Trace in der Datenbank.
+ * Executes a run: goal in, a loop of model rounds and tool calls, answer out — and a
+ * complete trace in the database.
  *
- * <p>Die Schleife dreht Spring AIs {@code ToolCallingAdvisor}: solange das Modell Tools
- * anfordert, laesst er sie ueber den {@link TracingToolCallingManager} ausfuehren und geht
- * in die naechste Runde. Dieser Dienst setzt den Rahmen — Identitaet, Werkzeuge, Budget,
- * Aufzeichnung.
+ * <p>The loop is driven by Spring AI's {@code ToolCallingAdvisor}: as long as the model
+ * requests tools, it has them executed through the {@link TracingToolCallingManager} and
+ * starts the next round. This service sets the frame — identity, tools, budget, recording.
  */
 @Service
 public class AgentService {
@@ -45,41 +47,44 @@ public class AgentService {
 	private final SoulRenderer renderer;
 	private final ToolRegistry tools;
 	private final RunRepository runs;
+	private final EvaluationService evaluation;
 	private final AgentProperties properties;
 
 	public AgentService(ChatClientRegistry providers, SoulRepository souls, TaskRepository tasks,
-			SoulRenderer renderer, ToolRegistry tools, RunRepository runs, AgentProperties properties) {
+			SoulRenderer renderer, ToolRegistry tools, RunRepository runs, EvaluationService evaluation,
+			AgentProperties properties) {
 		this.providers = providers;
 		this.souls = souls;
 		this.tasks = tasks;
 		this.renderer = renderer;
 		this.tools = tools;
 		this.runs = runs;
+		this.evaluation = evaluation;
 		this.properties = properties;
 	}
 
 	/**
-	 * Startet einen Lauf und wartet auf sein Ende.
+	 * Starts a run and waits for it to finish.
 	 *
-	 * <p>Entweder {@code taskId} oder {@code goal} — eine benannte Aufgabe ist der Weg,
-	 * der sich spaeter auswerten laesst, ein freier Auftrag der Weg zum Ausprobieren.
-	 * Angaben am Aufruf haben Vorrang vor den Vorgaben der Aufgabe.
+	 * <p>Either {@code taskId} or {@code goal} — a named task is the path that can be
+	 * evaluated later, a free-form goal the path for trying things out. Values given on the
+	 * call take precedence over the task's defaults.
 	 *
-	 * @param goal       freier Auftrag, {@code null} wenn eine Aufgabe genannt ist
-	 * @param taskId     Aufgaben-Id oder {@code null}
-	 * @param providerId Provider-Id oder {@code null} fuer Aufgaben-Vorgabe bzw. Default
-	 * @param soulId     SOUL-Id oder {@code null} fuer Aufgaben-Vorgabe bzw. aktive SOUL
+	 * @param goal       free-form goal, {@code null} when a task is named
+	 * @param taskId     task id or {@code null}
+	 * @param providerId provider id, or {@code null} for the task default resp. the global default
+	 * @param soulId     SOUL id, or {@code null} for the task default resp. the active SOUL
 	 */
 	public AgentRun run(String goal, String taskId, String providerId, String soulId) {
 		Task task = (taskId == null || taskId.isBlank()) ? null : tasks.resolve(taskId);
 
 		if (task == null && (goal == null || goal.isBlank())) {
-			throw new IllegalArgumentException("Es braucht entweder 'task' oder 'goal'.");
+			throw new IllegalArgumentException("Either 'task' or 'goal' is required.");
 		}
 		if (task != null) {
-			goal = task.auftrag();
-			soulId = leerDann(soulId, task.soul());
-			providerId = leerDann(providerId, task.provider());
+			goal = task.goal();
+			soulId = orDefault(soulId, task.soul());
+			providerId = orDefault(providerId, task.provider());
 		}
 
 		ResolvedProvider provider = providers.resolve(providerId);
@@ -87,118 +92,119 @@ public class AgentService {
 
 		if (!provider.config().isConfigured()) {
 			throw new AiNotConfiguredException(
-					"Provider '%s' ist nicht vollstaendig konfiguriert (Basis-URL, Modell und ggf. API-Key pruefen)."
+					"Provider '%s' is not fully configured (check base URL, model and API key)."
 							.formatted(provider.id()));
 		}
 
 		UUID id = UUID.randomUUID();
 		Instant start = Instant.now();
-		long zeitbudget = task != null && task.maxDurationMs() != null
+		long timeBudget = task != null && task.maxDurationMs() != null
 				? task.maxDurationMs()
 				: properties.getMaxDurationMs();
-		long deadline = System.currentTimeMillis() + zeitbudget;
+		long deadline = System.currentTimeMillis() + timeBudget;
 
-		AgentRun gestartet = new AgentRun(id, goal, task == null ? null : task.id(),
+		AgentRun started = new AgentRun(id, goal, task == null ? null : task.id(),
 				task == null ? null : task.version(), soul.id(), soul.version(), provider.id(),
 				provider.config().getModel(), RunStatus.RUNNING, null, null, 0, null, null, start, null, List.of());
-		runs.start(gestartet);
-		log.info("Lauf {} gestartet: Aufgabe {}, SOUL {} v{}, Provider {}, {} Tool(s)",
-				id, task == null ? "(frei)" : task.id() + " v" + task.version(), soul.id(), soul.version(),
+		runs.start(started);
+		log.info("Run {} started: task {}, SOUL {} v{}, provider {}, {} tool(s)",
+				id, task == null ? "(free-form)" : task.id() + " v" + task.version(), soul.id(), soul.version(),
 				provider.id(), tools.callbacks().size());
 
 		try {
-			ChatResponse antwort = provider.client().prompt()
+			ChatResponse response = provider.client().prompt()
 					.system(renderer.render(soul))
 					.user(goal)
 					.tools(tools.callbacks())
-					.toolContext(kontext(id, deadline, task))
+					.toolContext(toolContext(id, deadline, task))
 					.call()
 					.chatResponse();
 
-			return abschliessen(gestartet, antwort, start);
+			return complete(started, response, start, task);
 		}
 		catch (ToolCallLimitExceededException | BudgetExceededException ex) {
-			// Budget ist ein Ergebnis, kein Fehler: der Trace bis hierher bleibt verwertbar.
-			log.info("Lauf {} wegen Budget beendet: {}", id, ex.getMessage());
-			return beenden(gestartet, RunStatus.BUDGET_EXCEEDED, null, ex.getMessage(), start, null);
+			// Budget is a result, not an error: the trace up to here stays usable.
+			log.info("Run {} ended by budget: {}", id, ex.getMessage());
+			return finish(started, RunStatus.BUDGET_EXCEEDED, null, ex.getMessage(), start, null, null, task);
 		}
 		catch (RuntimeException ex) {
-			log.warn("Lauf {} fehlgeschlagen: {}", id, ex.getMessage());
-			beenden(gestartet, RunStatus.FAILED, null,
-					"%s: %s".formatted(ex.getClass().getSimpleName(), ex.getMessage()), start, null);
+			log.warn("Run {} failed: {}", id, ex.getMessage());
+			finish(started, RunStatus.FAILED, null,
+					"%s: %s".formatted(ex.getClass().getSimpleName(), ex.getMessage()), start, null, null, task);
 			if (ex instanceof AiNotConfiguredException || ex instanceof ModelCallFailedException) {
 				throw ex;
 			}
 			throw new ModelCallFailedException(
-					"Lauf %s gegen Provider '%s' (%s) fehlgeschlagen: %s"
+					"Run %s against provider '%s' (%s) failed: %s"
 							.formatted(id, provider.id(), provider.config().getBaseUrl(), ex.getMessage()),
 					ex);
 		}
 		finally {
-			log.debug("Lauf {} beendet", id);
+			log.debug("Run {} finished", id);
 		}
 	}
 
-	/** Was der Schleifenkoerper ueber diesen Lauf wissen muss. */
-	private static Map<String, Object> kontext(UUID id, long deadline, Task task) {
-		Map<String, Object> kontext = new java.util.LinkedHashMap<>();
-		kontext.put(TracingToolCallingManager.RUN_ID, id);
-		kontext.put(TracingToolCallingManager.DEADLINE, deadline);
+	/** What the loop body needs to know about this run. */
+	private static Map<String, Object> toolContext(UUID id, long deadline, Task task) {
+		Map<String, Object> context = new LinkedHashMap<>();
+		context.put(TracingToolCallingManager.RUN_ID, id);
+		context.put(TracingToolCallingManager.DEADLINE, deadline);
 		if (task != null && task.maxToolCalls() != null) {
-			kontext.put(TracingToolCallingManager.MAX_TOOL_CALLS, task.maxToolCalls());
+			context.put(TracingToolCallingManager.MAX_TOOL_CALLS, task.maxToolCalls());
 		}
-		return kontext;
+		return context;
 	}
 
-	private static String leerDann(String wert, String ersatz) {
-		return wert == null || wert.isBlank() ? ersatz : wert;
+	private static String orDefault(String value, String fallback) {
+		return value == null || value.isBlank() ? fallback : value;
 	}
 
-	private AgentRun abschliessen(AgentRun gestartet, ChatResponse antwort, Instant start) {
-		if (antwort == null || antwort.getResult() == null) {
-			return beenden(gestartet, RunStatus.FAILED, null, "Provider lieferte eine leere Antwort.", start, null);
+	private AgentRun complete(AgentRun started, ChatResponse response, Instant start, Task task) {
+		if (response == null || response.getResult() == null) {
+			return finish(started, RunStatus.FAILED, null, "Provider returned an empty response.", start, null,
+					null, task);
 		}
 
-		Integer tokens = antwort.getMetadata().getUsage() == null
+		Integer tokens = response.getMetadata().getUsage() == null
 				? null
-				: antwort.getMetadata().getUsage().getTotalTokens();
-		String text = antwort.getResult().getOutput().getText();
+				: response.getMetadata().getUsage().getTotalTokens();
+		String text = response.getResult().getOutput().getText();
 
-		// Abschlussrunde: die einzige Modellrunde, die keine Tools mehr anfordert und
-		// deshalb nicht durch den ToolCallingManager laeuft.
-		runs.addStep(gestartet.id(), new RunStep(
-				runs.nextStepNumber(gestartet.id()), StepType.MODEL, antwort.getMetadata().getModel(),
+		// Final round: the only model round that requests no tools and therefore does not
+		// pass through the ToolCallingManager.
+		runs.addStep(started.id(), new RunStep(
+				runs.nextStepNumber(started.id()), StepType.MODEL, response.getMetadata().getModel(),
 				null, text, tokens, null, null, Instant.now()));
 
-		String modell = antwort.getMetadata().getModel();
-		return beenden(gestartet, RunStatus.DONE, text, null, start,
-				modell == null || modell.isBlank() ? gestartet.model() : modell, tokens);
+		String model = response.getMetadata().getModel();
+		return finish(started, RunStatus.DONE, text, null, start,
+				model == null || model.isBlank() ? started.model() : model, tokens, task);
 	}
 
-	private AgentRun beenden(AgentRun gestartet, RunStatus status, String answer, String error, Instant start,
-			String modell) {
-		return beenden(gestartet, status, answer, error, start, modell, null);
-	}
+	/**
+	 * Writes the final state and then lets the graders run. Every final state is graded,
+	 * including budget and failure — a run without an answer fails its criteria, and exactly
+	 * that belongs in the statistics instead of being a gap.
+	 */
+	private AgentRun finish(AgentRun started, RunStatus status, String answer, String error, Instant start,
+			String model, Integer tokens, Task task) {
 
-	private AgentRun beenden(AgentRun gestartet, RunStatus status, String answer, String error, Instant start,
-			String modell, Integer tokens) {
-
-		List<RunStep> trace = runs.trace(gestartet.id());
-		Instant ende = Instant.now();
-		Integer summe = tokens != null ? tokens : trace.stream()
+		List<RunStep> trace = runs.trace(started.id());
+		Instant end = Instant.now();
+		Integer total = tokens != null ? tokens : trace.stream()
 				.map(RunStep::tokens)
-				.filter(java.util.Objects::nonNull)
+				.filter(Objects::nonNull)
 				.reduce(Integer::sum)
 				.orElse(null);
 
-		AgentRun fertig = new AgentRun(
-				gestartet.id(), gestartet.goal(), gestartet.taskId(), gestartet.taskVersion(), gestartet.soulId(),
-				gestartet.soulVersion(), gestartet.providerId(), modell == null ? gestartet.model() : modell,
-				status, answer, error, trace.size(), summe, ende.toEpochMilli() - start.toEpochMilli(), start,
-				ende, trace);
+		AgentRun finished = new AgentRun(
+				started.id(), started.goal(), started.taskId(), started.taskVersion(), started.soulId(),
+				started.soulVersion(), started.providerId(), model == null ? started.model() : model,
+				status, answer, error, trace.size(), total, end.toEpochMilli() - start.toEpochMilli(), start,
+				end, trace);
 
-		runs.finish(fertig);
-		return fertig;
+		runs.finish(finished);
+		return finished.withScores(evaluation.evaluate(finished, task));
 	}
 
 	public Optional<AgentRun> find(UUID id) {

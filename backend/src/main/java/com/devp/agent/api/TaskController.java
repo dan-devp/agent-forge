@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Aufgaben.
+ * Tasks.
  *
- * <p>Lesend plus Reload — bearbeitet wird in den Dateien, damit die Historie im Git bleibt.
- * Dieselbe Entscheidung wie bei den SOULs.
+ * <p>Read plus reload — editing happens in the files so the history stays in Git. The same
+ * decision as for SOULs.
  */
 @RestController
 @RequestMapping("/api/tasks")
@@ -29,10 +29,10 @@ public class TaskController {
 
 	@GetMapping
 	public List<TaskSummary> list() {
-		return tasks.list().stream().map(TaskSummary::von).toList();
+		return tasks.list().stream().map(TaskSummary::of).toList();
 	}
 
-	/** Inklusive Auftragstext und weiteren Abschnitten der Datei. */
+	/** Including the goal text and the further sections of the file. */
 	@GetMapping("/{id}")
 	public Task detail(@PathVariable String id) {
 		return tasks.resolve(id);
@@ -44,13 +44,13 @@ public class TaskController {
 		return list();
 	}
 
-	/** Uebersicht ohne den vollen Text. */
-	public record TaskSummary(String id, String name, int version, String beschreibung, int schwierigkeit,
+	/** Overview without the full text. */
+	public record TaskSummary(String id, String name, int version, String description, int difficulty,
 			List<String> tags, String soul, String provider) {
 
-		static TaskSummary von(Task task) {
-			return new TaskSummary(task.id(), task.name(), task.version(), task.beschreibung(),
-					task.schwierigkeit(), task.tags(), task.soul(), task.provider());
+		static TaskSummary of(Task task) {
+			return new TaskSummary(task.id(), task.name(), task.version(), task.description(),
+					task.difficulty(), task.tags(), task.soul(), task.provider());
 		}
 	}
 }

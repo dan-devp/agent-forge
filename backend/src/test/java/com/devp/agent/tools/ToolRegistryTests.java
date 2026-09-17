@@ -18,28 +18,28 @@ class ToolRegistryTests {
 	}
 
 	@Test
-	void bietetEingebauteToolsAn() {
+	void offersBuiltinTools() {
 		ToolRegistry registry = registry(new ToolProperties());
 
 		assertThat(registry.list()).extracting(ToolRegistry.ToolInfo::name)
-				.contains("aktuelleZeit", "teilen");
+				.contains("currentTime", "divide");
 		assertThat(registry.list()).allMatch(t -> t.source().equals("builtin"));
 	}
 
 	@Test
-	void laesstEingebauteToolsAbschalten() {
+	void allowsDisablingBuiltinTools() {
 		ToolProperties properties = new ToolProperties();
 		properties.setBuiltinEnabled(false);
 
 		assertThat(registry(properties).callbacks()).isEmpty();
 	}
 
-	/** Ein deaktivierter Server wird gefuehrt, aber nicht verbunden. */
+	/** A disabled server is listed but not connected. */
 	@Test
-	void fuehrtDeaktivierteServer() {
+	void listsDisabledServers() {
 		ToolProperties properties = new ToolProperties();
 		McpServer server = new McpServer();
-		server.setLabel("Dateien");
+		server.setLabel("Files");
 		server.setTransport(Transport.STDIO);
 		server.setCommand("npx");
 		server.setEnabled(false);
@@ -47,14 +47,14 @@ class ToolRegistryTests {
 
 		ToolRegistry.ServerInfo info = registry(properties).servers().getFirst();
 		assertThat(info.id()).isEqualTo("files");
-		assertThat(info.label()).isEqualTo("Dateien");
+		assertThat(info.label()).isEqualTo("Files");
 		assertThat(info.enabled()).isFalse();
 		assertThat(info.connected()).isFalse();
 	}
 
-	/** Unvollstaendige Konfiguration wird gemeldet, nicht verbunden — und bricht nichts ab. */
+	/** Incomplete configuration is reported, not connected — and breaks nothing. */
 	@Test
-	void meldetUnvollstaendigeKonfiguration() {
+	void reportsIncompleteConfiguration() {
 		ToolProperties properties = new ToolProperties();
 		McpServer server = new McpServer();
 		server.setTransport(Transport.SSE);
@@ -62,51 +62,51 @@ class ToolRegistryTests {
 
 		ToolRegistry.ServerInfo info = registry(properties).servers().getFirst();
 		assertThat(info.connected()).isFalse();
-		assertThat(info.error()).contains("nicht vollstaendig konfiguriert");
+		assertThat(info.error()).contains("not fully configured");
 	}
 
 	/**
-	 * Ein nicht erreichbarer Server darf den Start nicht verhindern: die eingebauten
-	 * Tools bleiben nutzbar, der Fehler bleibt sichtbar.
+	 * An unreachable server must not prevent startup: the built-in tools stay usable, the
+	 * error stays visible.
 	 */
 	@Test
-	void ueberlebtNichtErreichbarenServer() {
+	void survivesUnreachableServer() {
 		ToolProperties properties = new ToolProperties();
 		McpServer server = new McpServer();
 		server.setTransport(Transport.SSE);
-		server.setUrl("http://localhost:1/nichts");
+		server.setUrl("http://localhost:1/nothing");
 		server.setTimeoutMs(1500);
-		properties.setMcp(Map.of("tot", server));
+		properties.setMcp(Map.of("dead", server));
 
 		ToolRegistry registry = registry(properties);
 
 		assertThat(registry.servers()).hasSize(1);
 		assertThat(registry.servers().getFirst().connected()).isFalse();
 		assertThat(registry.servers().getFirst().error()).isNotBlank();
-		assertThat(registry.list()).extracting(ToolRegistry.ToolInfo::name).contains("aktuelleZeit");
+		assertThat(registry.list()).extracting(ToolRegistry.ToolInfo::name).contains("currentTime");
 	}
 
 	@Test
-	void reloadLiefertDieAnzahlDerTools() {
+	void reloadReturnsTheNumberOfTools() {
 		ToolRegistry registry = registry(new ToolProperties());
 
 		assertThat(registry.reload()).isEqualTo(registry.callbacks().size());
 	}
 
 	@Test
-	void teilenMeldetDivisionDurchNull() {
-		assertThat(new BuiltinTools().teilen(10, 0)).contains("Division durch 0");
-		assertThat(new BuiltinTools().teilen(100, 7)).isEqualTo("100 geteilt durch 7 ergibt 14 Rest 2");
+	void divideReportsDivisionByZero() {
+		assertThat(new BuiltinTools().divide(10, 0)).contains("Division durch 0");
+		assertThat(new BuiltinTools().divide(100, 7)).isEqualTo("100 geteilt durch 7 ergibt 14 Rest 2");
 	}
 
 	@Test
-	void aktuelleZeitAkzeptiertZeitzonen() {
-		assertThat(new BuiltinTools().aktuelleZeit("UTC")).isNotBlank();
-		assertThat(new BuiltinTools().aktuelleZeit(null)).isNotBlank();
+	void currentTimeAcceptsTimeZones() {
+		assertThat(new BuiltinTools().currentTime("UTC")).isNotBlank();
+		assertThat(new BuiltinTools().currentTime(null)).isNotBlank();
 	}
 
 	@Test
-	void ohneServerIstDieListeLeer() {
+	void serverListIsEmptyWithoutServers() {
 		assertThat(registry(new ToolProperties()).servers()).isEqualTo(List.of());
 	}
 }

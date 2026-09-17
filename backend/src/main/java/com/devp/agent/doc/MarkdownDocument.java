@@ -1,98 +1,100 @@
 package com.devp.agent.doc;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Eine geparste Markdown-Datei mit YAML-Frontmatter.
+ * A parsed Markdown file with YAML front matter.
  *
- * <p>Gemeinsames Format aller autorierten Entitaeten des Frameworks — SOUL, Aufgabe und
- * spaeter Skill. Bewusst nah an agentskills.io: maschinenlesbare Metadaten oben, Prosa im
- * Body. Die Historie liegt damit im Git statt in einer Tabelle.
+ * <p>Shared format of all authored entities of the framework — SOUL, task and later skill.
+ * Deliberately close to agentskills.io: machine-readable metadata on top, prose in the body.
+ * The history thus lives in Git instead of a table.
  *
- * @param kopf       Frontmatter, Reihenfolge wie in der Datei
- * @param abschnitte {@code # Ueberschrift} -&gt; Text, Reihenfolge wie in der Datei
- * @param quelle     Herkunft der Definition, fuer Provenienz in Logs und Fehlern
+ * @param frontMatter front matter, in file order
+ * @param sections    {@code # Heading} -&gt; text, in file order
+ * @param source      origin of the definition, for provenance in logs and errors
  */
-public record MarkdownDocument(String id, Map<String, Object> kopf, Map<String, String> abschnitte, String quelle) {
+public record MarkdownDocument(String id, Map<String, Object> frontMatter, Map<String, String> sections,
+		String source) {
 
-	/** Frontmatter-Wert als Text, {@code null} wenn nicht gesetzt oder leer. */
-	public String text(String schluessel) {
-		Object wert = kopf.get(schluessel);
-		if (wert == null) {
+	/** Front matter value as text, {@code null} if absent or blank. */
+	public String text(String key) {
+		Object value = frontMatter.get(key);
+		if (value == null) {
 			return null;
 		}
-		String text = String.valueOf(wert).strip();
+		String text = String.valueOf(value).strip();
 		return text.isEmpty() ? null : text;
 	}
 
-	public String text(String schluessel, String ersatz) {
-		String wert = text(schluessel);
-		return wert == null ? ersatz : wert;
+	public String text(String key, String fallback) {
+		String value = text(key);
+		return value == null ? fallback : value;
 	}
 
-	/** Ganzzahl aus dem Frontmatter, {@code null} wenn nicht gesetzt. */
-	public Integer ganzzahl(String schluessel) {
-		Object wert = kopf.get(schluessel);
-		if (wert == null) {
+	/** Integer from the front matter, {@code null} if absent. */
+	public Integer integer(String key) {
+		Object value = frontMatter.get(key);
+		if (value == null) {
 			return null;
 		}
-		if (wert instanceof Number zahl) {
-			return zahl.intValue();
+		if (value instanceof Number number) {
+			return number.intValue();
 		}
 		try {
-			return Integer.parseInt(String.valueOf(wert).trim());
+			return Integer.parseInt(String.valueOf(value).trim());
 		}
 		catch (NumberFormatException ex) {
-			throw new MarkdownParser.MarkdownParseException(quelle, schluessel + " muss eine Zahl sein, war: " + wert);
+			throw new MarkdownParser.MarkdownParseException(source, key + " must be a number, was: " + value);
 		}
 	}
 
-	public int ganzzahl(String schluessel, int ersatz) {
-		Integer wert = ganzzahl(schluessel);
-		return wert == null ? ersatz : wert;
+	public int integer(String key, int fallback) {
+		Integer value = integer(key);
+		return value == null ? fallback : value;
 	}
 
-	public Long ganzzahlLang(String schluessel) {
-		Integer wert = ganzzahl(schluessel);
-		return wert == null ? null : wert.longValue();
+	public Long longValue(String key) {
+		Integer value = integer(key);
+		return value == null ? null : value.longValue();
 	}
 
-	/** Liste von Texten aus dem Frontmatter; ein einzelner Wert gilt als einelementige Liste. */
-	public List<String> texte(String schluessel) {
-		Object wert = kopf.get(schluessel);
-		if (wert == null) {
+	/** List of strings from the front matter; a single value counts as a one-element list. */
+	public List<String> strings(String key) {
+		Object value = frontMatter.get(key);
+		if (value == null) {
 			return List.of();
 		}
-		if (wert instanceof List<?> liste) {
-			return liste.stream().map(e -> String.valueOf(e).strip()).filter(e -> !e.isEmpty()).toList();
+		if (value instanceof List<?> list) {
+			return list.stream().map(e -> String.valueOf(e).strip()).filter(e -> !e.isEmpty()).toList();
 		}
-		String einzeln = String.valueOf(wert).strip();
-		return einzeln.isEmpty() ? List.of() : List.of(einzeln);
+		String single = String.valueOf(value).strip();
+		return single.isEmpty() ? List.of() : List.of(single);
 	}
 
-	/** Liste von Objekten aus dem Frontmatter, z. B. die Gates einer SOUL. */
-	public List<Map<?, ?>> objekte(String schluessel) {
-		Object wert = kopf.get(schluessel);
-		if (wert == null) {
+	/** List of objects from the front matter, e.g. the gates of a SOUL. */
+	public List<Map<?, ?>> objects(String key) {
+		Object value = frontMatter.get(key);
+		if (value == null) {
 			return List.of();
 		}
-		if (!(wert instanceof List<?> liste)) {
-			throw new MarkdownParser.MarkdownParseException(quelle, schluessel + " muss eine Liste sein");
+		if (!(value instanceof List<?> list)) {
+			throw new MarkdownParser.MarkdownParseException(source, key + " must be a list");
 		}
-		List<Map<?, ?>> objekte = new java.util.ArrayList<>();
-		for (Object eintrag : liste) {
-			if (!(eintrag instanceof Map<?, ?> karte)) {
-				throw new MarkdownParser.MarkdownParseException(quelle,
-						"jeder Eintrag unter '%s' muss ein Objekt sein — gefunden: %s".formatted(schluessel, eintrag));
+		List<Map<?, ?>> objects = new ArrayList<>();
+		for (Object entry : list) {
+			if (!(entry instanceof Map<?, ?> map)) {
+				throw new MarkdownParser.MarkdownParseException(source,
+						"every entry under '%s' must be an object — found: %s".formatted(key, entry));
 			}
-			objekte.add(karte);
+			objects.add(map);
 		}
-		return List.copyOf(objekte);
+		return List.copyOf(objects);
 	}
 
-	/** Abschnitt aus dem Body, {@code null} wenn nicht vorhanden. */
-	public String abschnitt(String ueberschrift) {
-		return abschnitte.get(ueberschrift);
+	/** Body section by heading, {@code null} if absent. */
+	public String section(String heading) {
+		return sections.get(heading);
 	}
 }

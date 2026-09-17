@@ -1,7 +1,7 @@
 services:
   postgres:
-    # pgvector-Variante statt reinem postgres: Schritt 3 (Skill-Retrieval ueber
-    # Embeddings) braucht die Extension, und ein Basiswechsel spaeter ist teurer.
+    # pgvector variant instead of plain postgres: step 3 (skill retrieval via
+    # embeddings) needs the extension, and switching the base image later is costlier.
     image: pgvector/pgvector:pg18
     container_name: agent-postgres
     environment:
@@ -9,12 +9,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-agent}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent}
     ports:
-      # 5433 als Default, weil auf Entwicklerrechnern haeufig schon ein Postgres
-      # auf 5432 laeuft. Der Backend-Container spricht ohnehin postgres:5432.
+      # 5433 as default because developer machines often already run a Postgres
+      # on 5432. The backend container talks to postgres:5432 anyway.
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
-      # Postgres 18 erwartet den Mount auf /var/lib/postgresql, nicht auf dem
-      # data-Unterverzeichnis — sonst bricht der Start mit "unused mount/volume" ab.
+      # Postgres 18 expects the mount at /var/lib/postgresql, not at the data
+      # subdirectory — otherwise startup aborts with "unused mount/volume".
       - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent} -d ${POSTGRES_DB:-agent}"]
@@ -33,37 +33,37 @@ services:
     environment:
       AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-openai}
 
-      # --- Cloud (OpenAI oder jedes OpenAI-kompatible Gateway) ---
+      # --- Cloud (OpenAI or any OpenAI-compatible gateway) ---
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-not-set}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
 
-      # --- Lokal (LM Studio, Ollama, vLLM, llama.cpp, LiteLLM) ---
-      # Laeuft der Server auf dem Host, muss hier host.docker.internal stehen.
+      # --- Local (LM Studio, Ollama, vLLM, llama.cpp, LiteLLM) ---
+      # If the server runs on the host, host.docker.internal must be used here.
       LOCAL_AI_BASE_URL: ${LOCAL_AI_BASE_URL:-http://host.docker.internal:1234/v1}
       LOCAL_AI_API_KEY: ${LOCAL_AI_API_KEY:-not-needed}
       LOCAL_AI_MODEL: ${LOCAL_AI_MODEL:-local-model}
       LOCAL_AI_ENABLED: ${LOCAL_AI_ENABLED:-true}
 
       # --- SOUL ---
-      # Fuer eigene SOULs ohne Rebuild: ./souls hier mounten (siehe volumes unten)
-      # und SOUL_LOCATIONS=classpath:souls/,file:/souls/ setzen.
+      # For own SOULs without a rebuild: mount ./souls here (see volumes below)
+      # and set SOUL_LOCATIONS=classpath:souls/,file:/souls/.
       SOUL_LOCATIONS: ${SOUL_LOCATIONS:-classpath:souls/}
       SOUL_ACTIVE: ${SOUL_ACTIVE:-forge}
 
-      # --- Datenbank (Runs + Traces) ---
+      # --- Database (runs, traces, scores) ---
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-agent}
       DB_USER: ${POSTGRES_USER:-agent}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-agent}
 
-      # --- Agent-Budget ---
+      # --- Agent budget ---
       AGENT_MAX_TOOL_CALLS: ${AGENT_MAX_TOOL_CALLS:-20}
       AGENT_MAX_CALLS_PER_TOOL: ${AGENT_MAX_CALLS_PER_TOOL:-8}
       AGENT_MAX_DURATION_MS: ${AGENT_MAX_DURATION_MS:-180000}
 
-      # --- MCP-Server (optional) ---
-      # Beispielregistrierung gegen tools/mock-mcp-server.py auf dem Host.
-      # Leer lassen, um keinen Server zu registrieren.
+      # --- MCP servers (optional) ---
+      # Example registration against tools/mock-mcp-server.py on the host.
+      # Leave disabled to register no server.
       APP_TOOLS_MCP_MOCK_ENABLED: ${MCP_MOCK_ENABLED:-false}
       APP_TOOLS_MCP_MOCK_LABEL: Mock-MCP
       APP_TOOLS_MCP_MOCK_TRANSPORT: HTTP

@@ -11,11 +11,14 @@ import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
 /**
- * Eingebaute Tools.
+ * Built-in tools.
  *
- * <p>Absichtlich wirkungsfrei: sie beweisen, dass die Schleife Tools anfordert,
- * ausfuehrt und mit dem Ergebnis weiterarbeitet, ohne dass ein Fehllauf etwas
- * kaputt machen kann. Echte Faehigkeiten kommen ueber MCP dazu.
+ * <p>Deliberately side-effect free: they prove that the loop requests tools, executes them
+ * and continues with the result, without a failed run being able to break anything. Real
+ * capabilities arrive via MCP.
+ *
+ * <p>Descriptions and results are German on purpose — the model reads them, and German is
+ * the agent's working language.
  */
 @Component
 public class BuiltinTools {
@@ -25,25 +28,25 @@ public class BuiltinTools {
 	@Tool(description = "Liefert das aktuelle Datum und die aktuelle Uhrzeit. "
 			+ "Nutze dieses Tool immer, wenn nach dem heutigen Datum oder der Zeit gefragt wird — "
 			+ "rate sie niemals.")
-	public String aktuelleZeit(
+	public String currentTime(
 			@ToolParam(description = "Zeitzone als IANA-Id, z. B. Europe/Berlin. Leer = Europe/Berlin.",
-					required = false) String zeitzone) {
+					required = false) String timeZone) {
 
-		ZoneId zone = zeitzone == null || zeitzone.isBlank() ? ZoneId.of("Europe/Berlin") : ZoneId.of(zeitzone);
-		String jetzt = ZonedDateTime.now(zone).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss (zzz)"));
-		log.info("Tool aktuelleZeit -> {}", jetzt);
-		return jetzt;
+		ZoneId zone = timeZone == null || timeZone.isBlank() ? ZoneId.of("Europe/Berlin") : ZoneId.of(timeZone);
+		String now = ZonedDateTime.now(zone).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss (zzz)"));
+		log.info("Tool currentTime -> {}", now);
+		return now;
 	}
 
 	@Tool(description = "Berechnet den Rest und das Ergebnis einer ganzzahligen Division. "
 			+ "Nutze dieses Tool fuer Rechnungen, statt im Kopf zu rechnen.")
-	public String teilen(
+	public String divide(
 			@ToolParam(description = "Dividend") long dividend,
 			@ToolParam(description = "Divisor, darf nicht 0 sein") long divisor) {
 
 		if (divisor == 0) {
-			// Fehler als Ergebnis zurueckgeben, nicht werfen: das Modell soll die Chance
-			// bekommen, den Aufruf zu korrigieren, statt den Lauf zu beenden.
+			// Return the error as a result instead of throwing: the model should get the chance
+			// to correct the call rather than ending the run.
 			return "Fehler: Division durch 0 ist nicht definiert.";
 		}
 		return "%d geteilt durch %d ergibt %d Rest %d".formatted(dividend, divisor, dividend / divisor,

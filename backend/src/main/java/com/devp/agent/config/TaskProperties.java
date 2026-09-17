@@ -5,11 +5,11 @@ import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Herkunft der Aufgabendefinitionen.
+ * Origin of the task definitions.
  *
- * <p>Gleiche Form wie {@code app.soul.locations}: die mitgelieferten Aufgaben stecken im
- * Jar, eine externe Location kommt dazu und gewinnt bei gleicher Id. Damit laesst sich ein
- * Aufgabensatz austauschen, ohne neu zu bauen.
+ * <p>Same shape as {@code app.soul.locations}: the bundled tasks ship inside the jar, an
+ * external location is added on top and wins for the same id. A task set can thus be swapped
+ * without a rebuild.
  */
 @ConfigurationProperties(prefix = "app.tasks")
 public class TaskProperties {

@@ -23,7 +23,7 @@ class SoulRepositoryTests {
 	}
 
 	@Test
-	void laedtMitgelieferteSouls() {
+	void loadsBundledSouls() {
 		SoulRepository repository = repository("forge", "classpath:souls/");
 
 		assertThat(repository.list()).extracting(Soul::id).contains("forge", "reviewer");
@@ -31,7 +31,7 @@ class SoulRepositoryTests {
 	}
 
 	@Test
-	void loestLeereIdAufDieAktiveSoulAuf() {
+	void resolvesBlankIdToTheActiveSoul() {
 		SoulRepository repository = repository("reviewer", "classpath:souls/");
 
 		assertThat(repository.resolve(null).id()).isEqualTo("reviewer");
@@ -40,31 +40,31 @@ class SoulRepositoryTests {
 	}
 
 	@Test
-	void meldetUnbekannteSoul() {
+	void reportsUnknownSoul() {
 		SoulRepository repository = repository("forge", "classpath:souls/");
 
-		assertThatThrownBy(() -> repository.resolve("gibtsnicht"))
+		assertThatThrownBy(() -> repository.resolve("does-not-exist"))
 				.isInstanceOf(UnknownSoulException.class)
 				.hasMessageContaining("forge");
 	}
 
-	/** Ohne Definition muss der Agent antwortfaehig bleiben, statt beim Aufruf zu scheitern. */
+	/** Without a definition the agent must stay able to answer instead of failing on the call. */
 	@Test
-	void faelltOhneDefinitionAufDenNotfallZurueck() {
-		SoulRepository repository = repository("forge", "classpath:gibtsnicht/");
+	void fallsBackWithoutDefinition() {
+		SoulRepository repository = repository("forge", "classpath:does-not-exist/");
 
 		assertThat(repository.list()).extracting(Soul::id).containsExactly("default");
 		assertThat(repository.resolve(null).id()).isEqualTo("default");
 		assertThat(repository.activeId()).isEqualTo("default");
 	}
 
-	/** Spaetere Location gewinnt — so ist eine SOUL im Betrieb austauschbar. */
+	/** A later location wins — so a SOUL is replaceable in operation. */
 	@Test
-	void externeLocationUeberschreibtGleicheId(@TempDir Path dir) throws Exception {
+	void externalLocationOverridesSameId(@TempDir Path dir) throws Exception {
 		Files.writeString(dir.resolve("forge.md"), """
 				---
 				id: forge
-				name: Ersetzt
+				name: Replaced
 				version: 9
 				---
 				# Identitaet
@@ -74,27 +74,27 @@ class SoulRepositoryTests {
 		SoulRepository repository = repository("forge", "classpath:souls/", dir.toUri().toString());
 
 		Soul forge = repository.resolve("forge");
-		assertThat(forge.name()).isEqualTo("Ersetzt");
+		assertThat(forge.name()).isEqualTo("Replaced");
 		assertThat(forge.version()).isEqualTo(9);
-		// Die nicht ueberschriebene SOUL bleibt erhalten.
+		// The SOUL that was not overridden stays intact.
 		assertThat(repository.resolve("reviewer").name()).isEqualTo("Argus");
 	}
 
 	@Test
-	void reloadLiestNeueDateienEin(@TempDir Path dir) throws Exception {
+	void reloadPicksUpNewFiles(@TempDir Path dir) throws Exception {
 		SoulRepository repository = repository("forge", dir.toUri().toString());
 		assertThat(repository.list()).extracting(Soul::id).containsExactly("default");
 
-		Files.writeString(dir.resolve("neu.md"), """
+		Files.writeString(dir.resolve("new.md"), """
 				---
-				id: neu
-				name: Neu
+				id: new
+				name: New
 				---
 				# Identitaet
 				Frisch geladen.
 				""");
 
 		assertThat(repository.reload()).isEqualTo(1);
-		assertThat(repository.resolve("neu").name()).isEqualTo("Neu");
+		assertThat(repository.resolve("new").name()).isEqualTo("New");
 	}
 }

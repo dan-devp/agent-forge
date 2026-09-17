@@ -1,6 +1,7 @@
 package com.devp.agent.api;
 
 import java.util.List;
+import java.util.Map;
 
 import com.devp.agent.soul.Soul;
 import com.devp.agent.soul.SoulGate;
@@ -14,8 +15,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * SOUL-Verwaltung. Lesend plus Reload — Bearbeiten laeuft ueber die Dateien,
- * damit die Historie im Git bleibt.
+ * SOUL management. Read plus reload — editing happens in the files so the history stays
+ * in Git.
  */
 @RestController
 @RequestMapping("/api/souls")
@@ -31,44 +32,44 @@ public class SoulController {
 
 	@GetMapping
 	public SoulListResponse list() {
-		String aktiv = souls.activeId();
-		List<SoulSummary> liste = souls.list().stream()
-				.map(soul -> SoulSummary.von(soul, soul.id().equals(aktiv)))
+		String active = souls.activeId();
+		List<SoulSummary> list = souls.list().stream()
+				.map(soul -> SoulSummary.of(soul, soul.id().equals(active)))
 				.toList();
-		return new SoulListResponse(aktiv, liste);
+		return new SoulListResponse(active, list);
 	}
 
-	/** Inklusive gerendertem Prompt — genau das, was das Modell zu sehen bekommt. */
+	/** Including the rendered prompt — exactly what the model gets to see. */
 	@GetMapping("/{id}")
 	public SoulDetail detail(@PathVariable String id) {
 		Soul soul = souls.resolve(id);
 		return new SoulDetail(
-				SoulSummary.von(soul, soul.id().equals(souls.activeId())),
-				soul.beschreibung(),
-				soul.abschnitte(),
-				soul.quelle(),
+				SoulSummary.of(soul, soul.id().equals(souls.activeId())),
+				soul.description(),
+				soul.sections(),
+				soul.source(),
 				renderer.render(soul));
 	}
 
-	/** Liest die SOUL-Dateien neu ein; wirkt sofort auf den naechsten Modellaufruf. */
+	/** Re-reads the SOUL files; takes effect on the next model call. */
 	@PostMapping("/reload")
 	public SoulListResponse reload() {
 		souls.reload();
 		return list();
 	}
 
-	public record SoulSummary(String id, String name, String rolle, int version, List<SoulGate> gates,
+	public record SoulSummary(String id, String name, String role, int version, List<SoulGate> gates,
 			boolean isActive) {
 
-		static SoulSummary von(Soul soul, boolean aktiv) {
-			return new SoulSummary(soul.id(), soul.name(), soul.rolle(), soul.version(), soul.gates(), aktiv);
+		static SoulSummary of(Soul soul, boolean active) {
+			return new SoulSummary(soul.id(), soul.name(), soul.role(), soul.version(), soul.gates(), active);
 		}
 	}
 
 	public record SoulListResponse(String activeSoul, List<SoulSummary> souls) {
 	}
 
-	public record SoulDetail(SoulSummary soul, String beschreibung, java.util.Map<String, String> abschnitte,
-			String quelle, String prompt) {
+	public record SoulDetail(SoulSummary soul, String description, Map<String, String> sections, String source,
+			String prompt) {
 	}
 }

@@ -1,14 +1,13 @@
 package com.devp.agent.soul;
 
 /**
- * Pflichtfrage, die der Agent vor einer Antwort fuer sich beantwortet.
+ * Mandatory question the agent answers for itself before replying.
  *
- * <p>Gates sind der Unterschied zwischen "sei praezise" als Wunsch und als Regel:
- * ein blockierendes Gate darf nicht mit einer Antwort ueberschrieben werden, die es
- * verletzt (gstack-Muster).
+ * <p>Gates are the difference between "be precise" as a wish and as a rule: a blocking gate
+ * must not be overridden by an answer that violates it (gstack pattern).
  *
- * @param blockiert true = bei negativer Antwort darf der Agent nicht liefern, sondern
- *                  muss nachfragen oder die Luecke benennen.
+ * @param blocking true = on a negative answer the agent must not deliver, but ask back or
+ *                 name the gap.
  */
-public record SoulGate(String id, String frage, boolean blockiert) {
+public record SoulGate(String id, String question, boolean blocking) {
 }

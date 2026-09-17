@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Smoke-Test-Endpunkte ohne Modellaufruf — laufen auch ohne API-Key. */
+/** Smoke-test endpoints without a model call — they work without an API key. */
 @RestController
 @RequestMapping("/api")
 public class HelloController {
@@ -26,7 +26,7 @@ public class HelloController {
 		return new HelloResponse("Hallo, %s!".formatted(name), Instant.now());
 	}
 
-	/** Welche Provider stehen bereit? Vom Frontend fuer die Auswahl genutzt. */
+	/** Which providers are available? Used by the frontend for the selection. */
 	@GetMapping("/status")
 	public StatusResponse status() {
 		return new StatusResponse(registry.defaultProvider(), registry.list());

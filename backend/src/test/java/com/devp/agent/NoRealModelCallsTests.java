@@ -11,15 +11,15 @@ import org.springframework.context.annotation.Import;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Wacht darueber, dass kein automatischer Test ein echtes Modell aufrufen kann.
+ * Guards that no automated test can call a real model.
  *
- * <p>Echte Modellaufrufe kosten Geld und Kontingent und macht ausschliesslich der Nutzer
- * ueber die UI. Der Schutz liegt in {@code src/test/resources/application-test.properties};
- * dieser Test stellt sicher, dass er wirkt — auch dann, wenn im Terminal
- * {@code LOCAL_AI_BASE_URL} oder {@code OPENAI_API_KEY} gesetzt sind.
+ * <p>Real model calls cost money and quota and are made exclusively by the user through
+ * the UI. The protection lives in {@code src/test/resources/application-test.properties};
+ * this test makes sure it works — even when {@code LOCAL_AI_BASE_URL} or
+ * {@code OPENAI_API_KEY} are set in the terminal.
  *
- * <p>Schlaegt er fehl, zeigt ein Provider auf einen echten Endpunkt. Dann nicht diesen
- * Test anpassen, sondern die Ursache beseitigen.
+ * <p>If it fails, a provider points to a real endpoint. Then fix the cause, do not adjust
+ * this test.
  */
 @SpringBootTest
 @Import(PostgresTestcontainer.class)
@@ -29,18 +29,18 @@ class NoRealModelCallsTests {
 	private AiProperties ai;
 
 	@Test
-	void keinProviderZeigtAufEinenEchtenEndpunkt() {
+	void noProviderPointsToARealEndpoint() {
 		assertThat(ai.getProviders()).isNotEmpty();
 
 		ai.getProviders().forEach((id, provider) -> assertThat(provider.getBaseUrl())
-				.as("Provider '%s' muss im Test auf eine tote Adresse zeigen", id)
+				.as("provider '%s' must point to a dead address in tests", id)
 				.isEqualTo("http://127.0.0.1:1/v1"));
 	}
 
 	@Test
-	void keinProviderTraegtEinenEchtenSchluessel() {
+	void noProviderCarriesARealKey() {
 		ai.getProviders().forEach((id, provider) -> assertThat(provider.getApiKey())
-				.as("Provider '%s' darf im Test keinen echten API-Key tragen", id)
+				.as("provider '%s' must not carry a real API key in tests", id)
 				.isIn("not-set", "not-needed"));
 	}
 }

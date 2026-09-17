@@ -3,37 +3,42 @@ package com.devp.agent.task;
 import java.util.List;
 import java.util.Map;
 
+import com.devp.agent.eval.Criterion;
+
 /**
- * Eine wiederverwendbare, versionierte Aufgabe.
+ * A reusable, versioned task.
  *
- * <p>Der Unterschied zu einem getippten Auftrag: eine Aufgabe ist eine benannte Groesse
- * mit Version. Erst dadurch laesst sich spaeter sagen, welcher Lauf welche Aufgabe in
- * welcher Fassung bearbeitet hat — die Voraussetzung fuer jede Auswertung ueber mehrere
- * Laeufe hinweg.
+ * <p>The difference to a typed goal: a task is a named entity with a version. Only that
+ * makes it possible to say later which run worked on which task in which revision — the
+ * prerequisite for any evaluation across runs.
  *
- * <p>Bewertung, Erfolgskriterien und Wiederholungen gehoeren bewusst noch nicht hierher.
+ * <p>Success criteria ({@code success}) are part of the task because they must be versioned
+ * with it: a changed rubric yields different verdicts, and that has to be visible on the run.
+ * Repetitions and judges deliberately do not live here yet.
  *
- * @param auftrag        der Text, der als Nutzernachricht an den Agenten geht
- * @param schwierigkeit  Stufe, vorerst nur beschreibend
- * @param soul           SOUL-Vorgabe der Aufgabe, {@code null} = Aufrufer bzw. Default entscheidet
- * @param provider       Provider-Vorgabe, {@code null} = Aufrufer bzw. Default entscheidet
- * @param maxToolCalls   Budget-Vorgabe der Aufgabe, {@code null} = globale Einstellung
- * @param maxDurationMs  Budget-Vorgabe der Aufgabe, {@code null} = globale Einstellung
- * @param abschnitte     weitere Abschnitte der Datei, unveraendert durchgereicht
- * @param quelle         Herkunftsdatei, fuer Provenienz
+ * @param goal          the text sent to the agent as the user message
+ * @param difficulty    level, descriptive only for now
+ * @param soul          SOUL default of the task, {@code null} = caller or global default decides
+ * @param provider      provider default, {@code null} = caller or global default decides
+ * @param maxToolCalls  budget default of the task, {@code null} = global setting
+ * @param maxDurationMs budget default of the task, {@code null} = global setting
+ * @param success       deterministically checkable criteria; empty = the run is not graded
+ * @param sections      further sections of the file, passed through unchanged
+ * @param source        origin file, for provenance
  */
 public record Task(
 		String id,
 		String name,
 		int version,
-		String beschreibung,
-		int schwierigkeit,
+		String description,
+		int difficulty,
 		List<String> tags,
 		String soul,
 		String provider,
 		Integer maxToolCalls,
 		Long maxDurationMs,
-		String auftrag,
-		Map<String, String> abschnitte,
-		String quelle) {
+		List<Criterion> success,
+		String goal,
+		Map<String, String> sections,
+		String source) {
 }

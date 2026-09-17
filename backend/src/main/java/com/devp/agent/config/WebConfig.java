@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-/** CORS fuer den Vite-Dev-Server des Frontends. */
+/** CORS for the frontend's Vite dev server. */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 

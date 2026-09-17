@@ -1,7 +1,8 @@
 package com.devp.agent.run;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -11,11 +12,10 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Speicher fuer Laeufe und Traces.
+ * Storage for runs, traces and scores.
  *
- * <p>Bewusst {@link JdbcClient} statt JPA: Schritte werden nur angehaengt und nie
- * geaendert, und Schritt 3 braucht spaeter pgvector-Abfragen, bei denen ein ORM
- * nicht hilft.
+ * <p>Deliberately {@link JdbcClient} instead of JPA: steps are only appended and never
+ * changed, and step 3 will need pgvector queries where an ORM does not help.
  */
 @Repository
 public class RunRepository {
@@ -26,11 +26,11 @@ public class RunRepository {
 		this.db = db;
 	}
 
-	/** Legt den Lauf an, sobald er beginnt — ein Absturz bleibt so als RUNNING sichtbar. */
+	/** Creates the run as soon as it begins — a crash then stays visible as RUNNING. */
 	public void start(AgentRun run) {
 		db.sql("""
-				insert into agent_run (id, auftrag, task_id, task_version, soul_id, soul_version, provider_id,
-				                       modell, status, gestartet_am)
+				insert into agent_run (id, goal, task_id, task_version, soul_id, soul_version, provider_id,
+				                       model, status, started_at)
 				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
 				.params(run.id(), run.goal(), run.taskId(), run.taskVersion(), run.soulId(), run.soulVersion(),
@@ -40,10 +40,10 @@ public class RunRepository {
 
 	public void addStep(UUID runId, RunStep step) {
 		db.sql("""
-				insert into agent_run_step (run_id, nr, art, name, eingabe, ausgabe, tokens, dauer_ms, fehler, erstellt_am)
+				insert into agent_run_step (run_id, seq, type, name, input, output, tokens, duration_ms, error, created_at)
 				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
-				.params(runId, step.nr(), step.type().name(), step.name(), step.input(), step.output(),
+				.params(runId, step.seq(), step.type().name(), step.name(), step.input(), step.output(),
 						step.tokens(), step.durationMs(), step.error(), Timestamp.from(step.createdAt()))
 				.update();
 	}
@@ -51,8 +51,8 @@ public class RunRepository {
 	public void finish(AgentRun run) {
 		db.sql("""
 				update agent_run
-				   set status = ?, antwort = ?, fehler = ?, modell = ?, schritte = ?,
-				       tokens_gesamt = ?, dauer_ms = ?, beendet_am = ?
+				   set status = ?, answer = ?, error = ?, model = ?, steps = ?,
+				       total_tokens = ?, duration_ms = ?, finished_at = ?
 				 where id = ?
 				""")
 				.params(run.status().name(), run.answer(), run.error(), run.model(), run.steps(),
@@ -60,17 +60,40 @@ public class RunRepository {
 				.update();
 	}
 
-	/** Naechste freie Schrittnummer. Der Trace ist die einzige Quelle — kein Zaehler im Speicher. */
+	/** Scores are only appended — one record per grader, none overwrites another. */
+	public void addScore(UUID runId, RunScore score) {
+		db.sql("""
+				insert into agent_run_score (run_id, grader, score, passed, rationale, created_at)
+				values (?, ?, ?, ?, ?, ?)
+				""")
+				.params(runId, score.grader(), score.score(), score.passed(), score.rationale(),
+						Timestamp.from(score.createdAt()))
+				.update();
+	}
+
+	public List<RunScore> scores(UUID runId) {
+		return db.sql("select * from agent_run_score where run_id = ? order by id")
+				.param(runId)
+				.query((rs, rowNum) -> new RunScore(
+						rs.getString("grader"),
+						rs.getDouble("score"),
+						rs.getBoolean("passed"),
+						rs.getString("rationale"),
+						rs.getTimestamp("created_at").toInstant()))
+				.list();
+	}
+
+	/** Next free step number. The trace is the only source — no counter in memory. */
 	public int nextStepNumber(UUID runId) {
-		return db.sql("select coalesce(max(nr), 0) + 1 from agent_run_step where run_id = ?")
+		return db.sql("select coalesce(max(seq), 0) + 1 from agent_run_step where run_id = ?")
 				.param(runId)
 				.query(Integer.class)
 				.single();
 	}
 
-	/** Bisher ausgefuehrte Tool-Aufrufe des Laufs — Grundlage der Budgetpruefung. */
+	/** Tool calls executed so far in this run — the basis of the budget check. */
 	public int countToolSteps(UUID runId) {
-		return db.sql("select count(*) from agent_run_step where run_id = ? and art = ?")
+		return db.sql("select count(*) from agent_run_step where run_id = ? and type = ?")
 				.params(runId, StepType.TOOL.name())
 				.query(Integer.class)
 				.single();
@@ -84,61 +107,57 @@ public class RunRepository {
 				.optional();
 		return run.map(r -> new AgentRun(r.id(), r.goal(), r.taskId(), r.taskVersion(), r.soulId(), r.soulVersion(),
 				r.providerId(), r.model(), r.status(), r.answer(), r.error(), r.steps(), r.totalTokens(),
-				r.durationMs(), r.startedAt(), r.finishedAt(), trace(id)));
+				r.durationMs(), r.startedAt(), r.finishedAt(), trace(id), scores(id)));
 	}
 
-	/** Uebersicht ohne Trace — die Liste soll nicht den halben Speicher laden. */
+	/** History without traces — the list must not load half the database. */
 	public List<AgentRun> list(int limit) {
-		return db.sql("select * from agent_run order by gestartet_am desc limit ?")
+		return db.sql("select * from agent_run order by started_at desc limit ?")
 				.param(limit)
 				.query(RunRepository::mapRun)
 				.list();
 	}
 
 	public List<RunStep> trace(UUID runId) {
-		return db.sql("select * from agent_run_step where run_id = ? order by nr")
+		return db.sql("select * from agent_run_step where run_id = ? order by seq")
 				.param(runId)
 				.query((rs, rowNum) -> new RunStep(
-						rs.getInt("nr"),
-						StepType.valueOf(rs.getString("art")),
+						rs.getInt("seq"),
+						StepType.valueOf(rs.getString("type")),
 						rs.getString("name"),
-						rs.getString("eingabe"),
-						rs.getString("ausgabe"),
+						rs.getString("input"),
+						rs.getString("output"),
 						(Integer) rs.getObject("tokens"),
-						(Long) rs.getObject("dauer_ms"),
-						rs.getString("fehler"),
-						rs.getTimestamp("erstellt_am").toInstant()))
+						(Long) rs.getObject("duration_ms"),
+						rs.getString("error"),
+						rs.getTimestamp("created_at").toInstant()))
 				.list();
 	}
 
-	private static AgentRun mapRun(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
-		Timestamp beendet = rs.getTimestamp("beendet_am");
+	private static AgentRun mapRun(ResultSet rs, int rowNum) throws SQLException {
+		Timestamp finished = rs.getTimestamp("finished_at");
 		return new AgentRun(
 				rs.getObject("id", UUID.class),
-				rs.getString("auftrag"),
+				rs.getString("goal"),
 				rs.getString("task_id"),
 				(Integer) rs.getObject("task_version"),
 				rs.getString("soul_id"),
 				rs.getInt("soul_version"),
 				rs.getString("provider_id"),
-				rs.getString("modell"),
+				rs.getString("model"),
 				RunStatus.valueOf(rs.getString("status")),
-				rs.getString("antwort"),
-				rs.getString("fehler"),
-				rs.getInt("schritte"),
-				(Integer) rs.getObject("tokens_gesamt"),
-				(Long) rs.getObject("dauer_ms"),
-				rs.getTimestamp("gestartet_am").toInstant(),
-				beendet == null ? null : beendet.toInstant(),
+				rs.getString("answer"),
+				rs.getString("error"),
+				rs.getInt("steps"),
+				(Integer) rs.getObject("total_tokens"),
+				(Long) rs.getObject("duration_ms"),
+				rs.getTimestamp("started_at").toInstant(),
+				finished == null ? null : finished.toInstant(),
 				List.of());
 	}
 
-	/** Nur fuer Tests und Aufraeumarbeiten. */
+	/** Tests and housekeeping only. */
 	public void deleteAll() {
 		db.sql("delete from agent_run").update();
-	}
-
-	static Instant now() {
-		return Instant.now();
 	}
 }

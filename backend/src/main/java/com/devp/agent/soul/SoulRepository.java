@@ -19,27 +19,26 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Component;
 
 /**
- * Laedt alle SOUL-Definitionen aus den konfigurierten Locations und haelt sie im Speicher.
+ * Loads all SOUL definitions from the configured locations and keeps them in memory.
  *
- * <p>Der Bestand ist zur Laufzeit ueber {@link #reload()} austauschbar — eine geaenderte
- * SOUL soll ohne Neustart wirksam werden, sonst ist die spaetere Lernschleife nicht
- * beobachtbar.
+ * <p>The set is replaceable at runtime via {@link #reload()} — a changed SOUL must take
+ * effect without a restart, otherwise the later learning loop cannot be observed.
  */
 @Component
 public class SoulRepository {
 
 	private static final Logger log = LoggerFactory.getLogger(SoulRepository.class);
 
-	/** Greift, wenn keine Definition gefunden wurde — der Agent bleibt antwortfaehig. */
-	private static final Soul NOTFALL = new Soul(
+	/** Applies when no definition was found — the agent stays able to answer. */
+	private static final Soul FALLBACK = new Soul(
 			"default",
 			"Agent",
 			"KI-Mitarbeiter",
 			0,
-			"Eingebauter Notfall-Fallback, weil keine SOUL-Datei gefunden wurde.",
+			"Built-in fallback because no SOUL file was found.",
 			List.of(),
 			Map.of("Identitaet", "Du bist ein hilfreicher KI-Mitarbeiter. Antworte praezise und knapp."),
-			"eingebaut");
+			"built-in");
 
 	private final SoulProperties properties;
 	private final ResourcePatternResolver resolver;
@@ -52,76 +51,76 @@ public class SoulRepository {
 		reload();
 	}
 
-	/** Liest alle Locations neu ein. Gibt die Anzahl gefundener SOULs zurueck. */
+	/** Re-reads all locations. Returns the number of SOULs found. */
 	public int reload() {
-		Map<String, Soul> geladen = new LinkedHashMap<>();
+		Map<String, Soul> loaded = new LinkedHashMap<>();
 
 		for (String location : properties.getLocations()) {
-			String muster = location.endsWith("/") ? location + "*.md" : location + "/*.md";
-			for (Resource resource : suche(muster)) {
-				Soul soul = lies(resource);
-				Soul vorher = geladen.put(soul.id(), soul);
-				if (vorher != null) {
-					log.info("SOUL '{}' aus {} ueberschreibt {}", soul.id(), soul.quelle(), vorher.quelle());
+			String pattern = location.endsWith("/") ? location + "*.md" : location + "/*.md";
+			for (Resource resource : find(pattern)) {
+				Soul soul = read(resource);
+				Soul previous = loaded.put(soul.id(), soul);
+				if (previous != null) {
+					log.info("SOUL '{}' from {} overrides {}", soul.id(), soul.source(), previous.source());
 				}
 			}
 		}
 
-		// LinkedHashMap statt Map.copyOf: die Ladereihenfolge bestimmt die Anzeige im Frontend.
-		this.souls = Collections.unmodifiableMap(geladen);
-		if (geladen.isEmpty()) {
-			log.warn("Keine SOUL gefunden in {} — es gilt der eingebaute Fallback", properties.getLocations());
+		// LinkedHashMap instead of Map.copyOf: load order determines display order in the frontend.
+		this.souls = Collections.unmodifiableMap(loaded);
+		if (loaded.isEmpty()) {
+			log.warn("No SOUL found in {} — the built-in fallback applies", properties.getLocations());
 		}
 		else {
-			log.info("{} SOUL(s) geladen: {}", geladen.size(), geladen.keySet());
+			log.info("{} SOUL(s) loaded: {}", loaded.size(), loaded.keySet());
 		}
-		return geladen.size();
+		return loaded.size();
 	}
 
-	private Resource[] suche(String muster) {
+	private Resource[] find(String pattern) {
 		try {
-			return resolver.getResources(muster);
+			return resolver.getResources(pattern);
 		}
 		catch (IOException ex) {
-			// Eine nicht existierende externe Location ist kein Fehler, nur leer.
-			log.warn("SOUL-Location '{}' nicht lesbar: {}", muster, ex.getMessage());
+			// A missing external location is not an error, just empty.
+			log.warn("SOUL location '{}' not readable: {}", pattern, ex.getMessage());
 			return new Resource[0];
 		}
 	}
 
-	private Soul lies(Resource resource) {
-		String quelle = resource.getFilename() == null ? resource.getDescription() : resource.getFilename();
+	private Soul read(Resource resource) {
+		String source = resource.getFilename() == null ? resource.getDescription() : resource.getFilename();
 		try (var in = resource.getInputStream()) {
-			return SoulParser.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8), quelle);
+			return SoulParser.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8), source);
 		}
 		catch (IOException ex) {
-			throw new UncheckedIOException("SOUL '%s' nicht lesbar".formatted(quelle), ex);
+			throw new UncheckedIOException("SOUL '%s' not readable".formatted(source), ex);
 		}
 	}
 
-	/** Aufloesung inkl. Fallback auf die aktive SOUL. */
-	public Soul resolve(String angefragteId) {
-		String id = (angefragteId == null || angefragteId.isBlank()) ? properties.getActive() : angefragteId;
+	/** Resolution including fallback to the active SOUL. */
+	public Soul resolve(String requestedId) {
+		String id = (requestedId == null || requestedId.isBlank()) ? properties.getActive() : requestedId;
 
 		Soul soul = souls.get(id);
 		if (soul != null) {
 			return soul;
 		}
 		if (souls.isEmpty()) {
-			return NOTFALL;
+			return FALLBACK;
 		}
-		throw new UnknownSoulException("Unbekannte SOUL '%s'. Verfuegbar: %s".formatted(id, souls.keySet()));
+		throw new UnknownSoulException("Unknown SOUL '%s'. Available: %s".formatted(id, souls.keySet()));
 	}
 
 	public Collection<Soul> list() {
-		return souls.isEmpty() ? List.of(NOTFALL) : List.copyOf(souls.values());
+		return souls.isEmpty() ? List.of(FALLBACK) : List.copyOf(souls.values());
 	}
 
 	public String activeId() {
 		return souls.containsKey(properties.getActive()) ? properties.getActive() : resolve(null).id();
 	}
 
-	/** Angefragte SOUL-Id existiert nicht. */
+	/** The requested SOUL id does not exist. */
 	public static class UnknownSoulException extends RuntimeException {
 		public UnknownSoulException(String message) {
 			super(message);

@@ -30,16 +30,16 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Alle Werkzeuge, die ein Agent anfordern kann: eingebaute plus die Tools der
- * registrierten MCP-Server.
+ * All tools an agent can request: built-in ones plus the tools of the registered MCP
+ * servers.
  *
- * <p>Die MCP-Clients werden selbst gebaut statt ueber die Spring-AI-Autoconfiguration.
- * Grund ist derselbe wie bei {@code ChatClientRegistry}: nur so laesst sich ein Server
- * zur Laufzeit neu verbinden ({@link #reload()}), und die Konfiguration bleibt in der
- * gewohnten {@code app.*}-Form.
+ * <p>The MCP clients are built by us instead of via the Spring AI autoconfiguration. The
+ * reason is the same as for {@code ChatClientRegistry}: only that way can a server be
+ * reconnected at runtime ({@link #reload()}), and the configuration keeps the familiar
+ * {@code app.*} shape.
  *
- * <p>Ein kaputter MCP-Server darf den Start nicht verhindern — er wird als nicht
- * verbunden gefuehrt und sein Fehler bleibt sichtbar.
+ * <p>A broken MCP server must not prevent startup — it is listed as not connected and its
+ * error stays visible.
  */
 @Component
 public class ToolRegistry {
@@ -60,16 +60,16 @@ public class ToolRegistry {
 		reload();
 	}
 
-	/** Verbindet alle Server neu. Gibt die Anzahl verfuegbarer Tools zurueck. */
+	/** Reconnects all servers. Returns the number of available tools. */
 	public synchronized int reload() {
 		closeClients();
 
-		List<ToolCallback> alle = new ArrayList<>();
-		List<McpSyncClient> verbunden = new ArrayList<>();
+		List<ToolCallback> all = new ArrayList<>();
+		List<McpSyncClient> connected = new ArrayList<>();
 		List<ServerInfo> infos = new ArrayList<>();
 
 		if (properties.isBuiltinEnabled()) {
-			alle.addAll(List.of(MethodToolCallbackProvider.builder()
+			all.addAll(List.of(MethodToolCallbackProvider.builder()
 					.toolObjects(builtinTools)
 					.build()
 					.getToolCallbacks()));
@@ -77,33 +77,33 @@ public class ToolRegistry {
 
 		properties.getMcp().forEach((id, config) -> {
 			if (!config.isEnabled()) {
-				infos.add(ServerInfo.deaktiviert(id, config));
+				infos.add(ServerInfo.disabled(id, config));
 				return;
 			}
 			if (!config.isConfigured()) {
-				infos.add(ServerInfo.fehler(id, config, "nicht vollstaendig konfiguriert "
-						+ "(STDIO braucht 'command', SSE/HTTP brauchen 'url')"));
+				infos.add(ServerInfo.failed(id, config, "not fully configured "
+						+ "(STDIO needs 'command', SSE/HTTP need 'url')"));
 				return;
 			}
 			try {
 				McpSyncClient client = connect(id, config);
 				List<ToolCallback> tools = SyncMcpToolCallbackProvider.syncToolCallbacks(List.of(client));
-				alle.addAll(tools);
-				verbunden.add(client);
-				infos.add(ServerInfo.verbunden(id, config, tools.size()));
-				log.info("MCP-Server '{}' verbunden: {} Tool(s)", id, tools.size());
+				all.addAll(tools);
+				connected.add(client);
+				infos.add(ServerInfo.connected(id, config, tools.size()));
+				log.info("MCP server '{}' connected: {} tool(s)", id, tools.size());
 			}
 			catch (RuntimeException ex) {
-				infos.add(ServerInfo.fehler(id, config, ex.getMessage()));
-				log.warn("MCP-Server '{}' nicht erreichbar: {}", id, ex.getMessage());
+				infos.add(ServerInfo.failed(id, config, ex.getMessage()));
+				log.warn("MCP server '{}' not reachable: {}", id, ex.getMessage());
 			}
 		});
 
-		this.callbacks = List.copyOf(alle);
-		this.clients = List.copyOf(verbunden);
+		this.callbacks = List.copyOf(all);
+		this.clients = List.copyOf(connected);
 		this.servers = List.copyOf(infos);
-		log.info("{} Tool(s) verfuegbar, {} MCP-Server verbunden", alle.size(), verbunden.size());
-		return alle.size();
+		log.info("{} tool(s) available, {} MCP server(s) connected", all.size(), connected.size());
+		return all.size();
 	}
 
 	private McpSyncClient connect(String id, McpServer config) {
@@ -128,7 +128,7 @@ public class ToolRegistry {
 				.initializationTimeout(Duration.ofMillis(config.getTimeoutMs()))
 				.build();
 		client.initialize();
-		log.debug("MCP-Server '{}' meldet sich als {}", id, client.getServerInfo());
+		log.debug("MCP server '{}' identifies as {}", id, client.getServerInfo());
 		return client;
 	}
 
@@ -138,7 +138,7 @@ public class ToolRegistry {
 				client.closeGracefully();
 			}
 			catch (RuntimeException ex) {
-				log.warn("MCP-Client liess sich nicht sauber schliessen: {}", ex.getMessage());
+				log.warn("MCP client did not close cleanly: {}", ex.getMessage());
 			}
 		});
 		clients = List.of();
@@ -149,18 +149,18 @@ public class ToolRegistry {
 		closeClients();
 	}
 
-	/** Alle Tools, die dem Modell angeboten werden. */
+	/** All tools offered to the model. */
 	public List<ToolCallback> callbacks() {
 		return callbacks;
 	}
 
-	/** Beschreibung aller Tools fuer das Frontend. */
+	/** Description of all tools for the frontend. */
 	public List<ToolInfo> list() {
 		return callbacks.stream()
 				.map(callback -> new ToolInfo(
 						callback.getToolDefinition().name(),
 						callback.getToolDefinition().description(),
-						quelle(callback)))
+						sourceOf(callback)))
 				.toList();
 	}
 
@@ -169,32 +169,32 @@ public class ToolRegistry {
 	}
 
 	/**
-	 * Woher stammt das Tool? MCP-Callbacks kommen aus dem Spring-AI-MCP-Paket, alles
-	 * andere sind eingebaute Methoden-Tools.
+	 * Where does the tool come from? MCP callbacks originate from the Spring AI MCP package,
+	 * everything else is a built-in method tool.
 	 */
-	private static String quelle(ToolCallback callback) {
+	private static String sourceOf(ToolCallback callback) {
 		return callback.getClass().getName().startsWith("org.springframework.ai.mcp") ? "mcp" : "builtin";
 	}
 
-	/** Ein Tool, wie es dem Modell und dem Frontend gezeigt wird. */
+	/** A tool as shown to the model and the frontend. */
 	public record ToolInfo(String name, String description, String source) {
 	}
 
-	/** Zustand eines registrierten MCP-Servers. */
+	/** State of a registered MCP server. */
 	public record ServerInfo(String id, String label, ToolProperties.Transport transport, String target,
 			boolean enabled, boolean connected, int toolCount, String error) {
 
-		static ServerInfo verbunden(String id, McpServer config, int toolCount) {
+		static ServerInfo connected(String id, McpServer config, int toolCount) {
 			return new ServerInfo(id, label(id, config), config.getTransport(), target(config), true, true,
 					toolCount, null);
 		}
 
-		static ServerInfo fehler(String id, McpServer config, String error) {
+		static ServerInfo failed(String id, McpServer config, String error) {
 			return new ServerInfo(id, label(id, config), config.getTransport(), target(config), true, false, 0,
 					error);
 		}
 
-		static ServerInfo deaktiviert(String id, McpServer config) {
+		static ServerInfo disabled(String id, McpServer config) {
 			return new ServerInfo(id, label(id, config), config.getTransport(), target(config), false, false, 0,
 					null);
 		}
@@ -210,7 +210,7 @@ public class ToolRegistry {
 		}
 	}
 
-	/** Nur zur Diagnose: welche Umgebung bekommt ein stdio-Server mit? */
+	/** Diagnostics only: which environment does a stdio server receive? */
 	Map<String, String> envOf(String serverId) {
 		McpServer config = properties.getMcp().get(serverId);
 		return config == null ? Map.of() : config.getEnv();

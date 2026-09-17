@@ -10,11 +10,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Werkzeuge und registrierte MCP-Server.
+ * Tools and registered MCP servers.
  *
- * <p>Lesend plus Reload — registriert wird ueber {@code app.tools.mcp.<id>}, damit die
- * Konfiguration eines Servers versionierbar bleibt statt in einer Laufzeit-Datenbank zu
- * verschwinden.
+ * <p>Read plus reload — servers are registered via {@code app.tools.mcp.<id>} so a server's
+ * configuration stays versionable instead of vanishing into a runtime database.
  */
 @RestController
 @RequestMapping("/api/tools")
@@ -31,7 +30,7 @@ public class ToolController {
 		return new ToolListResponse(tools.list(), tools.servers());
 	}
 
-	/** Verbindet alle MCP-Server neu — noetig, wenn ein Server neu gestartet wurde. */
+	/** Reconnects all MCP servers — needed after a server was restarted. */
 	@PostMapping("/reload")
 	public ToolListResponse reload() {
 		tools.reload();

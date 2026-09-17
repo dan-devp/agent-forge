@@ -25,7 +25,7 @@ function App() {
   const [souls, setSouls] = useState<SoulListResponse | null>(null)
   const [soul, setSoul] = useState('')
   const [soulDetail, setSoulDetail] = useState<SoulDetail | null>(null)
-  const [promptOffen, setPromptOffen] = useState(false)
+  const [promptOpen, setPromptOpen] = useState(false)
   const [tools, setTools] = useState<ToolListResponse | null>(null)
   const [tasks, setTasks] = useState<TaskSummary[] | null>(null)
   const [task, setTask] = useState('')
@@ -42,7 +42,7 @@ function App() {
       .status()
       .then((s) => {
         setStatus(s)
-        // Bevorzugt den Default, sonst den ersten nutzbaren Provider.
+        // Prefer the default, otherwise the first usable provider.
         const preferred =
           s.providers.find((p) => p.isDefault && p.configured) ??
           s.providers.find((p) => p.configured) ??
@@ -70,7 +70,7 @@ function App() {
       .catch((e: Error) => setError(e.message))
   }, [])
 
-  // Auftragstext der gewaehlten Aufgabe nachladen - er ist das, was der Agent bekommt.
+  // Load the goal text of the selected task — it is what the agent receives.
   useEffect(() => {
     if (!task) return
     api
@@ -79,7 +79,7 @@ function App() {
       .catch((e: Error) => setError(e.message))
   }, [task])
 
-  // Detail (inkl. gerendertem Prompt) immer zur aktuell gewaehlten SOUL nachladen.
+  // Always load the detail (incl. rendered prompt) for the currently selected SOUL.
   useEffect(() => {
     if (!soul) return
     api
@@ -91,7 +91,7 @@ function App() {
   const selected = status?.providers.find((p) => p.id === provider)
   const gates = soulDetail?.soul.gates ?? []
 
-  async function lauf(action: () => Promise<void>) {
+  async function perform(action: () => Promise<void>) {
     setBusy(true)
     setError(null)
     try {
@@ -104,27 +104,27 @@ function App() {
   }
 
   const askAi = () =>
-    lauf(async () => {
+    perform(async () => {
       setResult(null)
       setResult(await api.chat(message, provider, soul))
     })
 
   const startRun = () =>
-    lauf(async () => {
+    perform(async () => {
       setRun(null)
-      // Benannte Aufgabe, wenn eine gewaehlt ist - nur die ist spaeter auswertbar.
+      // Named task when one is selected — only that one can be evaluated later.
       setRun(await api.startRun(task ? { task, provider, soul } : { goal, provider, soul }))
     })
 
   const reloadTasks = () =>
-    lauf(async () => {
-      const liste = await api.reloadTasks()
-      setTasks(liste)
-      if (!liste.some((t) => t.id === task)) setTask(liste[0]?.id ?? '')
+    perform(async () => {
+      const list = await api.reloadTasks()
+      setTasks(list)
+      if (!list.some((t) => t.id === task)) setTask(list[0]?.id ?? '')
     })
 
   const reloadTools = () =>
-    lauf(async () => {
+    perform(async () => {
       setTools(await api.reloadTools())
     })
 
@@ -148,7 +148,7 @@ function App() {
             {souls?.souls.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
-                {s.rolle ? ` · ${s.rolle}` : ''} · v{s.version}
+                {s.role ? ` · ${s.role}` : ''} · v{s.version}
               </option>
             ))}
           </select>
@@ -169,25 +169,25 @@ function App() {
 
         {soulDetail && (
           <>
-            {soulDetail.beschreibung && <p className="meta">{soulDetail.beschreibung}</p>}
+            {soulDetail.description && <p className="meta">{soulDetail.description}</p>}
 
             {gates.length > 0 && (
               <ul className="gates">
                 {gates.map((g) => (
                   <li key={g.id}>
-                    <span className={g.blockiert ? 'badge cloud' : 'badge local'}>
-                      {g.blockiert ? 'blockierend' : 'Hinweis'}
+                    <span className={g.blocking ? 'badge cloud' : 'badge local'}>
+                      {g.blocking ? 'blockierend' : 'Hinweis'}
                     </span>{' '}
-                    {g.frage}
+                    {g.question}
                   </li>
                 ))}
               </ul>
             )}
 
-            <button onClick={() => setPromptOffen(!promptOffen)}>
-              {promptOffen ? 'Prompt verbergen' : 'Gerenderten Prompt zeigen'}
+            <button onClick={() => setPromptOpen(!promptOpen)}>
+              {promptOpen ? 'Prompt verbergen' : 'Gerenderten Prompt zeigen'}
             </button>
-            {promptOffen && <pre className="output prompt">{soulDetail.prompt}</pre>}
+            {promptOpen && <pre className="output prompt">{soulDetail.prompt}</pre>}
           </>
         )}
       </section>
@@ -241,7 +241,7 @@ function App() {
             <option value="">— freier Auftrag —</option>
             {tasks?.map((t) => (
               <option key={t.id} value={t.id}>
-                {t.name} · v{t.version} · Stufe {t.schwierigkeit}
+                {t.name} · v{t.version} · Stufe {t.difficulty}
               </option>
             ))}
           </select>
@@ -252,8 +252,8 @@ function App() {
 
         {task && taskDetail?.id === task ? (
           <>
-            {taskDetail.beschreibung && <p className="meta">{taskDetail.beschreibung}</p>}
-            <pre className="output prompt">{taskDetail.auftrag}</pre>
+            {taskDetail.description && <p className="meta">{taskDetail.description}</p>}
+            <pre className="output prompt">{taskDetail.goal}</pre>
             <p className="meta">
               {taskDetail.tags.map((tag) => (
                 <span key={tag} className="badge">
@@ -263,7 +263,7 @@ function App() {
               {taskDetail.soul && ` · SOUL-Vorgabe: ${taskDetail.soul}`}
               {taskDetail.maxToolCalls != null && ` · max. ${taskDetail.maxToolCalls} Tool-Aufrufe`}
               {' · '}
-              {taskDetail.quelle}
+              {taskDetail.source}
             </p>
           </>
         ) : (
@@ -294,9 +294,23 @@ function App() {
             {run.answer && <p className="output">{run.answer}</p>}
             {run.error && <p className="error">{run.error}</p>}
 
+            {run.scores.length > 0 && (
+              <ul className="scores">
+                {run.scores.map((s) => (
+                  <li key={s.grader}>
+                    <span className={s.passed ? 'badge local' : 'badge cloud'}>
+                      {s.passed ? 'bestanden' : 'nicht bestanden'}
+                    </span>{' '}
+                    {s.grader} · {Math.round(s.score * 100)} %
+                    {s.rationale && <pre className="rationale">{s.rationale}</pre>}
+                  </li>
+                ))}
+              </ul>
+            )}
+
             <ol className="trace">
               {run.trace.map((s) => (
-                <li key={s.nr}>
+                <li key={s.seq}>
                   <span className={s.type === 'TOOL' ? 'badge cloud' : 'badge local'}>{s.type}</span>{' '}
                   <code>{s.name}</code>
                   {s.input && <div className="meta">ein: {s.input}</div>}

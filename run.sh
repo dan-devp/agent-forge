@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Baut Backend + Frontend neu und startet den Stack.
-# Nutzung: ./run.sh        (bauen + starten, Logs folgen)
-#          ./run.sh down   (stoppen)
+# Rebuilds backend + frontend and starts the stack.
+# Usage: ./run.sh        (build + start, follow logs)
+#        ./run.sh down   (stop)
 set -euo pipefail
 cd "$(dirname "$0")"
 

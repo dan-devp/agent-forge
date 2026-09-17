@@ -1,5 +1,6 @@
 package com.devp.agent.task;
 
+import com.devp.agent.eval.CriterionType;
 import com.devp.agent.task.TaskParser.TaskParseException;
 
 import org.junit.jupiter.api.Test;
@@ -9,47 +10,53 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TaskParserTests {
 
-	private static final String VOLLSTAENDIG = """
+	private static final String COMPLETE = """
 			---
-			id: zeit
+			id: time
 			name: Zeit ermitteln
 			version: 4
-			beschreibung: Testdefinition
-			schwierigkeit: 3
-			tags: [werkzeuge, eingebaut]
+			description: test definition
+			difficulty: 3
+			tags: [tools, builtin]
 			soul: reviewer
 			provider: local
 			max-tool-calls: 5
 			max-duration-ms: 30000
+			success:
+			  - type: tool-called
+			    value: currentTime
+			  - type: regex
+			    value: '\\d{2}:\\d{2}'
+			    description: time of day
 			---
 
-			# Auftrag
+			# Goal
 
 			Wie spaet ist es in UTC?
 
-			# Hintergrund
+			# Background
 
-			Prueft, ob das Tool genutzt wird.
+			Checks whether the tool is used.
 			""";
 
 	@Test
-	void liestFrontmatterUndAuftrag() {
-		Task task = TaskParser.parse(VOLLSTAENDIG, "zeit.md");
+	void readsFrontMatterAndGoal() {
+		Task task = TaskParser.parse(COMPLETE, "time.md");
 
-		assertThat(task.id()).isEqualTo("zeit");
+		assertThat(task.id()).isEqualTo("time");
 		assertThat(task.name()).isEqualTo("Zeit ermitteln");
 		assertThat(task.version()).isEqualTo(4);
-		assertThat(task.beschreibung()).isEqualTo("Testdefinition");
-		assertThat(task.schwierigkeit()).isEqualTo(3);
-		assertThat(task.tags()).containsExactly("werkzeuge", "eingebaut");
-		assertThat(task.auftrag()).isEqualTo("Wie spaet ist es in UTC?");
-		assertThat(task.quelle()).isEqualTo("zeit.md");
+		assertThat(task.description()).isEqualTo("test definition");
+		assertThat(task.difficulty()).isEqualTo(3);
+		assertThat(task.tags()).containsExactly("tools", "builtin");
+		assertThat(task.goal()).isEqualTo("Wie spaet ist es in UTC?");
+		assertThat(task.source()).isEqualTo("time.md");
 	}
 
-	/** Vorgaben der Aufgabe, die ein Aufruf ueberschreiben darf. */
+	/** Defaults of the task that a call may override. */
 	@Test
-	void liestVorgabenUndBudget() {
-		Task task = TaskParser.parse(VOLLSTAENDIG, "zeit.md");
+	void readsDefaultsAndBudget() {
+		Task task = TaskParser.parse(COMPLETE, "time.md");
 
 		assertThat(task.soul()).isEqualTo("reviewer");
 		assertThat(task.provider()).isEqualTo("local");
@@ -57,100 +64,129 @@ class TaskParserTests {
 		assertThat(task.maxDurationMs()).isEqualTo(30_000L);
 	}
 
+	/** The rubric belongs to the task so it is versioned together with it. */
 	@Test
-	void behaeltWeitereAbschnitte() {
-		Task task = TaskParser.parse(VOLLSTAENDIG, "zeit.md");
+	void readsSuccessCriteria() {
+		Task task = TaskParser.parse(COMPLETE, "time.md");
 
-		assertThat(task.abschnitte().keySet()).containsExactly("Auftrag", "Hintergrund");
-		assertThat(task.abschnitte().get("Hintergrund")).contains("Prueft");
+		assertThat(task.success()).hasSize(2);
+		assertThat(task.success().get(0).type()).isEqualTo(CriterionType.TOOL_CALLED);
+		assertThat(task.success().get(0).value()).isEqualTo("currentTime");
+		assertThat(task.success().get(1).description()).isEqualTo("time of day");
 	}
 
 	@Test
-	void nutztVorgabewerteWennNichtsAngegeben() {
+	void reportsBrokenCriterionWithSource() {
+		assertThatThrownBy(() -> TaskParser.parse("""
+				---
+				id: x
+				success:
+				  - type: unknown
+				    value: y
+				---
+				# Goal
+				Do something.
+				""", "x.md"))
+				.isInstanceOf(TaskParseException.class)
+				.hasMessageContaining("x.md")
+				.hasMessageContaining("unknown");
+	}
+
+	@Test
+	void keepsFurtherSections() {
+		Task task = TaskParser.parse(COMPLETE, "time.md");
+
+		assertThat(task.sections().keySet()).containsExactly("Goal", "Background");
+		assertThat(task.sections().get("Background")).contains("Checks");
+	}
+
+	@Test
+	void usesDefaultsWhenNothingGiven() {
 		Task task = TaskParser.parse("""
 				---
 				id: minimal
 				---
-				# Auftrag
-				Tu etwas.
+				# Goal
+				Do something.
 				""", "minimal.md");
 
 		assertThat(task.name()).isEqualTo("minimal");
 		assertThat(task.version()).isEqualTo(1);
-		assertThat(task.schwierigkeit()).isEqualTo(1);
+		assertThat(task.difficulty()).isEqualTo(1);
 		assertThat(task.tags()).isEmpty();
 		assertThat(task.soul()).isNull();
 		assertThat(task.maxToolCalls()).isNull();
 		assertThat(task.maxDurationMs()).isNull();
+		assertThat(task.success()).isEmpty();
 	}
 
 	@Test
-	void faelltOhneIdAufDenDateinamenZurueck() {
+	void fallsBackToFileNameWithoutId() {
 		Task task = TaskParser.parse("""
 				---
-				name: Ohne Id
+				name: Without id
 				---
-				# Auftrag
-				Tu etwas.
-				""", "tasks/wichtig.md");
+				# Goal
+				Do something.
+				""", "tasks/important.md");
 
-		assertThat(task.id()).isEqualTo("wichtig");
+		assertThat(task.id()).isEqualTo("important");
 	}
 
-	/** Ohne Auftrag gibt es nichts auszufuehren — das muss beim Laden auffallen, nicht im Lauf. */
+	/** Without a goal there is nothing to execute — that must surface on load, not in the run. */
 	@Test
-	void meldetFehlendenAuftrag() {
+	void reportsMissingGoal() {
 		assertThatThrownBy(() -> TaskParser.parse("""
 				---
-				id: leer
+				id: empty
 				---
-				# Hintergrund
-				Nur Prosa.
-				""", "leer.md"))
+				# Background
+				Prose only.
+				""", "empty.md"))
 				.isInstanceOf(TaskParseException.class)
-				.hasMessageContaining("leer.md")
-				.hasMessageContaining("Auftrag");
+				.hasMessageContaining("empty.md")
+				.hasMessageContaining("Goal");
 	}
 
 	@Test
-	void meldetLeerenAuftrag() {
-		assertThatThrownBy(() -> TaskParser.parse("---\nid: leer\n---\n# Auftrag\n\n", "leer.md"))
+	void reportsEmptyGoal() {
+		assertThatThrownBy(() -> TaskParser.parse("---\nid: empty\n---\n# Goal\n\n", "empty.md"))
 				.isInstanceOf(TaskParseException.class)
-				.hasMessageContaining("Auftrag");
+				.hasMessageContaining("Goal");
 	}
 
 	@Test
-	void meldetFehlendesFrontmatter() {
-		assertThatThrownBy(() -> TaskParser.parse("# Auftrag\nTu etwas.", "kaputt.md"))
+	void reportsMissingFrontMatter() {
+		assertThatThrownBy(() -> TaskParser.parse("# Goal\nDo something.", "broken.md"))
 				.isInstanceOf(TaskParseException.class)
-				.hasMessageContaining("Frontmatter");
+				.hasMessageContaining("front matter");
 	}
 
 	@Test
-	void meldetNichtNumerischeSchwierigkeit() {
+	void reportsNonNumericDifficulty() {
 		assertThatThrownBy(() -> TaskParser.parse("""
 				---
 				id: x
-				schwierigkeit: schwer
+				difficulty: hard
 				---
-				# Auftrag
-				Tu etwas.
+				# Goal
+				Do something.
 				""", "x.md"))
 				.isInstanceOf(TaskParseException.class)
-				.hasMessageContaining("schwierigkeit");
+				.hasMessageContaining("difficulty");
 	}
 
 	@Test
-	void akzeptiertEinzelnesTagOhneListe() {
+	void acceptsSingleTagWithoutList() {
 		Task task = TaskParser.parse("""
 				---
 				id: x
-				tags: werkzeuge
+				tags: tools
 				---
-				# Auftrag
-				Tu etwas.
+				# Goal
+				Do something.
 				""", "x.md");
 
-		assertThat(task.tags()).containsExactly("werkzeuge");
+		assertThat(task.tags()).containsExactly("tools");
 	}
 }

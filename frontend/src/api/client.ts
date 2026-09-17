@@ -29,14 +29,14 @@ export type ChatResult = {
 
 export type SoulGate = {
   id: string
-  frage: string
-  blockiert: boolean
+  question: string
+  blocking: boolean
 }
 
 export type SoulSummary = {
   id: string
   name: string
-  rolle: string | null
+  role: string | null
   version: number
   gates: SoulGate[]
   isActive: boolean
@@ -49,14 +49,14 @@ export type SoulListResponse = {
 
 export type SoulDetail = {
   soul: SoulSummary
-  beschreibung: string | null
-  abschnitte: Record<string, string>
-  quelle: string
+  description: string | null
+  sections: Record<string, string>
+  source: string
   prompt: string
 }
 
 export type RunStep = {
-  nr: number
+  seq: number
   type: 'MODEL' | 'TOOL'
   name: string | null
   input: string | null
@@ -64,6 +64,14 @@ export type RunStep = {
   tokens: number | null
   durationMs: number | null
   error: string | null
+  createdAt: string
+}
+
+export type RunScore = {
+  grader: string
+  score: number
+  passed: boolean
+  rationale: string | null
   createdAt: string
 }
 
@@ -85,25 +93,33 @@ export type AgentRun = {
   startedAt: string
   finishedAt: string | null
   trace: RunStep[]
+  scores: RunScore[]
 }
 
 export type TaskSummary = {
   id: string
   name: string
   version: number
-  beschreibung: string | null
-  schwierigkeit: number
+  description: string | null
+  difficulty: number
   tags: string[]
   soul: string | null
   provider: string | null
 }
 
+export type Criterion = {
+  type: string
+  value: string
+  description: string | null
+}
+
 export type Task = TaskSummary & {
-  auftrag: string
+  goal: string
+  success: Criterion[]
   maxToolCalls: number | null
   maxDurationMs: number | null
-  abschnitte: Record<string, string>
-  quelle: string
+  sections: Record<string, string>
+  source: string
 }
 
 export type ToolInfo = {
@@ -145,7 +161,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       const problem = (await response.json()) as ProblemDetail
       message = problem.detail ?? problem.title ?? message
     } catch {
-      // Antwort war kein JSON - Statuszeile reicht.
+      // Response was not JSON — the status line is enough.
     }
     throw new Error(message)
   }

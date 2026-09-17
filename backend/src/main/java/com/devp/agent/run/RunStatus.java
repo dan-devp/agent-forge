@@ -1,17 +1,17 @@
 package com.devp.agent.run;
 
-/** Endzustand eines Laufs. Ein abgebrochener Lauf ist kein Fehler, sondern ein Ergebnis. */
+/** Final state of a run. An aborted run is a result, not an error. */
 public enum RunStatus {
 
-	/** Laeuft noch — nur waehrend der Ausfuehrung, in der DB ein Hinweis auf einen Absturz. */
+	/** Still running — only during execution; in the database it hints at a crash. */
 	RUNNING,
 
-	/** Modell hat geantwortet, ohne weitere Tools zu verlangen. */
+	/** The model answered without requesting further tools. */
 	DONE,
 
-	/** Budget aufgebraucht (Schritte, Tool-Aufrufe oder Zeit). Teilergebnis bleibt erhalten. */
+	/** Budget exhausted (steps, tool calls or time). The partial result is kept. */
 	BUDGET_EXCEEDED,
 
-	/** Aufruf fehlgeschlagen — Provider tot, Tool kaputt, Konfiguration falsch. */
+	/** Call failed — provider down, tool broken, configuration wrong. */
 	FAILED
 }

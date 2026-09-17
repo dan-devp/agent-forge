@@ -47,3 +47,4 @@ Desktop.ini
 logs/
 tmp/
 *.pid
+/session-1.md

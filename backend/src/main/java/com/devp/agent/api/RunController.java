@@ -8,20 +8,20 @@ import com.devp.agent.run.AgentService;
 
 import jakarta.validation.constraints.Size;
 
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.validation.annotation.Validated;
 
 /**
- * Laeufe des Agenten.
+ * Agent runs.
  *
- * <p>{@code POST /api/runs} arbeitet synchron: der Aufruf kommt zurueck, wenn der Lauf
- * fertig ist oder sein Budget aufgebraucht hat. Fuer Fortschritt waehrend des Laufs
- * fehlt noch ein Stream — bis dahin begrenzt das Budget die Wartezeit.
+ * <p>{@code POST /api/runs} is synchronous: the call returns when the run has finished or
+ * exhausted its budget. Progress during the run needs a stream that does not exist yet —
+ * until then the budget bounds the waiting time.
  */
 @RestController
 @RequestMapping("/api/runs")
@@ -39,24 +39,24 @@ public class RunController {
 		return agent.run(request.goal(), request.task(), request.provider(), request.soul());
 	}
 
-	/** Uebersicht ohne Trace. */
+	/** History without traces. */
 	@GetMapping
 	public List<AgentRun> history() {
 		return agent.history();
 	}
 
-	/** Einzelner Lauf inklusive vollstaendigem Trace. */
+	/** One run including its complete trace and scores. */
 	@GetMapping("/{id}")
 	public AgentRun detail(@PathVariable UUID id) {
-		return agent.find(id).orElseThrow(() -> new UnknownRunException("Unbekannter Lauf '%s'.".formatted(id)));
+		return agent.find(id).orElseThrow(() -> new UnknownRunException("Unknown run '%s'.".formatted(id)));
 	}
 
 	/**
-	 * Entweder {@code task} (benannte Aufgabe) oder {@code goal} (freier Auftrag);
-	 * {@code provider} und {@code soul} ueberschreiben die Vorgaben der Aufgabe.
+	 * Either {@code task} (named task) or {@code goal} (free-form goal); {@code provider} and
+	 * {@code soul} override the task's defaults.
 	 */
 	public record RunRequest(
-			@Size(max = 4000, message = "goal ist zu lang (max. 4000 Zeichen)")
+			@Size(max = 4000, message = "goal is too long (max. 4000 characters)")
 			String goal,
 
 			String task,
@@ -66,7 +66,7 @@ public class RunController {
 			String soul) {
 	}
 
-	/** Angefragte Lauf-Id existiert nicht. */
+	/** The requested run id does not exist. */
 	public static class UnknownRunException extends RuntimeException {
 		public UnknownRunException(String message) {
 			super(message);

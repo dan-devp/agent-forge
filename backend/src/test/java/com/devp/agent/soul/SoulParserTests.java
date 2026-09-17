@@ -11,19 +11,19 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SoulParserTests {
 
-	private static final String VOLLSTAENDIG = """
+	private static final String COMPLETE = """
 			---
-			id: pruefer
+			id: checker
 			name: Argus
-			rolle: Reviewer
+			role: Reviewer
 			version: 3
-			beschreibung: Testdefinition
+			description: test definition
 			gates:
-			  - id: beleg
-			    frage: Ist das belegt?
-			    blockiert: true
-			  - id: umfang
-			    frage: Ist der Umfang richtig?
+			  - id: evidence
+			    question: Ist das belegt?
+			    blocking: true
+			  - id: scope
+			    question: Ist der Umfang richtig?
 			---
 
 			# Identitaet
@@ -36,41 +36,41 @@ class SoulParserTests {
 			""";
 
 	@Test
-	void liestFrontmatterUndAbschnitte() {
-		Soul soul = SoulParser.parse(VOLLSTAENDIG, "pruefer.md");
+	void readsFrontMatterAndSections() {
+		Soul soul = SoulParser.parse(COMPLETE, "checker.md");
 
-		assertThat(soul.id()).isEqualTo("pruefer");
+		assertThat(soul.id()).isEqualTo("checker");
 		assertThat(soul.name()).isEqualTo("Argus");
-		assertThat(soul.rolle()).isEqualTo("Reviewer");
+		assertThat(soul.role()).isEqualTo("Reviewer");
 		assertThat(soul.version()).isEqualTo(3);
-		assertThat(soul.beschreibung()).isEqualTo("Testdefinition");
-		assertThat(soul.quelle()).isEqualTo("pruefer.md");
-		assertThat(soul.abschnitte()).containsOnlyKeys("Identitaet", "Werte");
-		assertThat(soul.abschnitte().get("Identitaet")).isEqualTo("Du bist Argus.");
+		assertThat(soul.description()).isEqualTo("test definition");
+		assertThat(soul.source()).isEqualTo("checker.md");
+		assertThat(soul.sections()).containsOnlyKeys("Identitaet", "Werte");
+		assertThat(soul.sections().get("Identitaet")).isEqualTo("Du bist Argus.");
 	}
 
-	/** Die Reihenfolge der Abschnitte ist Teil der SOUL — sie bestimmt den Prompt-Aufbau. */
+	/** The section order is part of the SOUL — it determines the prompt layout. */
 	@Test
-	void behaeltAbschnittsreihenfolge() {
-		Soul soul = SoulParser.parse(VOLLSTAENDIG, "pruefer.md");
+	void keepsSectionOrder() {
+		Soul soul = SoulParser.parse(COMPLETE, "checker.md");
 
-		assertThat(soul.abschnitte().keySet()).containsExactly("Identitaet", "Werte");
+		assertThat(soul.sections().keySet()).containsExactly("Identitaet", "Werte");
 	}
 
 	@Test
-	void liestGatesInklBlockierFlag() {
-		Soul soul = SoulParser.parse(VOLLSTAENDIG, "pruefer.md");
+	void readsGatesIncludingBlockingFlag() {
+		Soul soul = SoulParser.parse(COMPLETE, "checker.md");
 
 		assertThat(soul.gates()).containsExactly(
-				new SoulGate("beleg", "Ist das belegt?", true),
-				new SoulGate("umfang", "Ist der Umfang richtig?", false));
+				new SoulGate("evidence", "Ist das belegt?", true),
+				new SoulGate("scope", "Ist der Umfang richtig?", false));
 	}
 
 	@Test
-	void faelltOhneIdAufDenDateinamenZurueck() {
+	void fallsBackToFileNameWithoutId() {
 		Soul soul = SoulParser.parse("""
 				---
-				name: Ohne Id
+				name: Without id
 				---
 				# Identitaet
 				Text.
@@ -82,67 +82,67 @@ class SoulParserTests {
 	}
 
 	@Test
-	void akzeptiertWindowsZeilenenden() {
+	void acceptsWindowsLineEndings() {
 		Soul soul = SoulParser.parse("---\r\nid: x\r\n---\r\n# Identitaet\r\nText.\r\n", "x.md");
 
-		assertThat(soul.abschnitte()).containsEntry("Identitaet", "Text.");
+		assertThat(soul.sections()).containsEntry("Identitaet", "Text.");
 	}
 
 	@Test
-	void meldetFehlendesFrontmatter() {
-		assertThatThrownBy(() -> SoulParser.parse("# Identitaet\nText.", "kaputt.md"))
+	void reportsMissingFrontMatter() {
+		assertThatThrownBy(() -> SoulParser.parse("# Identitaet\nText.", "broken.md"))
 				.isInstanceOf(SoulParseException.class)
-				.hasMessageContaining("kaputt.md")
-				.hasMessageContaining("Frontmatter");
+				.hasMessageContaining("broken.md")
+				.hasMessageContaining("front matter");
 	}
 
 	@Test
-	void meldetNichtGeschlossenesFrontmatter() {
-		assertThatThrownBy(() -> SoulParser.parse("---\nid: x\n# Identitaet\n", "offen.md"))
+	void reportsUnclosedFrontMatter() {
+		assertThatThrownBy(() -> SoulParser.parse("---\nid: x\n# Identitaet\n", "open.md"))
 				.isInstanceOf(SoulParseException.class)
-				.hasMessageContaining("nicht geschlossen");
+				.hasMessageContaining("not closed");
 	}
 
 	@Test
-	void meldetGateOhnePflichtfelder() {
+	void reportsGateWithoutRequiredFields() {
 		assertThatThrownBy(() -> SoulParser.parse("""
 				---
 				id: x
 				gates:
-				  - id: ohne-frage
+				  - id: no-question
 				---
 				""", "gate.md"))
 				.isInstanceOf(SoulParseException.class)
-				.hasMessageContaining("Gate ohne");
+				.hasMessageContaining("gate without");
 	}
 
 	@Test
-	void meldetNichtNumerischeVersion() {
-		assertThatThrownBy(() -> SoulParser.parse("---\nid: x\nversion: zwei\n---\n", "v.md"))
+	void reportsNonNumericVersion() {
+		assertThatThrownBy(() -> SoulParser.parse("---\nid: x\nversion: two\n---\n", "v.md"))
 				.isInstanceOf(SoulParseException.class)
 				.hasMessageContaining("version");
 	}
 
 	@Test
-	void meldetLeereDatei() {
-		assertThatThrownBy(() -> SoulParser.parse("", "leer.md"))
+	void reportsEmptyFile() {
+		assertThatThrownBy(() -> SoulParser.parse("", "empty.md"))
 				.isInstanceOf(SoulParseException.class);
 	}
 
-	/** Abschnitte ohne Inhalt tragen nichts zum Prompt bei und werden verworfen. */
+	/** Sections without content add nothing to the prompt and are dropped. */
 	@Test
-	void verwirftLeereAbschnitte() {
+	void dropsEmptySections() {
 		Soul soul = SoulParser.parse("""
 				---
 				id: x
 				---
-				# Leer
+				# Empty
 
-				# Gefuellt
-				Inhalt.
+				# Filled
+				Content.
 				""", "x.md");
 
-		assertThat(soul.abschnitte()).containsOnlyKeys("Gefuellt");
+		assertThat(soul.sections()).containsOnlyKeys("Filled");
 		assertThat(soul.gates()).isEqualTo(List.of());
 	}
 }

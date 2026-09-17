@@ -1,11 +1,11 @@
 package com.devp.agent.run;
 
-/** Art eines Trace-Schritts. */
+/** Kind of a trace step. */
 public enum StepType {
 
-	/** Eine Modellrunde: entweder Tool-Anforderung oder die Abschlussantwort. */
+	/** One model round: either a tool request or the final answer. */
 	MODEL,
 
-	/** Ein ausgefuehrter Tool-Aufruf inkl. Argumenten und Ergebnis. */
+	/** One executed tool call including arguments and result. */
 	TOOL
 }

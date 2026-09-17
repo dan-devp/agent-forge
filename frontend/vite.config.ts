@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    // Leitet /api an das Spring-Boot-Backend weiter -> im Dev kein CORS noetig.
+    // Forwards /api to the Spring Boot backend -> no CORS needed in dev.
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

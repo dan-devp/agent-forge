@@ -1,22 +1,22 @@
 package com.devp.agent.config;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Konfiguration aller nutzbaren Modell-Endpunkte.
+ * Configuration of all usable model endpoints.
  *
- * <p>Jeder Eintrag unter {@code app.ai.providers.<id>} ist ein OpenAI-kompatibler
- * Endpunkt — egal ob OpenAI selbst, ein Gateway oder ein lokaler Server
- * (LM Studio, Ollama, vLLM, llama.cpp, LiteLLM). Damit ist "lokal oder Cloud"
- * eine reine Konfigurationsfrage.
+ * <p>Every entry under {@code app.ai.providers.<id>} is an OpenAI-compatible endpoint —
+ * OpenAI itself, a gateway or a local server (LM Studio, Ollama, vLLM, llama.cpp, LiteLLM).
+ * "Local or cloud" is thereby purely a configuration question.
  */
 @ConfigurationProperties(prefix = "app.ai")
 public class AiProperties {
 
-	/** Provider-Id, die genutzt wird, wenn der Aufruf keine angibt. */
+	/** Provider id used when the call names none. */
 	private String defaultProvider = "openai";
 
 	private Map<String, Provider> providers = new LinkedHashMap<>();
@@ -39,24 +39,24 @@ public class AiProperties {
 
 	public static class Provider {
 
-		/** Anzeigename im Frontend. */
+		/** Display name in the frontend. */
 		private String label;
 
-		/** Vollstaendige Basis-URL inkl. Versionspfad, z. B. https://api.openai.com/v1 */
+		/** Complete base URL including the version path, e.g. https://api.openai.com/v1 */
 		private String baseUrl;
 
-		/** API-Key. Lokale Server ignorieren ihn meist, ein Platzhalter genuegt dort. */
+		/** API key. Local servers mostly ignore it; a placeholder is enough there. */
 		private String apiKey;
 
-		/** Modell-Id am jeweiligen Endpunkt. */
+		/** Model id at the endpoint. */
 		private String model;
 
 		private Double temperature = 0.7;
 
-		/** true = Provider gilt auch ohne echten API-Key als nutzbar (lokale Server). */
+		/** true = the provider counts as usable without a real API key (local servers). */
 		private boolean local = false;
 
-		/** Provider wird nicht angeboten, wenn false. */
+		/** Provider is not offered when false. */
 		private boolean enabled = true;
 
 		public String getLabel() {
@@ -116,8 +116,7 @@ public class AiProperties {
 		}
 
 		/**
-		 * Nutzbar konfiguriert? Cloud-Provider brauchen einen echten Key,
-		 * lokale Server nur eine erreichbare URL.
+		 * Usably configured? Cloud providers need a real key, local servers only a reachable URL.
 		 */
 		public boolean isConfigured() {
 			if (baseUrl == null || baseUrl.isBlank() || model == null || model.isBlank()) {
@@ -130,15 +129,15 @@ public class AiProperties {
 		}
 
 		/**
-		 * Erkennt nicht ausgefuellte Keys. Ohne diese Pruefung meldet /api/status
-		 * "konfiguriert", obwohl noch der Platzhalter aus .env.example drinsteht —
-		 * der Fehler faellt dann erst beim Modellaufruf als 401 auf.
+		 * Detects keys that were never filled in. Without this check /api/status reports
+		 * "configured" while the placeholder from .env.example is still in place — the error
+		 * would only surface as a 401 on the first model call.
 		 */
 		private static boolean isPlaceholder(String value) {
 			if (value == null || value.isBlank()) {
 				return true;
 			}
-			String normalized = value.trim().toLowerCase();
+			String normalized = value.trim().toLowerCase(Locale.ROOT);
 			return normalized.equals("not-set")
 					|| normalized.equals("not-needed")
 					|| normalized.equals("changeme")

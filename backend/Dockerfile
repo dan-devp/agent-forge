@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1
 
 # --- Build --------------------------------------------------------------------
-# Offizielles Gradle-Image statt Wrapper-Download: reproduzierbar und unabhaengig
-# von services.gradle.org (Version hier synchron zu gradle/wrapper halten).
+# Official Gradle image instead of the wrapper download: reproducible and independent
+# of services.gradle.org (keep the version in sync with gradle/wrapper).
 FROM gradle:9.7.1-jdk25 AS build
 WORKDIR /workspace
 
-# Build-Skripte zuerst: Dependency-Layer bleibt stabil, solange sich Deps nicht aendern.
+# Build scripts first: the dependency layer stays cached as long as deps do not change.
 COPY settings.gradle build.gradle ./
 RUN --mount=type=cache,target=/home/gradle/.gradle \
     gradle --no-daemon dependencies --configuration runtimeClasspath > /dev/null 2>&1 || true
@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/home/gradle/.gradle \
 FROM eclipse-temurin:25-jre AS runtime
 WORKDIR /app
 
-# curl fuer den Compose-Healthcheck
+# curl for the compose healthcheck
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl \
  && rm -rf /var/lib/apt/lists/*

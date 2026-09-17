@@ -3,68 +3,73 @@ package com.devp.agent.task;
 import com.devp.agent.doc.MarkdownDocument;
 import com.devp.agent.doc.MarkdownParser;
 import com.devp.agent.doc.MarkdownParser.MarkdownParseException;
+import com.devp.agent.eval.CriterionParser;
 
 /**
- * Liest eine Aufgabe aus Markdown mit YAML-Frontmatter — dasselbe Format wie SOULs.
+ * Reads a task from Markdown with YAML front matter — the same format as SOULs.
  *
  * <pre>
  * ---
- * id: zeit-und-rechnung
+ * id: time-and-division
  * name: Zeit und Rechnung
  * version: 1
- * schwierigkeit: 1
- * tags: [werkzeuge]
+ * difficulty: 1
+ * tags: [tools]
  * max-tool-calls: 4
+ * success:
+ *   - type: tool-called
+ *     value: currentTime
  * ---
- * # Auftrag
+ * # Goal
  * Wie spaet ist es in UTC, und was ergibt 100 geteilt durch 7? Nutze die Tools.
  * </pre>
  */
 public final class TaskParser {
 
-	/** Abschnitt, dessen Text als Nutzernachricht an den Agenten geht. */
-	public static final String ABSCHNITT_AUFTRAG = "Auftrag";
+	/** Section whose text is sent to the agent as the user message. */
+	public static final String SECTION_GOAL = "Goal";
 
 	private TaskParser() {
 	}
 
-	public static Task parse(String inhalt, String quelle) {
-		MarkdownDocument dokument;
+	public static Task parse(String content, String source) {
+		MarkdownDocument document;
 		try {
-			dokument = MarkdownParser.parse(inhalt, quelle);
+			document = MarkdownParser.parse(content, source);
 
-			String auftrag = dokument.abschnitt(ABSCHNITT_AUFTRAG);
-			if (auftrag == null || auftrag.isBlank()) {
-				// Ohne Auftrag gibt es nichts auszufuehren — das ist ein Fehler in der
-				// Datei, kein leerer Lauf zur Laufzeit.
-				throw new TaskParseException(quelle,
-						"Abschnitt '# %s' fehlt oder ist leer".formatted(ABSCHNITT_AUFTRAG));
+			String goal = document.section(SECTION_GOAL);
+			if (goal == null || goal.isBlank()) {
+				// Without a goal there is nothing to execute — that is a defect in the file,
+				// not an empty run at runtime.
+				throw new TaskParseException(source,
+						"section '# %s' is missing or empty".formatted(SECTION_GOAL));
 			}
 
 			return new Task(
-					dokument.id(),
-					dokument.text("name", dokument.id()),
-					dokument.ganzzahl("version", 1),
-					dokument.text("beschreibung"),
-					dokument.ganzzahl("schwierigkeit", 1),
-					dokument.texte("tags"),
-					dokument.text("soul"),
-					dokument.text("provider"),
-					dokument.ganzzahl("max-tool-calls"),
-					dokument.ganzzahlLang("max-duration-ms"),
-					auftrag,
-					dokument.abschnitte(),
-					quelle);
+					document.id(),
+					document.text("name", document.id()),
+					document.integer("version", 1),
+					document.text("description"),
+					document.integer("difficulty", 1),
+					document.strings("tags"),
+					document.text("soul"),
+					document.text("provider"),
+					document.integer("max-tool-calls"),
+					document.longValue("max-duration-ms"),
+					CriterionParser.parse(document),
+					goal,
+					document.sections(),
+					source);
 		}
 		catch (MarkdownParseException ex) {
-			throw new TaskParseException(quelle, ex.grund());
+			throw new TaskParseException(source, ex.reason());
 		}
 	}
 
-	/** Aufgabendatei ist nicht lesbar — Fehler nennt immer die Quelle. */
+	/** Task file cannot be read — the message always names the source. */
 	public static class TaskParseException extends RuntimeException {
-		public TaskParseException(String quelle, String grund) {
-			super("Aufgabe '%s' konnte nicht gelesen werden: %s".formatted(quelle, grund));
+		public TaskParseException(String source, String reason) {
+			super("Task '%s' could not be read: %s".formatted(source, reason));
 		}
 	}
 }

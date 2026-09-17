@@ -8,7 +8,7 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.YAMLException;
 
 /**
- * Zerlegt Markdown mit YAML-Frontmatter in {@link MarkdownDocument}.
+ * Splits Markdown with YAML front matter into a {@link MarkdownDocument}.
  *
  * <pre>
  * ---
@@ -19,134 +19,134 @@ import org.yaml.snakeyaml.error.YAMLException;
  * ...
  * </pre>
  *
- * <p>Kennt nur das Dateiformat, nicht die Bedeutung der Felder — welche Felder Pflicht
- * sind, entscheidet die jeweilige Entitaet (SOUL, Aufgabe, spaeter Skill).
+ * <p>Knows only the file format, not the meaning of the fields — which fields are required
+ * is decided by the entity (SOUL, task, later skill).
  */
 public final class MarkdownParser {
 
-	private static final String TRENNER = "---";
+	private static final String DELIMITER = "---";
 
 	private MarkdownParser() {
 	}
 
 	/**
-	 * @param quelle Herkunftsbezeichnung (Pfad), auch Fallback fuer eine fehlende Id
+	 * @param source origin (path), also the fallback for a missing id
 	 */
-	public static MarkdownDocument parse(String inhalt, String quelle) {
-		if (inhalt == null || inhalt.isBlank()) {
-			throw new MarkdownParseException(quelle, "Datei ist leer");
+	public static MarkdownDocument parse(String content, String source) {
+		if (content == null || content.isBlank()) {
+			throw new MarkdownParseException(source, "file is empty");
 		}
 
-		Geteilt geteilt = trenneFrontmatter(inhalt, quelle);
-		Map<String, Object> kopf = ladeYaml(geteilt.frontmatter(), quelle);
+		Split split = splitFrontMatter(content, source);
+		Map<String, Object> frontMatter = loadYaml(split.frontMatter(), source);
 
-		Object roheId = kopf.get("id");
-		String id = roheId == null ? null : String.valueOf(roheId).strip();
+		Object rawId = frontMatter.get("id");
+		String id = rawId == null ? null : String.valueOf(rawId).strip();
 		if (id == null || id.isEmpty()) {
-			id = dateiBasisName(quelle);
+			id = baseName(source);
 		}
 
-		return new MarkdownDocument(id, kopf, abschnitte(geteilt.body()), quelle);
+		return new MarkdownDocument(id, frontMatter, sections(split.body()), source);
 	}
 
 	/**
-	 * Frontmatter muss in der ersten Zeile beginnen — sonst laesst sich nicht
-	 * unterscheiden, ob eine Datei Metadaten hat oder nur eine Trennlinie enthaelt.
+	 * Front matter must start on the first line — otherwise it is impossible to tell
+	 * whether a file has metadata or merely contains a horizontal rule.
 	 */
-	private static Geteilt trenneFrontmatter(String inhalt, String quelle) {
-		String normalisiert = inhalt.replace("\r\n", "\n").stripLeading();
-		if (!normalisiert.startsWith(TRENNER)) {
-			throw new MarkdownParseException(quelle, "kein YAML-Frontmatter — Datei muss mit '---' beginnen");
+	private static Split splitFrontMatter(String content, String source) {
+		String normalized = content.replace("\r\n", "\n").stripLeading();
+		if (!normalized.startsWith(DELIMITER)) {
+			throw new MarkdownParseException(source, "no YAML front matter — file must start with '---'");
 		}
 
-		int start = normalisiert.indexOf('\n');
+		int start = normalized.indexOf('\n');
 		if (start < 0) {
-			throw new MarkdownParseException(quelle, "Frontmatter ist nicht geschlossen");
+			throw new MarkdownParseException(source, "front matter is not closed");
 		}
 
-		int ende = normalisiert.indexOf("\n" + TRENNER, start);
-		if (ende < 0) {
-			throw new MarkdownParseException(quelle, "Frontmatter ist nicht geschlossen (zweites '---' fehlt)");
+		int end = normalized.indexOf("\n" + DELIMITER, start);
+		if (end < 0) {
+			throw new MarkdownParseException(source, "front matter is not closed (second '---' missing)");
 		}
 
-		String frontmatter = normalisiert.substring(start + 1, ende);
-		int bodyStart = normalisiert.indexOf('\n', ende + 1);
-		String body = bodyStart < 0 ? "" : normalisiert.substring(bodyStart + 1);
-		return new Geteilt(frontmatter, body);
+		String frontMatter = normalized.substring(start + 1, end);
+		int bodyStart = normalized.indexOf('\n', end + 1);
+		String body = bodyStart < 0 ? "" : normalized.substring(bodyStart + 1);
+		return new Split(frontMatter, body);
 	}
 
-	private static Map<String, Object> ladeYaml(String frontmatter, String quelle) {
+	private static Map<String, Object> loadYaml(String frontMatter, String source) {
 		try {
-			Object geladen = new Yaml().load(frontmatter);
-			if (geladen == null) {
-				throw new MarkdownParseException(quelle, "Frontmatter ist leer");
+			Object loaded = new Yaml().load(frontMatter);
+			if (loaded == null) {
+				throw new MarkdownParseException(source, "front matter is empty");
 			}
-			if (!(geladen instanceof Map<?, ?> karte)) {
-				throw new MarkdownParseException(quelle, "Frontmatter muss ein YAML-Objekt sein");
+			if (!(loaded instanceof Map<?, ?> map)) {
+				throw new MarkdownParseException(source, "front matter must be a YAML object");
 			}
-			Map<String, Object> ergebnis = new LinkedHashMap<>();
-			karte.forEach((k, v) -> ergebnis.put(String.valueOf(k), v));
-			return Collections.unmodifiableMap(ergebnis);
+			Map<String, Object> result = new LinkedHashMap<>();
+			map.forEach((k, v) -> result.put(String.valueOf(k), v));
+			return Collections.unmodifiableMap(result);
 		}
 		catch (YAMLException ex) {
-			throw new MarkdownParseException(quelle, "Frontmatter ist kein gueltiges YAML: " + ex.getMessage());
+			throw new MarkdownParseException(source, "front matter is not valid YAML: " + ex.getMessage());
 		}
 	}
 
-	/** Body in Abschnitte nach {@code # Ueberschrift} zerlegen, Reihenfolge bleibt erhalten. */
-	private static Map<String, String> abschnitte(String body) {
-		Map<String, String> abschnitte = new LinkedHashMap<>();
-		String ueberschrift = null;
-		StringBuilder puffer = new StringBuilder();
+	/** Split the body into sections by {@code # Heading}, keeping the order. */
+	private static Map<String, String> sections(String body) {
+		Map<String, String> sections = new LinkedHashMap<>();
+		String heading = null;
+		StringBuilder buffer = new StringBuilder();
 
-		for (String zeile : body.split("\n", -1)) {
-			if (zeile.startsWith("# ")) {
-				ablegen(abschnitte, ueberschrift, puffer);
-				ueberschrift = zeile.substring(2).trim();
-				puffer.setLength(0);
+		for (String line : body.split("\n", -1)) {
+			if (line.startsWith("# ")) {
+				store(sections, heading, buffer);
+				heading = line.substring(2).trim();
+				buffer.setLength(0);
 			}
 			else {
-				puffer.append(zeile).append('\n');
+				buffer.append(line).append('\n');
 			}
 		}
-		ablegen(abschnitte, ueberschrift, puffer);
-		// Map.copyOf verliert die Reihenfolge — die Abschnittsfolge ist Teil der Definition.
-		return Collections.unmodifiableMap(abschnitte);
+		store(sections, heading, buffer);
+		// Map.copyOf loses the order — the section order is part of the definition.
+		return Collections.unmodifiableMap(sections);
 	}
 
-	private static void ablegen(Map<String, String> ziel, String ueberschrift, StringBuilder puffer) {
-		if (ueberschrift == null) {
+	private static void store(Map<String, String> target, String heading, StringBuilder buffer) {
+		if (heading == null) {
 			return;
 		}
-		String text = puffer.toString().strip();
+		String text = buffer.toString().strip();
 		if (!text.isEmpty()) {
-			ziel.put(ueberschrift, text);
+			target.put(heading, text);
 		}
 	}
 
-	private static String dateiBasisName(String quelle) {
-		// Quelle kann ein Classpath-Pfad oder ein Windows-Dateipfad sein.
-		int schnitt = Math.max(quelle.lastIndexOf('/'), quelle.lastIndexOf('\\'));
-		String name = quelle.substring(schnitt + 1);
+	private static String baseName(String source) {
+		// The source may be a classpath path or a Windows file path.
+		int cut = Math.max(source.lastIndexOf('/'), source.lastIndexOf('\\'));
+		String name = source.substring(cut + 1);
 		return name.endsWith(".md") ? name.substring(0, name.length() - 3) : name;
 	}
 
-	private record Geteilt(String frontmatter, String body) {
+	private record Split(String frontMatter, String body) {
 	}
 
-	/** Datei ist nicht lesbar — die Meldung nennt immer die Quelle. */
+	/** File cannot be read — the message always names the source. */
 	public static class MarkdownParseException extends RuntimeException {
 
-		private final String grund;
+		private final String reason;
 
-		public MarkdownParseException(String quelle, String grund) {
-			super("'%s' konnte nicht gelesen werden: %s".formatted(quelle, grund));
-			this.grund = grund;
+		public MarkdownParseException(String source, String reason) {
+			super("'%s' could not be read: %s".formatted(source, reason));
+			this.reason = reason;
 		}
 
-		/** Der Grund ohne Quellenangabe — damit eine Entitaet ihn in ihre eigene Meldung setzen kann. */
-		public String grund() {
-			return grund;
+		/** The reason without the source — so an entity can embed it in its own message. */
+		public String reason() {
+			return reason;
 		}
 	}
 }

@@ -7,16 +7,16 @@ import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Registrierte Werkzeuge.
+ * Registered tools.
  *
- * <p>MCP-Server werden wie die Modell-Provider selbst verwaltet statt ueber die
- * Spring-AI-Autoconfiguration: nur so laesst sich ein Server zur Laufzeit neu laden,
- * und die Konfigurationsform bleibt dieselbe wie bei {@code app.ai.providers.<id>}.
+ * <p>MCP servers are managed by us like the model providers instead of via the Spring AI
+ * autoconfiguration: only that way can a server be reconnected at runtime, and the
+ * configuration keeps the same shape as {@code app.ai.providers.<id>}.
  */
 @ConfigurationProperties(prefix = "app.tools")
 public class ToolProperties {
 
-	/** Eingebaute Tools (Zeit, Rechnen) an- oder abschalten. */
+	/** Enable or disable the built-in tools (time, arithmetic). */
 	private boolean builtinEnabled = true;
 
 	private Map<String, McpServer> mcp = new LinkedHashMap<>();
@@ -37,16 +37,16 @@ public class ToolProperties {
 		this.mcp = mcp;
 	}
 
-	/** Transportart eines MCP-Servers. */
+	/** Transport of an MCP server. */
 	public enum Transport {
 
-		/** Lokaler Prozess ueber stdin/stdout. */
+		/** Local process over stdin/stdout. */
 		STDIO,
 
-		/** HTTP mit Server-Sent-Events. */
+		/** HTTP with server-sent events. */
 		SSE,
 
-		/** Streamable HTTP (MCP ab Protokollversion 2025-03-26). */
+		/** Streamable HTTP (MCP from protocol version 2025-03-26). */
 		HTTP
 	}
 
@@ -56,17 +56,17 @@ public class ToolProperties {
 
 		private Transport transport = Transport.STDIO;
 
-		/** STDIO: auszufuehrendes Programm, z. B. {@code npx}. */
+		/** STDIO: program to execute, e.g. {@code npx}. */
 		private String command;
 
 		private List<String> args = List.of();
 
 		private Map<String, String> env = new LinkedHashMap<>();
 
-		/** SSE/HTTP: Basis-URL des Servers. */
+		/** SSE/HTTP: base URL of the server. */
 		private String url;
 
-		/** Wartezeit beim Verbindungsaufbau und je Aufruf. */
+		/** Timeout for connecting and per call. */
 		private long timeoutMs = 20_000;
 
 		private boolean enabled = true;
@@ -135,7 +135,7 @@ public class ToolProperties {
 			this.enabled = enabled;
 		}
 
-		/** Nutzbar konfiguriert? STDIO braucht ein Kommando, SSE/HTTP eine URL. */
+		/** Usably configured? STDIO needs a command, SSE/HTTP a URL. */
 		public boolean isConfigured() {
 			return transport == Transport.STDIO
 					? command != null && !command.isBlank()

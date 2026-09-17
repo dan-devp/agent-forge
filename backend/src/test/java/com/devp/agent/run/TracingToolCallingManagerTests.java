@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import com.devp.agent.config.AgentProperties;
 import com.devp.agent.run.TracingToolCallingManager.BudgetExceededException;
@@ -24,8 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Prueft die Budgetgrenzen am Schleifenkoerper. Die Tool-Ausfuehrung selbst wird nicht
- * angestossen — der Abbruch muss greifen, bevor ein Tool laeuft.
+ * Checks the budget limits at the loop body. Tool execution itself is not triggered — the
+ * abort must happen before any tool runs.
  */
 @SpringBootTest
 @Import(PostgresTestcontainer.class)
@@ -40,7 +41,7 @@ class TracingToolCallingManagerTests {
 	private UUID runId;
 
 	@BeforeEach
-	void lauf() {
+	void startRun() {
 		runs.deleteAll();
 		runId = UUID.randomUUID();
 		runs.start(new AgentRun(runId, "Test", null, null, "forge", 1, "local", "mock", RunStatus.RUNNING, null, null, 0,
@@ -51,11 +52,11 @@ class TracingToolCallingManagerTests {
 		return new Prompt(List.of(), ToolCallingChatOptions.builder().toolContext(toolContext).build());
 	}
 
-	private static ChatResponse antwortMitToolAufrufen(int anzahl) {
-		List<AssistantMessage.ToolCall> aufrufe = java.util.stream.IntStream.range(0, anzahl)
-				.mapToObj(i -> new AssistantMessage.ToolCall("id-" + i, "function", "teilen", "{}"))
+	private static ChatResponse responseWithToolCalls(int count) {
+		List<AssistantMessage.ToolCall> calls = IntStream.range(0, count)
+				.mapToObj(i -> new AssistantMessage.ToolCall("id-" + i, "function", "divide", "{}"))
 				.toList();
-		return new ChatResponse(List.of(new Generation(AssistantMessage.builder().content("").toolCalls(aufrufe).build())));
+		return new ChatResponse(List.of(new Generation(AssistantMessage.builder().content("").toolCalls(calls).build())));
 	}
 
 	private TracingToolCallingManager manager(int maxToolCalls) {
@@ -66,64 +67,64 @@ class TracingToolCallingManagerTests {
 	}
 
 	/**
-	 * Der Zaehler im Spring-AI-Manager sieht nur frueher ausgefuehrte Aufrufe. Fordert das
-	 * Modell mehrere Tools in einer Runde an, muss trotzdem abgebrochen werden.
+	 * The counter inside the Spring AI manager only sees previously executed calls. If the
+	 * model requests several tools in one round, the run must still be aborted.
 	 */
 	@Test
-	void bremstParalleleAufrufeInEinerRunde() {
+	void stopsParallelCallsWithinOneRound() {
 		Prompt prompt = prompt(Map.of(TracingToolCallingManager.RUN_ID, runId));
 
-		assertThatThrownBy(() -> manager(2).executeToolCalls(prompt, antwortMitToolAufrufen(3)))
+		assertThatThrownBy(() -> manager(2).executeToolCalls(prompt, responseWithToolCalls(3)))
 				.isInstanceOf(BudgetExceededException.class)
-				.hasMessageContaining("Budget von 2 Tool-Aufrufen");
+				.hasMessageContaining("budget of 2 tool calls");
 	}
 
-	/** Die ausloesende Modellrunde gehoert in den Trace, auch wenn sie abgebrochen wird. */
+	/** The triggering model round belongs in the trace even if it is aborted. */
 	@Test
-	void zeichnetDieAusloesendeRundeAuf() {
+	void recordsTheTriggeringRound() {
 		Prompt prompt = prompt(Map.of(TracingToolCallingManager.RUN_ID, runId));
 
-		assertThatThrownBy(() -> manager(1).executeToolCalls(prompt, antwortMitToolAufrufen(2)))
+		assertThatThrownBy(() -> manager(1).executeToolCalls(prompt, responseWithToolCalls(2)))
 				.isInstanceOf(BudgetExceededException.class);
 
 		List<RunStep> trace = runs.trace(runId);
 		assertThat(trace).hasSize(1);
 		assertThat(trace.getFirst().type()).isEqualTo(StepType.MODEL);
-		assertThat(trace.getFirst().output()).contains("fordert Tools an");
+		assertThat(trace.getFirst().output()).contains("requests tools");
 	}
 
 	@Test
-	void bremstNachUeberschrittenemZeitbudget() {
+	void stopsAfterExceededTimeBudget() {
 		Prompt prompt = prompt(Map.of(
 				TracingToolCallingManager.RUN_ID, runId,
 				TracingToolCallingManager.DEADLINE, System.currentTimeMillis() - 1));
 
-		assertThatThrownBy(() -> manager(20).executeToolCalls(prompt, antwortMitToolAufrufen(1)))
+		assertThatThrownBy(() -> manager(20).executeToolCalls(prompt, responseWithToolCalls(1)))
 				.isInstanceOf(BudgetExceededException.class)
-				.hasMessageContaining("Zeitbudget");
+				.hasMessageContaining("Time budget");
 	}
 
-	/** Bereits ausgefuehrte Aufrufe zaehlen mit — der Trace ist die Quelle. */
+	/** Previously executed calls count — the trace is the source. */
 	@Test
-	void rechnetFruehereAufrufeAn() {
-		runs.addStep(runId, new RunStep(1, StepType.TOOL, "teilen", "{}", "ok", null, 1L, null, Instant.now()));
-		runs.addStep(runId, new RunStep(2, StepType.TOOL, "teilen", "{}", "ok", null, 1L, null, Instant.now()));
+	void countsEarlierCalls() {
+		runs.addStep(runId, new RunStep(1, StepType.TOOL, "divide", "{}", "ok", null, 1L, null, Instant.now()));
+		runs.addStep(runId, new RunStep(2, StepType.TOOL, "divide", "{}", "ok", null, 1L, null, Instant.now()));
 
 		Prompt prompt = prompt(Map.of(TracingToolCallingManager.RUN_ID, runId));
 
-		assertThatThrownBy(() -> manager(2).executeToolCalls(prompt, antwortMitToolAufrufen(1)))
+		assertThatThrownBy(() -> manager(2).executeToolCalls(prompt, responseWithToolCalls(1)))
 				.isInstanceOf(BudgetExceededException.class)
-				.hasMessageContaining("bisher 2");
+				.hasMessageContaining("so far: 2");
 	}
 
-	/** Ohne Run-Id (z. B. /api/chat) wird nichts aufgezeichnet und nichts begrenzt. */
+	/** Without a run id (e.g. /api/chat) nothing is recorded and nothing is limited. */
 	@Test
-	void zeichnetOhneLaufNichtsAuf() {
+	void recordsNothingWithoutRun() {
 		Prompt prompt = prompt(Map.of());
 
-		// Ohne echte Tool-Callbacks scheitert die Ausfuehrung — entscheidend ist, dass es
-		// keine BudgetExceededException ist und kein Schritt geschrieben wurde.
-		assertThatThrownBy(() -> manager(0).executeToolCalls(prompt, antwortMitToolAufrufen(1)))
+		// Without real tool callbacks the execution fails — what matters is that it is not a
+		// BudgetExceededException and that no step was written.
+		assertThatThrownBy(() -> manager(0).executeToolCalls(prompt, responseWithToolCalls(1)))
 				.isNotInstanceOf(BudgetExceededException.class);
 		assertThat(runs.trace(runId)).isEmpty();
 	}
