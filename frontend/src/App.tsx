@@ -1,6 +1,21 @@
 import { useEffect, useState } from 'react'
-import { api, type ChatResult, type SoulDetail, type SoulListResponse, type StatusResponse } from './api/client'
+import {
+  api,
+  type AgentRun,
+  type ChatResult,
+  type SoulDetail,
+  type SoulListResponse,
+  type StatusResponse,
+  type ToolListResponse,
+} from './api/client'
 import './App.css'
+
+const STATUS_TEXT: Record<AgentRun['status'], string> = {
+  RUNNING: 'läuft',
+  DONE: 'fertig',
+  BUDGET_EXCEEDED: 'Budget aufgebraucht',
+  FAILED: 'fehlgeschlagen',
+}
 
 function App() {
   const [status, setStatus] = useState<StatusResponse | null>(null)
@@ -9,8 +24,9 @@ function App() {
   const [soul, setSoul] = useState('')
   const [soulDetail, setSoulDetail] = useState<SoulDetail | null>(null)
   const [promptOffen, setPromptOffen] = useState(false)
-  const [name, setName] = useState('Daniel')
-  const [greeting, setGreeting] = useState<string | null>(null)
+  const [tools, setTools] = useState<ToolListResponse | null>(null)
+  const [goal, setGoal] = useState('Welcher Wochentag ist heute, und wie oft passt 7 in 100?')
+  const [run, setRun] = useState<AgentRun | null>(null)
   const [message, setMessage] = useState('Stell dich in einem Satz vor.')
   const [result, setResult] = useState<ChatResult | null>(null)
   const [busy, setBusy] = useState(false)
@@ -29,9 +45,7 @@ function App() {
         setProvider(preferred?.id ?? '')
       })
       .catch((e: Error) => setError(e.message))
-  }, [])
 
-  useEffect(() => {
     api
       .souls()
       .then((s) => {
@@ -39,6 +53,8 @@ function App() {
         setSoul(s.activeSoul)
       })
       .catch((e: Error) => setError(e.message))
+
+    api.tools().then(setTools).catch((e: Error) => setError(e.message))
   }, [])
 
   // Detail (inkl. gerendertem Prompt) immer zur aktuell gewaehlten SOUL nachladen.
@@ -53,7 +69,7 @@ function App() {
   const selected = status?.providers.find((p) => p.id === provider)
   const gates = soulDetail?.soul.gates ?? []
 
-  async function run(action: () => Promise<void>) {
+  async function lauf(action: () => Promise<void>) {
     setBusy(true)
     setError(null)
     try {
@@ -65,25 +81,21 @@ function App() {
     }
   }
 
-  const sayHello = () =>
-    run(async () => {
-      const response = await api.hello(name)
-      setGreeting(response.message)
-    })
-
   const askAi = () =>
-    run(async () => {
+    lauf(async () => {
       setResult(null)
       setResult(await api.chat(message, provider, soul))
     })
 
-  // Dateien aendern sich ausserhalb der App — neu einlesen ohne Neustart.
-  const reloadSouls = () =>
-    run(async () => {
-      const liste = await api.reloadSouls()
-      setSouls(liste)
-      setSoulDetail(await api.soul(liste.souls.some((s) => s.id === soul) ? soul : liste.activeSoul))
-      if (!liste.souls.some((s) => s.id === soul)) setSoul(liste.activeSoul)
+  const startRun = () =>
+    lauf(async () => {
+      setRun(null)
+      setRun(await api.startRun(goal, provider, soul))
+    })
+
+  const reloadTools = () =>
+    lauf(async () => {
+      setTools(await api.reloadTools())
     })
 
   return (
@@ -91,24 +103,14 @@ function App() {
       <header>
         <h1>KI-Mitarbeiter — Prototyp</h1>
         <p className="status">
-          {status ? `${status.providers.length} Provider registriert` : 'Backend wird abgefragt …'}
+          {status ? `${status.providers.length} Provider` : 'Backend wird abgefragt …'}
           {souls && ` · ${souls.souls.length} SOUL(s)`}
+          {tools && ` · ${tools.tools.length} Tool(s)`}
         </p>
       </header>
 
       <section className="card">
-        <h2>1 · Hello World (ohne Modell)</h2>
-        <div className="row">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-          <button onClick={sayHello} disabled={busy}>
-            Sagen
-          </button>
-        </div>
-        {greeting && <p className="output">{greeting}</p>}
-      </section>
-
-      <section className="card">
-        <h2>2 · SOUL</h2>
+        <h2>1 · SOUL</h2>
 
         <div className="row providers">
           <select value={soul} onChange={(e) => setSoul(e.target.value)} disabled={!souls}>
@@ -119,9 +121,19 @@ function App() {
               </option>
             ))}
           </select>
-          <button onClick={reloadSouls} disabled={busy}>
-            Neu laden
-          </button>
+          <select value={provider} onChange={(e) => setProvider(e.target.value)} disabled={!status}>
+            {status?.providers.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label} · {p.model}
+                {p.configured ? '' : ' (nicht konfiguriert)'}
+              </option>
+            ))}
+          </select>
+          {selected && (
+            <span className={selected.local ? 'badge local' : 'badge cloud'}>
+              {selected.local ? 'lokal' : 'cloud'}
+            </span>
+          )}
         </div>
 
         {soulDetail && (
@@ -145,34 +157,100 @@ function App() {
               {promptOffen ? 'Prompt verbergen' : 'Gerenderten Prompt zeigen'}
             </button>
             {promptOffen && <pre className="output prompt">{soulDetail.prompt}</pre>}
-            <p className="meta">Quelle: {soulDetail.quelle}</p>
           </>
         )}
       </section>
 
       <section className="card">
-        <h2>3 · Modellaufruf</h2>
+        <h2>2 · Werkzeuge</h2>
 
-        <div className="row providers">
-          <select value={provider} onChange={(e) => setProvider(e.target.value)} disabled={!status}>
-            {status?.providers.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label} · {p.model}
-                {p.configured ? '' : ' (nicht konfiguriert)'}
-              </option>
-            ))}
-          </select>
-          {selected && (
-            <span className={selected.local ? 'badge local' : 'badge cloud'}>
-              {selected.local ? 'lokal' : 'cloud'}
-            </span>
-          )}
+        <div className="row">
+          <button onClick={reloadTools} disabled={busy}>
+            MCP-Server neu verbinden
+          </button>
         </div>
+
+        {tools?.servers.length === 0 && (
+          <p className="meta">
+            Kein MCP-Server registriert. Server unter <code>app.tools.mcp.&lt;id&gt;</code> eintragen.
+          </p>
+        )}
+
+        {tools && tools.servers.length > 0 && (
+          <ul className="gates">
+            {tools.servers.map((s) => (
+              <li key={s.id}>
+                <span className={s.connected ? 'badge local' : 'badge cloud'}>
+                  {s.enabled ? (s.connected ? `${s.toolCount} Tools` : 'nicht erreichbar') : 'aus'}
+                </span>{' '}
+                {s.label} · {s.transport} · <code>{s.target}</code>
+                {s.error && <span className="fehler"> — {s.error}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {tools && tools.tools.length > 0 && (
+          <ul className="gates">
+            {tools.tools.map((t) => (
+              <li key={t.name}>
+                <span className="badge">{t.source}</span> <code>{t.name}</code>
+                {t.description && <span className="meta"> — {t.description}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>3 · Lauf mit Werkzeugen</h2>
+
+        <textarea
+          value={goal}
+          onChange={(e) => setGoal(e.target.value)}
+          rows={3}
+          placeholder="Auftrag an den Agenten"
+        />
+        <button onClick={startRun} disabled={busy || !goal.trim() || !provider}>
+          {busy ? 'Agent arbeitet …' : 'Lauf starten'}
+        </button>
+
+        {run && (
+          <>
+            <p className="meta">
+              <span className={run.status === 'DONE' ? 'badge local' : 'badge cloud'}>
+                {STATUS_TEXT[run.status]}
+              </span>{' '}
+              SOUL {run.soulId} v{run.soulVersion} · {run.providerId} · {run.model ?? 'unbekannt'} ·{' '}
+              {run.steps} Schritte · {run.durationMs} ms
+              {run.totalTokens != null && ` · ${run.totalTokens} Tokens`}
+            </p>
+
+            {run.answer && <p className="output">{run.answer}</p>}
+            {run.error && <p className="error">{run.error}</p>}
+
+            <ol className="trace">
+              {run.trace.map((s) => (
+                <li key={s.nr}>
+                  <span className={s.type === 'TOOL' ? 'badge cloud' : 'badge local'}>{s.type}</span>{' '}
+                  <code>{s.name}</code>
+                  {s.input && <div className="meta">ein: {s.input}</div>}
+                  {s.output && <div className="meta">aus: {s.output}</div>}
+                  {s.error && <div className="fehler">Fehler: {s.error}</div>}
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>4 · Einzelner Modellaufruf (ohne Werkzeuge)</h2>
 
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          rows={3}
+          rows={2}
           placeholder="Nachricht an den Agenten"
         />
         <button onClick={askAi} disabled={busy || !message.trim() || !provider}>

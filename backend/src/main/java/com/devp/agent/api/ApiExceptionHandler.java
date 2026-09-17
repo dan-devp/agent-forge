@@ -3,6 +3,7 @@ package com.devp.agent.api;
 import com.devp.agent.ai.ChatClientRegistry.UnknownProviderException;
 import com.devp.agent.ai.ChatService.AiNotConfiguredException;
 import com.devp.agent.ai.ChatService.ModelCallFailedException;
+import com.devp.agent.api.RunController.UnknownRunException;
 import com.devp.agent.soul.SoulParser.SoulParseException;
 import com.devp.agent.soul.SoulRepository.UnknownSoulException;
 
@@ -34,6 +35,13 @@ public class ApiExceptionHandler {
 	public ProblemDetail handleSoulParse(SoulParseException ex) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
 		problem.setTitle("SOUL fehlerhaft");
+		return problem;
+	}
+
+	@ExceptionHandler(UnknownRunException.class)
+	public ProblemDetail handleUnknownRun(UnknownRunException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+		problem.setTitle("Unbekannter Lauf");
 		return problem;
 	}
 

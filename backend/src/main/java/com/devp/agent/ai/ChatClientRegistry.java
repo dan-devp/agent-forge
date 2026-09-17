@@ -9,6 +9,8 @@ import com.devp.agent.config.AiProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.ToolCallingAdvisor;
+import org.springframework.ai.model.tool.ToolCallingManager;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Component;
@@ -26,10 +28,12 @@ public class ChatClientRegistry {
 	private static final Logger log = LoggerFactory.getLogger(ChatClientRegistry.class);
 
 	private final AiProperties properties;
+	private final ToolCallingManager toolCallingManager;
 	private final Map<String, ChatClient> clients = new LinkedHashMap<>();
 
-	public ChatClientRegistry(AiProperties properties) {
+	public ChatClientRegistry(AiProperties properties, ToolCallingManager toolCallingManager) {
 		this.properties = properties;
+		this.toolCallingManager = toolCallingManager;
 
 		properties.getProviders().forEach((id, provider) -> {
 			if (!provider.isEnabled()) {
@@ -63,7 +67,16 @@ public class ChatClientRegistry {
 
 		// Kein defaultSystem: der System-Prompt kommt pro Aufruf aus der SOUL, damit ein
 		// Reload sofort wirkt und verschiedene SOULs denselben Client nutzen koennen.
-		return ChatClient.builder(model).build();
+		//
+		// Die Tool-Schleife dreht in Spring AI 2.0 der ToolCallingAdvisor, nicht mehr das
+		// ChatModel. Der ChatClient wuerde sich selbst einen mit Standard-Manager
+		// registrieren; hier wird stattdessen der aufzeichnende Manager eingehaengt —
+		// sonst gaebe es keinen Trace.
+		return ChatClient.builder(model)
+				.defaultAdvisors(ToolCallingAdvisor.builder()
+						.toolCallingManager(toolCallingManager)
+						.build())
+				.build();
 	}
 
 	/** Aufloesung inkl. Fallback auf den Default-Provider. */

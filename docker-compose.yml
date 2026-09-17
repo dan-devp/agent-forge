@@ -1,4 +1,28 @@
 services:
+  postgres:
+    # pgvector-Variante statt reinem postgres: Schritt 3 (Skill-Retrieval ueber
+    # Embeddings) braucht die Extension, und ein Basiswechsel spaeter ist teurer.
+    image: pgvector/pgvector:pg18
+    container_name: agent-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agent}
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent}
+    ports:
+      # 5433 als Default, weil auf Entwicklerrechnern haeufig schon ein Postgres
+      # auf 5432 laeuft. Der Backend-Container spricht ohnehin postgres:5432.
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      # Postgres 18 erwartet den Mount auf /var/lib/postgresql, nicht auf dem
+      # data-Unterverzeichnis — sonst bricht der Start mit "unused mount/volume" ab.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent} -d ${POSTGRES_DB:-agent}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
   backend:
     build:
       context: ./backend
@@ -26,8 +50,29 @@ services:
       # und SOUL_LOCATIONS=classpath:souls/,file:/souls/ setzen.
       SOUL_LOCATIONS: ${SOUL_LOCATIONS:-classpath:souls/}
       SOUL_ACTIVE: ${SOUL_ACTIVE:-forge}
+
+      # --- Datenbank (Runs + Traces) ---
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-agent}
+      DB_USER: ${POSTGRES_USER:-agent}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-agent}
+
+      # --- Agent-Budget ---
+      AGENT_MAX_TOOL_CALLS: ${AGENT_MAX_TOOL_CALLS:-20}
+      AGENT_MAX_CALLS_PER_TOOL: ${AGENT_MAX_CALLS_PER_TOOL:-8}
+      AGENT_MAX_DURATION_MS: ${AGENT_MAX_DURATION_MS:-180000}
+
+      # --- MCP-Server (optional) ---
+      # Beispielregistrierung gegen tools/mock-mcp-server.py auf dem Host.
+      # Leer lassen, um keinen Server zu registrieren.
+      APP_TOOLS_MCP_MOCK_ENABLED: ${MCP_MOCK_ENABLED:-false}
+      APP_TOOLS_MCP_MOCK_LABEL: Mock-MCP
+      APP_TOOLS_MCP_MOCK_TRANSPORT: HTTP
+      APP_TOOLS_MCP_MOCK_URL: ${MCP_MOCK_URL:-http://host.docker.internal:3333/mcp}
     # volumes:
     #   - ./souls:/souls:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -47,3 +92,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+volumes:
+  postgres-data:

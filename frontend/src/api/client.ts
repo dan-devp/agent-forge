@@ -55,6 +55,58 @@ export type SoulDetail = {
   prompt: string
 }
 
+export type RunStep = {
+  nr: number
+  type: 'MODEL' | 'TOOL'
+  name: string | null
+  input: string | null
+  output: string | null
+  tokens: number | null
+  durationMs: number | null
+  error: string | null
+  createdAt: string
+}
+
+export type AgentRun = {
+  id: string
+  goal: string
+  soulId: string
+  soulVersion: number
+  providerId: string
+  model: string | null
+  status: 'RUNNING' | 'DONE' | 'BUDGET_EXCEEDED' | 'FAILED'
+  answer: string | null
+  error: string | null
+  steps: number
+  totalTokens: number | null
+  durationMs: number | null
+  startedAt: string
+  finishedAt: string | null
+  trace: RunStep[]
+}
+
+export type ToolInfo = {
+  name: string
+  description: string | null
+  source: string
+}
+
+export type McpServerInfo = {
+  id: string
+  label: string
+  transport: 'STDIO' | 'SSE' | 'HTTP'
+  target: string | null
+  enabled: boolean
+  connected: boolean
+  toolCount: number
+  error: string | null
+}
+
+export type ToolListResponse = {
+  tools: ToolInfo[]
+  servers: McpServerInfo[]
+}
+
 type ProblemDetail = {
   title?: string
   detail?: string
@@ -91,4 +143,13 @@ export const api = {
   souls: () => request<SoulListResponse>('/api/souls'),
   soul: (id: string) => request<SoulDetail>(`/api/souls/${encodeURIComponent(id)}`),
   reloadSouls: () => request<SoulListResponse>('/api/souls/reload', { method: 'POST' }),
+  tools: () => request<ToolListResponse>('/api/tools'),
+  reloadTools: () => request<ToolListResponse>('/api/tools/reload', { method: 'POST' }),
+  startRun: (goal: string, provider: string, soul: string) =>
+    request<AgentRun>('/api/runs', {
+      method: 'POST',
+      body: JSON.stringify({ goal, provider, soul }),
+    }),
+  runs: () => request<AgentRun[]>('/api/runs'),
+  run: (id: string) => request<AgentRun>(`/api/runs/${encodeURIComponent(id)}`),
 }
