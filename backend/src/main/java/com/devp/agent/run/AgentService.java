@@ -92,8 +92,10 @@ public class AgentService {
 	 * @param providerId provider id, or {@code null} for the task default resp. the global default
 	 * @param soulId     SOUL id, or {@code null} for the task default resp. the active SOUL
 	 * @param profileId  profile id, or {@code null} for the task default resp. {@code baseline}
+	 * @param seriesId   the series this run belongs to, or {@code null} for a single run
 	 */
-	public AgentRun run(String goal, String taskId, String providerId, String soulId, String profileId) {
+	public AgentRun run(String goal, String taskId, String providerId, String soulId, String profileId,
+			UUID seriesId) {
 		Task task = (taskId == null || taskId.isBlank()) ? null : tasks.resolve(taskId);
 
 		if (task == null && (goal == null || goal.isBlank())) {
@@ -137,7 +139,7 @@ public class AgentService {
 
 		AgentRun started = new AgentRun(id, goal, task == null ? null : task.id(),
 				task == null ? null : task.version(), soul.id(), soul.version(), profile.id(), profile.version(),
-				provider.id(), provider.config().getModel(), provider.config().getTemperature(), systemPrompt,
+				seriesId, provider.id(), provider.config().getModel(), provider.config().getTemperature(), systemPrompt,
 				offeredNames, RunStatus.RUNNING, null, null, 0, null, null, start, null, List.of(), List.of());
 		runs.start(started);
 		log.info("Run {} started: task {}, SOUL {} v{}, profile {} v{} ({} strateg{}), provider {}, {} tool(s)",
@@ -223,9 +225,14 @@ public class AgentService {
 		}
 	}
 
+	/** A single run outside any series. */
+	public AgentRun run(String goal, String taskId, String providerId, String soulId, String profileId) {
+		return run(goal, taskId, providerId, soulId, profileId, null);
+	}
+
 	/** Compatibility for callers without a profile. */
 	public AgentRun run(String goal, String taskId, String providerId, String soulId) {
-		return run(goal, taskId, providerId, soulId, null);
+		return run(goal, taskId, providerId, soulId, null, null);
 	}
 
 	/** The rendered SOUL plus whatever the strategies added, separated so both stay recognizable. */
@@ -295,7 +302,8 @@ public class AgentService {
 
 		AgentRun finished = new AgentRun(
 				started.id(), started.goal(), started.taskId(), started.taskVersion(), started.soulId(),
-				started.soulVersion(), started.profileId(), started.profileVersion(), started.providerId(),
+				started.soulVersion(), started.profileId(), started.profileVersion(), started.seriesId(),
+				started.providerId(),
 				model == null ? started.model() : model, started.temperature(), started.systemPrompt(),
 				started.tools(), status, answer, error, trace.size(), total,
 				end.toEpochMilli() - start.toEpochMilli(), start, end, trace, List.of());

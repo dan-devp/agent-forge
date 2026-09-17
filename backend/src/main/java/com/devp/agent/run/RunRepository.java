@@ -32,12 +32,12 @@ public class RunRepository {
 	public void start(AgentRun run) {
 		db.sql("""
 				insert into agent_run (id, goal, task_id, task_version, soul_id, soul_version, profile_id,
-				                       profile_version, provider_id, model, temperature, system_prompt, tools,
-				                       status, started_at)
-				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				                       profile_version, series_id, provider_id, model, temperature, system_prompt,
+				                       tools, status, started_at)
+				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
 				.params(run.id(), run.goal(), run.taskId(), run.taskVersion(), run.soulId(), run.soulVersion(),
-						run.profileId(), run.profileVersion(),
+						run.profileId(), run.profileVersion(), run.seriesId(),
 						run.providerId(), run.model(), run.temperature(), run.systemPrompt(),
 						run.tools().toArray(String[]::new), run.status().name(), Timestamp.from(run.startedAt()))
 				.update();
@@ -111,7 +111,8 @@ public class RunRepository {
 				.query(RunRepository::mapRun)
 				.optional();
 		return run.map(r -> new AgentRun(r.id(), r.goal(), r.taskId(), r.taskVersion(), r.soulId(), r.soulVersion(),
-				r.profileId(), r.profileVersion(), r.providerId(), r.model(), r.temperature(), r.systemPrompt(),
+				r.profileId(), r.profileVersion(), r.seriesId(), r.providerId(), r.model(), r.temperature(),
+				r.systemPrompt(),
 				r.tools(), r.status(), r.answer(), r.error(), r.steps(), r.totalTokens(), r.durationMs(),
 				r.startedAt(), r.finishedAt(), trace(id), scores(id)));
 	}
@@ -151,6 +152,7 @@ public class RunRepository {
 				rs.getInt("soul_version"),
 				rs.getString("profile_id"),
 				(Integer) rs.getObject("profile_version"),
+				rs.getObject("series_id", UUID.class),
 				rs.getString("provider_id"),
 				rs.getString("model"),
 				temperature(rs.getBigDecimal("temperature")),

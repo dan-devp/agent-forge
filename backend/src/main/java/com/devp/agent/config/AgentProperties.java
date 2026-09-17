@@ -30,6 +30,9 @@ public class AgentProperties {
 	 */
 	private int maxVerifyRounds = 3;
 
+	/** Upper bound for repetitions in one series — a typo must not schedule a thousand model calls. */
+	private int maxSeriesRepetitions = 50;
+
 	public int getMaxToolCalls() {
 		return maxToolCalls;
 	}
@@ -68,5 +71,13 @@ public class AgentProperties {
 
 	public void setHistoryLimit(int historyLimit) {
 		this.historyLimit = historyLimit;
+	}
+
+	public int getMaxSeriesRepetitions() {
+		return maxSeriesRepetitions;
+	}
+
+	public void setMaxSeriesRepetitions(int maxSeriesRepetitions) {
+		this.maxSeriesRepetitions = maxSeriesRepetitions;
 	}
 }
