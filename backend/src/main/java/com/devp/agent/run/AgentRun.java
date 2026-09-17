@@ -11,6 +11,10 @@ import java.util.UUID;
  * refer to the identity and the task revision that produced the run. {@code taskId} is
  * {@code null} when the goal was typed freely.
  *
+ * <p>{@code temperature}, {@code systemPrompt} and {@code tools} record what the model
+ * actually saw. Without them two runs are not comparable: a changed SOUL file, a
+ * reconnected MCP server or a different provider setting would alter results unnoticed.
+ *
  * <p>{@code scores} are the graders' verdicts; empty for a free-form goal, for a task without
  * criteria, and in the history listing.
  */
@@ -23,6 +27,9 @@ public record AgentRun(
 		int soulVersion,
 		String providerId,
 		String model,
+		Double temperature,
+		String systemPrompt,
+		List<String> tools,
 		RunStatus status,
 		String answer,
 		String error,
@@ -34,16 +41,17 @@ public record AgentRun(
 		List<RunStep> trace,
 		List<RunScore> scores) {
 
-	/** Without scores — for starting a run and for callers that do not know any yet. */
+	/** Without parameters and scores — for callers that do not know them (mostly tests). */
 	public AgentRun(UUID id, String goal, String taskId, Integer taskVersion, String soulId, int soulVersion,
 			String providerId, String model, RunStatus status, String answer, String error, int steps,
 			Integer totalTokens, Long durationMs, Instant startedAt, Instant finishedAt, List<RunStep> trace) {
-		this(id, goal, taskId, taskVersion, soulId, soulVersion, providerId, model, status, answer, error, steps,
-				totalTokens, durationMs, startedAt, finishedAt, trace, List.of());
+		this(id, goal, taskId, taskVersion, soulId, soulVersion, providerId, model, null, null, List.of(), status,
+				answer, error, steps, totalTokens, durationMs, startedAt, finishedAt, trace, List.of());
 	}
 
 	public AgentRun withScores(List<RunScore> scores) {
-		return new AgentRun(id, goal, taskId, taskVersion, soulId, soulVersion, providerId, model, status, answer,
-				error, steps, totalTokens, durationMs, startedAt, finishedAt, trace, scores);
+		return new AgentRun(id, goal, taskId, taskVersion, soulId, soulVersion, providerId, model, temperature,
+				systemPrompt, tools, status, answer, error, steps, totalTokens, durationMs, startedAt, finishedAt,
+				trace, scores);
 	}
 }

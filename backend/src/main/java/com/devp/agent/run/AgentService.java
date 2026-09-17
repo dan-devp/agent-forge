@@ -103,9 +103,17 @@ public class AgentService {
 				: properties.getMaxDurationMs();
 		long deadline = System.currentTimeMillis() + timeBudget;
 
+		// Record what the model will see before the first call — if the run crashes, the
+		// parameters are still there.
+		String systemPrompt = renderer.render(soul);
+		List<String> offeredTools = tools.callbacks().stream()
+				.map(callback -> callback.getToolDefinition().name())
+				.toList();
+
 		AgentRun started = new AgentRun(id, goal, task == null ? null : task.id(),
 				task == null ? null : task.version(), soul.id(), soul.version(), provider.id(),
-				provider.config().getModel(), RunStatus.RUNNING, null, null, 0, null, null, start, null, List.of());
+				provider.config().getModel(), provider.config().getTemperature(), systemPrompt, offeredTools,
+				RunStatus.RUNNING, null, null, 0, null, null, start, null, List.of(), List.of());
 		runs.start(started);
 		log.info("Run {} started: task {}, SOUL {} v{}, provider {}, {} tool(s)",
 				id, task == null ? "(free-form)" : task.id() + " v" + task.version(), soul.id(), soul.version(),
@@ -113,7 +121,7 @@ public class AgentService {
 
 		try {
 			ChatResponse response = provider.client().prompt()
-					.system(renderer.render(soul))
+					.system(systemPrompt)
 					.user(goal)
 					.tools(tools.callbacks())
 					.toolContext(toolContext(id, deadline, task))
@@ -200,8 +208,9 @@ public class AgentService {
 		AgentRun finished = new AgentRun(
 				started.id(), started.goal(), started.taskId(), started.taskVersion(), started.soulId(),
 				started.soulVersion(), started.providerId(), model == null ? started.model() : model,
+				started.temperature(), started.systemPrompt(), started.tools(),
 				status, answer, error, trace.size(), total, end.toEpochMilli() - start.toEpochMilli(), start,
-				end, trace);
+				end, trace, List.of());
 
 		runs.finish(finished);
 		return finished.withScores(evaluation.evaluate(finished, task));

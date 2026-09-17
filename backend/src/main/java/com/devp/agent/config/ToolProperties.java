@@ -19,6 +19,13 @@ public class ToolProperties {
 	/** Enable or disable the built-in tools (time, arithmetic). */
 	private boolean builtinEnabled = true;
 
+	/**
+	 * Fixed instant (ISO-8601, e.g. {@code 2026-09-17T10:00:00Z}) the time tool reports
+	 * instead of the wall clock. Empty = wall clock. Needed for reproducible runs against
+	 * mocks — two runs must not differ only because the clock moved on.
+	 */
+	private String fixedTime;
+
 	private Map<String, McpServer> mcp = new LinkedHashMap<>();
 
 	public boolean isBuiltinEnabled() {
@@ -27,6 +34,14 @@ public class ToolProperties {
 
 	public void setBuiltinEnabled(boolean builtinEnabled) {
 		this.builtinEnabled = builtinEnabled;
+	}
+
+	public String getFixedTime() {
+		return fixedTime;
+	}
+
+	public void setFixedTime(String fixedTime) {
+		this.fixedTime = fixedTime;
 	}
 
 	public Map<String, McpServer> getMcp() {

@@ -84,6 +84,9 @@ export type AgentRun = {
   soulVersion: number
   providerId: string
   model: string | null
+  temperature: number | null
+  systemPrompt: string | null
+  tools: string[]
   status: 'RUNNING' | 'DONE' | 'BUDGET_EXCEEDED' | 'FAILED'
   answer: string | null
   error: string | null

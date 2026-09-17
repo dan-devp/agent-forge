@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ToolRegistryTests {
 
 	private static ToolRegistry registry(ToolProperties properties) {
-		return new ToolRegistry(properties, new BuiltinTools());
+		return new ToolRegistry(properties, new BuiltinTools(new ToolProperties()));
 	}
 
 	@Test
@@ -95,14 +95,35 @@ class ToolRegistryTests {
 
 	@Test
 	void divideReportsDivisionByZero() {
-		assertThat(new BuiltinTools().divide(10, 0)).contains("Division durch 0");
-		assertThat(new BuiltinTools().divide(100, 7)).isEqualTo("100 geteilt durch 7 ergibt 14 Rest 2");
+		assertThat(new BuiltinTools(new ToolProperties()).divide(10, 0)).contains("Division durch 0");
+		assertThat(new BuiltinTools(new ToolProperties()).divide(100, 7)).isEqualTo("100 geteilt durch 7 ergibt 14 Rest 2");
 	}
 
 	@Test
 	void currentTimeAcceptsTimeZones() {
-		assertThat(new BuiltinTools().currentTime("UTC")).isNotBlank();
-		assertThat(new BuiltinTools().currentTime(null)).isNotBlank();
+		assertThat(new BuiltinTools(new ToolProperties()).currentTime("UTC")).isNotBlank();
+		assertThat(new BuiltinTools(new ToolProperties()).currentTime(null)).isNotBlank();
+	}
+
+	/** Reproducible runs need a clock that does not move — the wall clock differs every time. */
+	@Test
+	void currentTimeCanBeFixed() {
+		ToolProperties properties = new ToolProperties();
+		properties.setFixedTime("2026-09-17T10:00:00Z");
+
+		BuiltinTools tools = new BuiltinTools(properties);
+
+		assertThat(tools.currentTime("UTC")).isEqualTo("2026-09-17 10:00:00 (UTC)");
+		assertThat(tools.currentTime("Europe/Berlin")).startsWith("2026-09-17 12:00:00");
+		assertThat(tools.currentTime("UTC")).isEqualTo(tools.currentTime("UTC"));
+	}
+
+	@Test
+	void blankFixedTimeMeansWallClock() {
+		ToolProperties properties = new ToolProperties();
+		properties.setFixedTime("  ");
+
+		assertThat(new BuiltinTools(properties).currentTime("UTC")).isNotBlank();
 	}
 
 	@Test

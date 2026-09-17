@@ -1,5 +1,7 @@
 package com.devp.agent.run;
 
+import java.math.BigDecimal;
+import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -30,11 +32,12 @@ public class RunRepository {
 	public void start(AgentRun run) {
 		db.sql("""
 				insert into agent_run (id, goal, task_id, task_version, soul_id, soul_version, provider_id,
-				                       model, status, started_at)
-				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				                       model, temperature, system_prompt, tools, status, started_at)
+				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
 				.params(run.id(), run.goal(), run.taskId(), run.taskVersion(), run.soulId(), run.soulVersion(),
-						run.providerId(), run.model(), run.status().name(), Timestamp.from(run.startedAt()))
+						run.providerId(), run.model(), run.temperature(), run.systemPrompt(),
+						run.tools().toArray(String[]::new), run.status().name(), Timestamp.from(run.startedAt()))
 				.update();
 	}
 
@@ -106,8 +109,9 @@ public class RunRepository {
 				.query(RunRepository::mapRun)
 				.optional();
 		return run.map(r -> new AgentRun(r.id(), r.goal(), r.taskId(), r.taskVersion(), r.soulId(), r.soulVersion(),
-				r.providerId(), r.model(), r.status(), r.answer(), r.error(), r.steps(), r.totalTokens(),
-				r.durationMs(), r.startedAt(), r.finishedAt(), trace(id), scores(id)));
+				r.providerId(), r.model(), r.temperature(), r.systemPrompt(), r.tools(), r.status(), r.answer(),
+				r.error(), r.steps(), r.totalTokens(), r.durationMs(), r.startedAt(), r.finishedAt(), trace(id),
+				scores(id)));
 	}
 
 	/** History without traces — the list must not load half the database. */
@@ -145,6 +149,9 @@ public class RunRepository {
 				rs.getInt("soul_version"),
 				rs.getString("provider_id"),
 				rs.getString("model"),
+				temperature(rs.getBigDecimal("temperature")),
+				rs.getString("system_prompt"),
+				tools(rs.getArray("tools")),
 				RunStatus.valueOf(rs.getString("status")),
 				rs.getString("answer"),
 				rs.getString("error"),
@@ -153,7 +160,16 @@ public class RunRepository {
 				(Long) rs.getObject("duration_ms"),
 				rs.getTimestamp("started_at").toInstant(),
 				finished == null ? null : finished.toInstant(),
+				List.of(),
 				List.of());
+	}
+
+	private static Double temperature(BigDecimal value) {
+		return value == null ? null : value.doubleValue();
+	}
+
+	private static List<String> tools(Array array) throws SQLException {
+		return array == null ? List.of() : List.of((String[]) array.getArray());
 	}
 
 	/** Tests and housekeeping only. */

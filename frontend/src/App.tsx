@@ -26,6 +26,7 @@ function App() {
   const [soul, setSoul] = useState('')
   const [soulDetail, setSoulDetail] = useState<SoulDetail | null>(null)
   const [promptOpen, setPromptOpen] = useState(false)
+  const [runPromptOpen, setRunPromptOpen] = useState(false)
   const [tools, setTools] = useState<ToolListResponse | null>(null)
   const [tasks, setTasks] = useState<TaskSummary[] | null>(null)
   const [task, setTask] = useState('')
@@ -290,6 +291,19 @@ function App() {
               {run.steps} Schritte · {run.durationMs} ms
               {run.totalTokens != null && ` · ${run.totalTokens} Tokens`}
             </p>
+            <p className="meta">
+              {run.temperature != null && `Temperatur ${run.temperature} · `}
+              {run.tools.length > 0 ? `Tools: ${run.tools.join(', ')}` : 'keine Tools angeboten'}
+              {run.systemPrompt && (
+                <>
+                  {' · '}
+                  <button className="link" onClick={() => setRunPromptOpen(!runPromptOpen)}>
+                    {runPromptOpen ? 'System-Prompt verbergen' : 'System-Prompt zeigen'}
+                  </button>
+                </>
+              )}
+            </p>
+            {runPromptOpen && run.systemPrompt && <pre className="output prompt">{run.systemPrompt}</pre>}
 
             {run.answer && <p className="output">{run.answer}</p>}
             {run.error && <p className="error">{run.error}</p>}
