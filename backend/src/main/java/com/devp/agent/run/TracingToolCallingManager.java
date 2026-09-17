@@ -40,6 +40,9 @@ public class TracingToolCallingManager implements ToolCallingManager {
 	/** Schluessel im toolContext, ab wann das Zeitbudget ueberschritten ist. */
 	public static final String DEADLINE = "agentDeadline";
 
+	/** Schluessel im toolContext fuer ein Aufrufbudget, das von der globalen Vorgabe abweicht. */
+	public static final String MAX_TOOL_CALLS = "agentMaxToolCalls";
+
 	private static final Logger log = LoggerFactory.getLogger(TracingToolCallingManager.class);
 
 	private final ToolCallingManager delegate;
@@ -75,7 +78,7 @@ public class TracingToolCallingManager implements ToolCallingManager {
 		schreibeModellschritt(runId, response, anfrage);
 
 		pruefeZeitbudget(prompt, runId);
-		pruefeAufrufbudget(runId, anfrage.getToolCalls().size());
+		pruefeAufrufbudget(prompt, runId, anfrage.getToolCalls().size());
 
 		long start = System.currentTimeMillis();
 		ToolExecutionResult ergebnis;
@@ -155,12 +158,15 @@ public class TracingToolCallingManager implements ToolCallingManager {
 	 * sieht nur Aufrufe aus <em>frueheren</em> Runden. Fordert das Modell in einer Runde
 	 * zehn Tools parallel an, waeren die alle schon ausgefuehrt, bevor die Grenze greift.
 	 */
-	private void pruefeAufrufbudget(UUID runId, int angefordert) {
+	private void pruefeAufrufbudget(Prompt prompt, UUID runId, int angefordert) {
+		// Eine Aufgabe darf ein eigenes Budget vorgeben; ohne Angabe gilt die Konfiguration.
+		int grenze = toolContext(prompt).get(MAX_TOOL_CALLS) instanceof Integer vorgabe ? vorgabe : maxToolCalls;
+
 		int bisher = runs.countToolSteps(runId);
-		if (bisher + angefordert > maxToolCalls) {
+		if (bisher + angefordert > grenze) {
 			throw new BudgetExceededException(
 					"Lauf %s wuerde mit %d weiteren Aufrufen das Budget von %d Tool-Aufrufen ueberschreiten (bisher %d)."
-							.formatted(runId, angefordert, maxToolCalls, bisher));
+							.formatted(runId, angefordert, grenze, bisher));
 		}
 	}
 

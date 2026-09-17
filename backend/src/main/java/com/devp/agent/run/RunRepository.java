@@ -29,11 +29,12 @@ public class RunRepository {
 	/** Legt den Lauf an, sobald er beginnt — ein Absturz bleibt so als RUNNING sichtbar. */
 	public void start(AgentRun run) {
 		db.sql("""
-				insert into agent_run (id, auftrag, soul_id, soul_version, provider_id, modell, status, gestartet_am)
-				values (?, ?, ?, ?, ?, ?, ?, ?)
+				insert into agent_run (id, auftrag, task_id, task_version, soul_id, soul_version, provider_id,
+				                       modell, status, gestartet_am)
+				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
-				.params(run.id(), run.goal(), run.soulId(), run.soulVersion(), run.providerId(), run.model(),
-						run.status().name(), Timestamp.from(run.startedAt()))
+				.params(run.id(), run.goal(), run.taskId(), run.taskVersion(), run.soulId(), run.soulVersion(),
+						run.providerId(), run.model(), run.status().name(), Timestamp.from(run.startedAt()))
 				.update();
 	}
 
@@ -81,9 +82,9 @@ public class RunRepository {
 				.param(id)
 				.query(RunRepository::mapRun)
 				.optional();
-		return run.map(r -> new AgentRun(r.id(), r.goal(), r.soulId(), r.soulVersion(), r.providerId(), r.model(),
-				r.status(), r.answer(), r.error(), r.steps(), r.totalTokens(), r.durationMs(), r.startedAt(),
-				r.finishedAt(), trace(id)));
+		return run.map(r -> new AgentRun(r.id(), r.goal(), r.taskId(), r.taskVersion(), r.soulId(), r.soulVersion(),
+				r.providerId(), r.model(), r.status(), r.answer(), r.error(), r.steps(), r.totalTokens(),
+				r.durationMs(), r.startedAt(), r.finishedAt(), trace(id)));
 	}
 
 	/** Uebersicht ohne Trace — die Liste soll nicht den halben Speicher laden. */
@@ -115,6 +116,8 @@ public class RunRepository {
 		return new AgentRun(
 				rs.getObject("id", UUID.class),
 				rs.getString("auftrag"),
+				rs.getString("task_id"),
+				(Integer) rs.getObject("task_version"),
 				rs.getString("soul_id"),
 				rs.getInt("soul_version"),
 				rs.getString("provider_id"),

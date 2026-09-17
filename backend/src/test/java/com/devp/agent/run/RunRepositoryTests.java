@@ -27,7 +27,7 @@ class RunRepositoryTests {
 	}
 
 	private AgentRun gestartet(UUID id) {
-		return new AgentRun(id, "Wie spaet ist es?", "forge", 1, "local", "mock-local-7b",
+		return new AgentRun(id, "Wie spaet ist es?", "zeit-und-rechnung", 1, "forge", 1, "local", "mock-local-7b",
 				RunStatus.RUNNING, null, null, 0, null, null, Instant.now(), null, List.of());
 	}
 
@@ -79,9 +79,9 @@ class RunRepositoryTests {
 		repository.start(start);
 
 		Instant ende = Instant.now();
-		repository.finish(new AgentRun(id, start.goal(), start.soulId(), start.soulVersion(), start.providerId(),
-				"mock-local-7b", RunStatus.DONE, "Es ist 10 Uhr.", null, 2, 120, 850L, start.startedAt(), ende,
-				List.of()));
+		repository.finish(new AgentRun(id, start.goal(), start.taskId(), start.taskVersion(), start.soulId(),
+				start.soulVersion(), start.providerId(), "mock-local-7b", RunStatus.DONE, "Es ist 10 Uhr.", null,
+				2, 120, 850L, start.startedAt(), ende, List.of()));
 
 		AgentRun fertig = repository.find(id).orElseThrow();
 		assertThat(fertig.status()).isEqualTo(RunStatus.DONE);
@@ -106,15 +106,41 @@ class RunRepositoryTests {
 	void listLiefertNeuesteZuerstUndOhneTrace() {
 		UUID alt = UUID.randomUUID();
 		UUID neu = UUID.randomUUID();
-		repository.start(new AgentRun(alt, "alt", "forge", 1, "local", null, RunStatus.RUNNING, null, null, 0,
-				null, null, Instant.now().minusSeconds(60), null, List.of()));
-		repository.start(new AgentRun(neu, "neu", "forge", 1, "local", null, RunStatus.RUNNING, null, null, 0,
-				null, null, Instant.now(), null, List.of()));
+		repository.start(new AgentRun(alt, "alt", null, null, "forge", 1, "local", null, RunStatus.RUNNING, null,
+				null, 0, null, null, Instant.now().minusSeconds(60), null, List.of()));
+		repository.start(new AgentRun(neu, "neu", null, null, "forge", 1, "local", null, RunStatus.RUNNING, null,
+				null, 0, null, null, Instant.now(), null, List.of()));
 		repository.addStep(neu, new RunStep(1, StepType.MODEL, "m", null, "x", null, null, null, Instant.now()));
 
 		List<AgentRun> liste = repository.list(10);
 		assertThat(liste).extracting(AgentRun::goal).containsExactly("neu", "alt");
 		assertThat(liste.getFirst().trace()).isEmpty();
+	}
+
+	/**
+	 * Aufgabe und ihre Version gehoeren an den Lauf — ohne Version ist ein spaeterer
+	 * Vergleich wertlos, weil eine geaenderte Aufgabe unbemerkt andere Ergebnisse erzeugt.
+	 */
+	@Test
+	void merktSichAufgabeUndVersion() {
+		UUID id = UUID.randomUUID();
+		repository.start(gestartet(id));
+
+		AgentRun gelesen = repository.find(id).orElseThrow();
+		assertThat(gelesen.taskId()).isEqualTo("zeit-und-rechnung");
+		assertThat(gelesen.taskVersion()).isEqualTo(1);
+	}
+
+	/** Ein frei getippter Auftrag hat keine Aufgabe — das muss ein sauberes null bleiben. */
+	@Test
+	void freierAuftragHatKeineAufgabe() {
+		UUID id = UUID.randomUUID();
+		repository.start(new AgentRun(id, "frei getippt", null, null, "forge", 1, "local", null,
+				RunStatus.RUNNING, null, null, 0, null, null, Instant.now(), null, List.of()));
+
+		AgentRun gelesen = repository.find(id).orElseThrow();
+		assertThat(gelesen.taskId()).isNull();
+		assertThat(gelesen.taskVersion()).isNull();
 	}
 
 	@Test

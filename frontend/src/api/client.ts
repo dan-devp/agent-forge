@@ -70,6 +70,8 @@ export type RunStep = {
 export type AgentRun = {
   id: string
   goal: string
+  taskId: string | null
+  taskVersion: number | null
   soulId: string
   soulVersion: number
   providerId: string
@@ -83,6 +85,25 @@ export type AgentRun = {
   startedAt: string
   finishedAt: string | null
   trace: RunStep[]
+}
+
+export type TaskSummary = {
+  id: string
+  name: string
+  version: number
+  beschreibung: string | null
+  schwierigkeit: number
+  tags: string[]
+  soul: string | null
+  provider: string | null
+}
+
+export type Task = TaskSummary & {
+  auftrag: string
+  maxToolCalls: number | null
+  maxDurationMs: number | null
+  abschnitte: Record<string, string>
+  quelle: string
 }
 
 export type ToolInfo = {
@@ -145,11 +166,11 @@ export const api = {
   reloadSouls: () => request<SoulListResponse>('/api/souls/reload', { method: 'POST' }),
   tools: () => request<ToolListResponse>('/api/tools'),
   reloadTools: () => request<ToolListResponse>('/api/tools/reload', { method: 'POST' }),
-  startRun: (goal: string, provider: string, soul: string) =>
-    request<AgentRun>('/api/runs', {
-      method: 'POST',
-      body: JSON.stringify({ goal, provider, soul }),
-    }),
+  startRun: (body: { goal?: string; task?: string; provider: string; soul: string }) =>
+    request<AgentRun>('/api/runs', { method: 'POST', body: JSON.stringify(body) }),
+  tasks: () => request<TaskSummary[]>('/api/tasks'),
+  task: (id: string) => request<Task>(`/api/tasks/${encodeURIComponent(id)}`),
+  reloadTasks: () => request<TaskSummary[]>('/api/tasks/reload', { method: 'POST' }),
   runs: () => request<AgentRun[]>('/api/runs'),
   run: (id: string) => request<AgentRun>(`/api/runs/${encodeURIComponent(id)}`),
 }

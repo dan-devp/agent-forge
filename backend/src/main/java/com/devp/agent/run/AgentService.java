@@ -15,6 +15,8 @@ import com.devp.agent.run.TracingToolCallingManager.BudgetExceededException;
 import com.devp.agent.soul.Soul;
 import com.devp.agent.soul.SoulRenderer;
 import com.devp.agent.soul.SoulRepository;
+import com.devp.agent.task.Task;
+import com.devp.agent.task.TaskRepository;
 import com.devp.agent.tools.ToolRegistry;
 
 import org.slf4j.Logger;
@@ -39,15 +41,17 @@ public class AgentService {
 
 	private final ChatClientRegistry providers;
 	private final SoulRepository souls;
+	private final TaskRepository tasks;
 	private final SoulRenderer renderer;
 	private final ToolRegistry tools;
 	private final RunRepository runs;
 	private final AgentProperties properties;
 
-	public AgentService(ChatClientRegistry providers, SoulRepository souls, SoulRenderer renderer,
-			ToolRegistry tools, RunRepository runs, AgentProperties properties) {
+	public AgentService(ChatClientRegistry providers, SoulRepository souls, TaskRepository tasks,
+			SoulRenderer renderer, ToolRegistry tools, RunRepository runs, AgentProperties properties) {
 		this.providers = providers;
 		this.souls = souls;
+		this.tasks = tasks;
 		this.renderer = renderer;
 		this.tools = tools;
 		this.runs = runs;
@@ -57,10 +61,27 @@ public class AgentService {
 	/**
 	 * Startet einen Lauf und wartet auf sein Ende.
 	 *
-	 * @param providerId Provider-Id oder {@code null} fuer den Default
-	 * @param soulId     SOUL-Id oder {@code null} fuer die aktive SOUL
+	 * <p>Entweder {@code taskId} oder {@code goal} — eine benannte Aufgabe ist der Weg,
+	 * der sich spaeter auswerten laesst, ein freier Auftrag der Weg zum Ausprobieren.
+	 * Angaben am Aufruf haben Vorrang vor den Vorgaben der Aufgabe.
+	 *
+	 * @param goal       freier Auftrag, {@code null} wenn eine Aufgabe genannt ist
+	 * @param taskId     Aufgaben-Id oder {@code null}
+	 * @param providerId Provider-Id oder {@code null} fuer Aufgaben-Vorgabe bzw. Default
+	 * @param soulId     SOUL-Id oder {@code null} fuer Aufgaben-Vorgabe bzw. aktive SOUL
 	 */
-	public AgentRun run(String goal, String providerId, String soulId) {
+	public AgentRun run(String goal, String taskId, String providerId, String soulId) {
+		Task task = (taskId == null || taskId.isBlank()) ? null : tasks.resolve(taskId);
+
+		if (task == null && (goal == null || goal.isBlank())) {
+			throw new IllegalArgumentException("Es braucht entweder 'task' oder 'goal'.");
+		}
+		if (task != null) {
+			goal = task.auftrag();
+			soulId = leerDann(soulId, task.soul());
+			providerId = leerDann(providerId, task.provider());
+		}
+
 		ResolvedProvider provider = providers.resolve(providerId);
 		Soul soul = souls.resolve(soulId);
 
@@ -72,22 +93,25 @@ public class AgentService {
 
 		UUID id = UUID.randomUUID();
 		Instant start = Instant.now();
-		long deadline = System.currentTimeMillis() + properties.getMaxDurationMs();
+		long zeitbudget = task != null && task.maxDurationMs() != null
+				? task.maxDurationMs()
+				: properties.getMaxDurationMs();
+		long deadline = System.currentTimeMillis() + zeitbudget;
 
-		AgentRun gestartet = new AgentRun(id, goal, soul.id(), soul.version(), provider.id(),
+		AgentRun gestartet = new AgentRun(id, goal, task == null ? null : task.id(),
+				task == null ? null : task.version(), soul.id(), soul.version(), provider.id(),
 				provider.config().getModel(), RunStatus.RUNNING, null, null, 0, null, null, start, null, List.of());
 		runs.start(gestartet);
-		log.info("Lauf {} gestartet: SOUL {} v{}, Provider {}, {} Tool(s)",
-				id, soul.id(), soul.version(), provider.id(), tools.callbacks().size());
+		log.info("Lauf {} gestartet: Aufgabe {}, SOUL {} v{}, Provider {}, {} Tool(s)",
+				id, task == null ? "(frei)" : task.id() + " v" + task.version(), soul.id(), soul.version(),
+				provider.id(), tools.callbacks().size());
 
 		try {
 			ChatResponse antwort = provider.client().prompt()
 					.system(renderer.render(soul))
 					.user(goal)
 					.tools(tools.callbacks())
-					.toolContext(Map.of(
-							TracingToolCallingManager.RUN_ID, id,
-							TracingToolCallingManager.DEADLINE, deadline))
+					.toolContext(kontext(id, deadline, task))
 					.call()
 					.chatResponse();
 
@@ -113,6 +137,21 @@ public class AgentService {
 		finally {
 			log.debug("Lauf {} beendet", id);
 		}
+	}
+
+	/** Was der Schleifenkoerper ueber diesen Lauf wissen muss. */
+	private static Map<String, Object> kontext(UUID id, long deadline, Task task) {
+		Map<String, Object> kontext = new java.util.LinkedHashMap<>();
+		kontext.put(TracingToolCallingManager.RUN_ID, id);
+		kontext.put(TracingToolCallingManager.DEADLINE, deadline);
+		if (task != null && task.maxToolCalls() != null) {
+			kontext.put(TracingToolCallingManager.MAX_TOOL_CALLS, task.maxToolCalls());
+		}
+		return kontext;
+	}
+
+	private static String leerDann(String wert, String ersatz) {
+		return wert == null || wert.isBlank() ? ersatz : wert;
 	}
 
 	private AgentRun abschliessen(AgentRun gestartet, ChatResponse antwort, Instant start) {
@@ -153,9 +192,10 @@ public class AgentService {
 				.orElse(null);
 
 		AgentRun fertig = new AgentRun(
-				gestartet.id(), gestartet.goal(), gestartet.soulId(), gestartet.soulVersion(),
-				gestartet.providerId(), modell == null ? gestartet.model() : modell, status, answer, error,
-				trace.size(), summe, ende.toEpochMilli() - start.toEpochMilli(), start, ende, trace);
+				gestartet.id(), gestartet.goal(), gestartet.taskId(), gestartet.taskVersion(), gestartet.soulId(),
+				gestartet.soulVersion(), gestartet.providerId(), modell == null ? gestartet.model() : modell,
+				status, answer, error, trace.size(), summe, ende.toEpochMilli() - start.toEpochMilli(), start,
+				ende, trace);
 
 		runs.finish(fertig);
 		return fertig;

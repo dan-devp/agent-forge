@@ -6,7 +6,6 @@ import java.util.UUID;
 import com.devp.agent.run.AgentRun;
 import com.devp.agent.run.AgentService;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,7 +36,7 @@ public class RunController {
 
 	@PostMapping
 	public AgentRun start(@Validated @RequestBody RunRequest request) {
-		return agent.run(request.goal(), request.provider(), request.soul());
+		return agent.run(request.goal(), request.task(), request.provider(), request.soul());
 	}
 
 	/** Uebersicht ohne Trace. */
@@ -52,11 +51,15 @@ public class RunController {
 		return agent.find(id).orElseThrow(() -> new UnknownRunException("Unbekannter Lauf '%s'.".formatted(id)));
 	}
 
-	/** {@code provider} und {@code soul} sind optional. */
+	/**
+	 * Entweder {@code task} (benannte Aufgabe) oder {@code goal} (freier Auftrag);
+	 * {@code provider} und {@code soul} ueberschreiben die Vorgaben der Aufgabe.
+	 */
 	public record RunRequest(
-			@NotBlank(message = "goal darf nicht leer sein")
 			@Size(max = 4000, message = "goal ist zu lang (max. 4000 Zeichen)")
 			String goal,
+
+			String task,
 
 			String provider,
 

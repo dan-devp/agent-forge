@@ -43,7 +43,7 @@ class TracingToolCallingManagerTests {
 	void lauf() {
 		runs.deleteAll();
 		runId = UUID.randomUUID();
-		runs.start(new AgentRun(runId, "Test", "forge", 1, "local", "mock", RunStatus.RUNNING, null, null, 0,
+		runs.start(new AgentRun(runId, "Test", null, null, "forge", 1, "local", "mock", RunStatus.RUNNING, null, null, 0,
 				null, null, Instant.now(), null, List.of()));
 	}
 

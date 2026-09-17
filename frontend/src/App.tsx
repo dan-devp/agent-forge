@@ -6,6 +6,8 @@ import {
   type SoulDetail,
   type SoulListResponse,
   type StatusResponse,
+  type Task,
+  type TaskSummary,
   type ToolListResponse,
 } from './api/client'
 import './App.css'
@@ -25,6 +27,9 @@ function App() {
   const [soulDetail, setSoulDetail] = useState<SoulDetail | null>(null)
   const [promptOffen, setPromptOffen] = useState(false)
   const [tools, setTools] = useState<ToolListResponse | null>(null)
+  const [tasks, setTasks] = useState<TaskSummary[] | null>(null)
+  const [task, setTask] = useState('')
+  const [taskDetail, setTaskDetail] = useState<Task | null>(null)
   const [goal, setGoal] = useState('Welcher Wochentag ist heute, und wie oft passt 7 in 100?')
   const [run, setRun] = useState<AgentRun | null>(null)
   const [message, setMessage] = useState('Stell dich in einem Satz vor.')
@@ -55,7 +60,24 @@ function App() {
       .catch((e: Error) => setError(e.message))
 
     api.tools().then(setTools).catch((e: Error) => setError(e.message))
+
+    api
+      .tasks()
+      .then((t) => {
+        setTasks(t)
+        setTask(t[0]?.id ?? '')
+      })
+      .catch((e: Error) => setError(e.message))
   }, [])
+
+  // Auftragstext der gewaehlten Aufgabe nachladen - er ist das, was der Agent bekommt.
+  useEffect(() => {
+    if (!task) return
+    api
+      .task(task)
+      .then(setTaskDetail)
+      .catch((e: Error) => setError(e.message))
+  }, [task])
 
   // Detail (inkl. gerendertem Prompt) immer zur aktuell gewaehlten SOUL nachladen.
   useEffect(() => {
@@ -90,7 +112,15 @@ function App() {
   const startRun = () =>
     lauf(async () => {
       setRun(null)
-      setRun(await api.startRun(goal, provider, soul))
+      // Benannte Aufgabe, wenn eine gewaehlt ist - nur die ist spaeter auswertbar.
+      setRun(await api.startRun(task ? { task, provider, soul } : { goal, provider, soul }))
+    })
+
+  const reloadTasks = () =>
+    lauf(async () => {
+      const liste = await api.reloadTasks()
+      setTasks(liste)
+      if (!liste.some((t) => t.id === task)) setTask(liste[0]?.id ?? '')
     })
 
   const reloadTools = () =>
@@ -105,6 +135,7 @@ function App() {
         <p className="status">
           {status ? `${status.providers.length} Provider` : 'Backend wird abgefragt …'}
           {souls && ` · ${souls.souls.length} SOUL(s)`}
+          {tasks && ` · ${tasks.length} Aufgabe(n)`}
           {tools && ` · ${tools.tools.length} Tool(s)`}
         </p>
       </header>
@@ -203,15 +234,48 @@ function App() {
       </section>
 
       <section className="card">
-        <h2>3 · Lauf mit Werkzeugen</h2>
+        <h2>3 · Lauf</h2>
 
-        <textarea
-          value={goal}
-          onChange={(e) => setGoal(e.target.value)}
-          rows={3}
-          placeholder="Auftrag an den Agenten"
-        />
-        <button onClick={startRun} disabled={busy || !goal.trim() || !provider}>
+        <div className="row providers">
+          <select value={task} onChange={(e) => setTask(e.target.value)} disabled={!tasks}>
+            <option value="">— freier Auftrag —</option>
+            {tasks?.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} · v{t.version} · Stufe {t.schwierigkeit}
+              </option>
+            ))}
+          </select>
+          <button onClick={reloadTasks} disabled={busy}>
+            Aufgaben neu laden
+          </button>
+        </div>
+
+        {task && taskDetail?.id === task ? (
+          <>
+            {taskDetail.beschreibung && <p className="meta">{taskDetail.beschreibung}</p>}
+            <pre className="output prompt">{taskDetail.auftrag}</pre>
+            <p className="meta">
+              {taskDetail.tags.map((tag) => (
+                <span key={tag} className="badge">
+                  {tag}
+                </span>
+              ))}
+              {taskDetail.soul && ` · SOUL-Vorgabe: ${taskDetail.soul}`}
+              {taskDetail.maxToolCalls != null && ` · max. ${taskDetail.maxToolCalls} Tool-Aufrufe`}
+              {' · '}
+              {taskDetail.quelle}
+            </p>
+          </>
+        ) : (
+          <textarea
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            rows={3}
+            placeholder="Auftrag an den Agenten"
+          />
+        )}
+
+        <button onClick={startRun} disabled={busy || (!task && !goal.trim()) || !provider}>
           {busy ? 'Agent arbeitet …' : 'Lauf starten'}
         </button>
 
@@ -221,6 +285,7 @@ function App() {
               <span className={run.status === 'DONE' ? 'badge local' : 'badge cloud'}>
                 {STATUS_TEXT[run.status]}
               </span>{' '}
+              {run.taskId ? `Aufgabe ${run.taskId} v${run.taskVersion} · ` : 'freier Auftrag · '}
               SOUL {run.soulId} v{run.soulVersion} · {run.providerId} · {run.model ?? 'unbekannt'} ·{' '}
               {run.steps} Schritte · {run.durationMs} ms
               {run.totalTokens != null && ` · ${run.totalTokens} Tokens`}

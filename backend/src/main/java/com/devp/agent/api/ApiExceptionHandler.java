@@ -6,6 +6,8 @@ import com.devp.agent.ai.ChatService.ModelCallFailedException;
 import com.devp.agent.api.RunController.UnknownRunException;
 import com.devp.agent.soul.SoulParser.SoulParseException;
 import com.devp.agent.soul.SoulRepository.UnknownSoulException;
+import com.devp.agent.task.TaskParser.TaskParseException;
+import com.devp.agent.task.TaskRepository.UnknownTaskException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -35,6 +37,29 @@ public class ApiExceptionHandler {
 	public ProblemDetail handleSoulParse(SoulParseException ex) {
 		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
 		problem.setTitle("SOUL fehlerhaft");
+		return problem;
+	}
+
+	@ExceptionHandler(UnknownTaskException.class)
+	public ProblemDetail handleUnknownTask(UnknownTaskException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+		problem.setTitle("Unbekannte Aufgabe");
+		return problem;
+	}
+
+	/** Kaputte Aufgabendatei ist ein Konfigurationsfehler des Betreibers, kein Client-Fehler. */
+	@ExceptionHandler(TaskParseException.class)
+	public ProblemDetail handleTaskParse(TaskParseException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+		problem.setTitle("Aufgabe fehlerhaft");
+		return problem;
+	}
+
+	/** Fehlende oder widerspruechliche Angaben am Aufruf. */
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+		problem.setTitle("Ungueltige Anfrage");
 		return problem;
 	}
 
