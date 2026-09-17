@@ -84,6 +84,7 @@ export type AgentRun = {
   soulVersion: number
   profileId: string | null
   profileVersion: number | null
+  seriesId: string | null
   providerId: string
   model: string | null
   temperature: number | null
@@ -145,6 +146,52 @@ export type ProfileSummary = {
 export type ProfileListResponse = {
   defaultProfile: string
   profiles: ProfileSummary[]
+  availableStrategies: string[]
+}
+
+export type Series = {
+  id: string
+  taskId: string
+  taskVersion: number
+  soulId: string | null
+  profileId: string | null
+  providerId: string | null
+  repetitions: number
+  status: 'RUNNING' | 'DONE' | 'FAILED'
+  completed: number
+  error: string | null
+  createdAt: string
+  finishedAt: string | null
+}
+
+export type Aggregate = {
+  count: number
+  min: number
+  mean: number
+  max: number
+}
+
+export type SeriesStatistics = {
+  repetitions: number
+  completed: number
+  graded: number
+  passed: number
+  passRate: number
+  passRateLower: number
+  passRateUpper: number
+  passAtK: boolean
+  passHatK: boolean
+  flaky: boolean
+  statusCounts: Record<string, number>
+  tokens: Aggregate
+  durationMs: Aggregate
+  toolCalls: Aggregate
+}
+
+export type SeriesDetail = {
+  series: Series
+  statistics: SeriesStatistics
+  runs: AgentRun[]
 }
 
 export type ToolInfo = {
@@ -215,5 +262,9 @@ export const api = {
   task: (id: string) => request<Task>(`/api/tasks/${encodeURIComponent(id)}`),
   reloadTasks: () => request<TaskSummary[]>('/api/tasks/reload', { method: 'POST' }),
   runs: () => request<AgentRun[]>('/api/runs'),
+  startSeries: (body: { task: string; repetitions: number; provider: string; soul: string; profile: string }) =>
+    request<Series>('/api/series', { method: 'POST', body: JSON.stringify(body) }),
+  series: (id: string) => request<SeriesDetail>(`/api/series/${encodeURIComponent(id)}`),
+  seriesList: () => request<Series[]>('/api/series'),
   run: (id: string) => request<AgentRun>(`/api/runs/${encodeURIComponent(id)}`),
 }
