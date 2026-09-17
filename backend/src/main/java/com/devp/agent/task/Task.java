@@ -20,6 +20,7 @@ import com.devp.agent.eval.Criterion;
  * @param difficulty    level, descriptive only for now
  * @param soul          SOUL default of the task, {@code null} = caller or global default decides
  * @param provider      provider default, {@code null} = caller or global default decides
+ * @param profile       strategy profile default, {@code null} = caller or {@code baseline}
  * @param maxToolCalls  budget default of the task, {@code null} = global setting
  * @param maxDurationMs budget default of the task, {@code null} = global setting
  * @param success       deterministically checkable criteria; empty = the run is not graded
@@ -35,6 +36,7 @@ public record Task(
 		List<String> tags,
 		String soul,
 		String provider,
+		String profile,
 		Integer maxToolCalls,
 		Long maxDurationMs,
 		List<Criterion> success,

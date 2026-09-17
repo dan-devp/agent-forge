@@ -168,11 +168,13 @@ class RunRepositoryTests {
 	@Test
 	void remembersParametersTheModelSaw() {
 		UUID id = UUID.randomUUID();
-		repository.start(new AgentRun(id, "goal", null, null, "forge", 1, "local", "m", 0.2, "# Wer du bist",
-				List.of("currentTime", "divide"), RunStatus.RUNNING, null, null, 0, null, null, Instant.now(), null,
-				List.of(), List.of()));
+		repository.start(new AgentRun(id, "goal", null, null, "forge", 1, "reflexion", 2, "local", "m", 0.2,
+				"# Wer du bist", List.of("currentTime", "divide"), RunStatus.RUNNING, null, null, 0, null, null,
+				Instant.now(), null, List.of(), List.of()));
 
 		AgentRun read = repository.find(id).orElseThrow();
+		assertThat(read.profileId()).isEqualTo("reflexion");
+		assertThat(read.profileVersion()).isEqualTo(2);
 		assertThat(read.temperature()).isEqualTo(0.2);
 		assertThat(read.systemPrompt()).isEqualTo("# Wer du bist");
 		assertThat(read.tools()).containsExactly("currentTime", "divide");
@@ -184,6 +186,7 @@ class RunRepositoryTests {
 		repository.start(started(id));
 
 		AgentRun read = repository.find(id).orElseThrow();
+		assertThat(read.profileId()).isNull();
 		assertThat(read.temperature()).isNull();
 		assertThat(read.systemPrompt()).isNull();
 		assertThat(read.tools()).isEmpty();

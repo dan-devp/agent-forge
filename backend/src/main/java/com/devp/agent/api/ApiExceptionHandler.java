@@ -4,6 +4,8 @@ import com.devp.agent.ai.ChatClientRegistry.UnknownProviderException;
 import com.devp.agent.ai.ChatService.AiNotConfiguredException;
 import com.devp.agent.ai.ChatService.ModelCallFailedException;
 import com.devp.agent.api.RunController.UnknownRunException;
+import com.devp.agent.profile.ProfileParser.ProfileParseException;
+import com.devp.agent.profile.ProfileRepository.UnknownProfileException;
 import com.devp.agent.soul.SoulParser.SoulParseException;
 import com.devp.agent.soul.SoulRepository.UnknownSoulException;
 import com.devp.agent.task.TaskParser.TaskParseException;
@@ -43,6 +45,17 @@ public class ApiExceptionHandler {
 	@ExceptionHandler(TaskParseException.class)
 	public ProblemDetail handleTaskParse(TaskParseException ex) {
 		return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Task invalid", ex);
+	}
+
+	@ExceptionHandler(UnknownProfileException.class)
+	public ProblemDetail handleUnknownProfile(UnknownProfileException ex) {
+		return problem(HttpStatus.NOT_FOUND, "Unknown profile", ex);
+	}
+
+	/** A broken profile file is an operator's configuration error, not a client error. */
+	@ExceptionHandler(ProfileParseException.class)
+	public ProblemDetail handleProfileParse(ProfileParseException ex) {
+		return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Profile invalid", ex);
 	}
 
 	/** Missing or contradictory values on the request. */

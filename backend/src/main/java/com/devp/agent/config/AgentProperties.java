@@ -24,6 +24,12 @@ public class AgentProperties {
 	/** How many runs the history lists at most. */
 	private int historyLimit = 50;
 
+	/**
+	 * Global cap on rejections per strategy in the beforeFinish loop, regardless of what a
+	 * profile asks for. A misconfigured profile must not loop until the time budget hits.
+	 */
+	private int maxVerifyRounds = 3;
+
 	public int getMaxToolCalls() {
 		return maxToolCalls;
 	}
@@ -50,6 +56,14 @@ public class AgentProperties {
 
 	public int getHistoryLimit() {
 		return historyLimit;
+	}
+
+	public int getMaxVerifyRounds() {
+		return maxVerifyRounds;
+	}
+
+	public void setMaxVerifyRounds(int maxVerifyRounds) {
+		this.maxVerifyRounds = maxVerifyRounds;
 	}
 
 	public void setHistoryLimit(int historyLimit) {

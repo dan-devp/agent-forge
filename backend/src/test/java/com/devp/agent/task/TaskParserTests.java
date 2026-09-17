@@ -20,6 +20,7 @@ class TaskParserTests {
 			tags: [tools, builtin]
 			soul: reviewer
 			provider: local
+			profile: reflexion
 			max-tool-calls: 5
 			max-duration-ms: 30000
 			success:
@@ -60,6 +61,7 @@ class TaskParserTests {
 
 		assertThat(task.soul()).isEqualTo("reviewer");
 		assertThat(task.provider()).isEqualTo("local");
+		assertThat(task.profile()).isEqualTo("reflexion");
 		assertThat(task.maxToolCalls()).isEqualTo(5);
 		assertThat(task.maxDurationMs()).isEqualTo(30_000L);
 	}
@@ -115,6 +117,7 @@ class TaskParserTests {
 		assertThat(task.difficulty()).isEqualTo(1);
 		assertThat(task.tags()).isEmpty();
 		assertThat(task.soul()).isNull();
+		assertThat(task.profile()).isNull();
 		assertThat(task.maxToolCalls()).isNull();
 		assertThat(task.maxDurationMs()).isNull();
 		assertThat(task.success()).isEmpty();

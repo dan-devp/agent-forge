@@ -3,6 +3,7 @@ import {
   api,
   type AgentRun,
   type ChatResult,
+  type ProfileListResponse,
   type SoulDetail,
   type SoulListResponse,
   type StatusResponse,
@@ -16,6 +17,7 @@ const STATUS_TEXT: Record<AgentRun['status'], string> = {
   RUNNING: 'läuft',
   DONE: 'fertig',
   BUDGET_EXCEEDED: 'Budget aufgebraucht',
+  VERIFICATION_FAILED: 'Verifikation gescheitert',
   FAILED: 'fehlgeschlagen',
 }
 
@@ -29,6 +31,8 @@ function App() {
   const [runPromptOpen, setRunPromptOpen] = useState(false)
   const [tools, setTools] = useState<ToolListResponse | null>(null)
   const [tasks, setTasks] = useState<TaskSummary[] | null>(null)
+  const [profiles, setProfiles] = useState<ProfileListResponse | null>(null)
+  const [profile, setProfile] = useState('')
   const [task, setTask] = useState('')
   const [taskDetail, setTaskDetail] = useState<Task | null>(null)
   const [goal, setGoal] = useState('Welcher Wochentag ist heute, und wie oft passt 7 in 100?')
@@ -61,6 +65,14 @@ function App() {
       .catch((e: Error) => setError(e.message))
 
     api.tools().then(setTools).catch((e: Error) => setError(e.message))
+
+    api
+      .profiles()
+      .then((p) => {
+        setProfiles(p)
+        setProfile(p.defaultProfile)
+      })
+      .catch((e: Error) => setError(e.message))
 
     api
       .tasks()
@@ -114,7 +126,7 @@ function App() {
     perform(async () => {
       setRun(null)
       // Named task when one is selected — only that one can be evaluated later.
-      setRun(await api.startRun(task ? { task, provider, soul } : { goal, provider, soul }))
+      setRun(await api.startRun(task ? { task, provider, soul, profile } : { goal, provider, soul, profile }))
     })
 
   const reloadTasks = () =>
@@ -122,6 +134,13 @@ function App() {
       const list = await api.reloadTasks()
       setTasks(list)
       if (!list.some((t) => t.id === task)) setTask(list[0]?.id ?? '')
+    })
+
+  const reloadProfiles = () =>
+    perform(async () => {
+      const p = await api.reloadProfiles()
+      setProfiles(p)
+      if (!p.profiles.some((x) => x.id === profile)) setProfile(p.defaultProfile)
     })
 
   const reloadTools = () =>
@@ -137,6 +156,7 @@ function App() {
           {status ? `${status.providers.length} Provider` : 'Backend wird abgefragt …'}
           {souls && ` · ${souls.souls.length} SOUL(s)`}
           {tasks && ` · ${tasks.length} Aufgabe(n)`}
+          {profiles && ` · ${profiles.profiles.length} Profil(e)`}
           {tools && ` · ${tools.tools.length} Tool(s)`}
         </p>
       </header>
@@ -251,6 +271,20 @@ function App() {
           </button>
         </div>
 
+        <div className="row providers">
+          <select value={profile} onChange={(e) => setProfile(e.target.value)} disabled={!profiles}>
+            {profiles?.profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                Profil {p.name} · v{p.version} ·{' '}
+                {p.strategies.length === 0 ? 'keine Strategie' : p.strategies.map((s) => s.id).join(', ')}
+              </option>
+            ))}
+          </select>
+          <button onClick={reloadProfiles} disabled={busy}>
+            Profile neu laden
+          </button>
+        </div>
+
         {task && taskDetail?.id === task ? (
           <>
             {taskDetail.description && <p className="meta">{taskDetail.description}</p>}
@@ -287,7 +321,8 @@ function App() {
                 {STATUS_TEXT[run.status]}
               </span>{' '}
               {run.taskId ? `Aufgabe ${run.taskId} v${run.taskVersion} · ` : 'freier Auftrag · '}
-              SOUL {run.soulId} v{run.soulVersion} · {run.providerId} · {run.model ?? 'unbekannt'} ·{' '}
+              SOUL {run.soulId} v{run.soulVersion} · Profil {run.profileId ?? '–'} v{run.profileVersion ?? '–'} ·{' '}
+              {run.providerId} · {run.model ?? 'unbekannt'} ·{' '}
               {run.steps} Schritte · {run.durationMs} ms
               {run.totalTokens != null && ` · ${run.totalTokens} Tokens`}
             </p>
@@ -325,7 +360,7 @@ function App() {
             <ol className="trace">
               {run.trace.map((s) => (
                 <li key={s.seq}>
-                  <span className={s.type === 'TOOL' ? 'badge cloud' : 'badge local'}>{s.type}</span>{' '}
+                  <span className={s.type === 'MODEL' ? 'badge local' : 'badge cloud'}>{s.type}</span>{' '}
                   <code>{s.name}</code>
                   {s.input && <div className="meta">ein: {s.input}</div>}
                   {s.output && <div className="meta">aus: {s.output}</div>}

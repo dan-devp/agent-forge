@@ -7,6 +7,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.devp.agent.config.AgentProperties;
+import com.devp.agent.strategy.RunContext;
+import com.devp.agent.strategy.StrategyRegistry.Active;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +44,12 @@ public class TracingToolCallingManager implements ToolCallingManager {
 
 	/** Key in the toolContext for a call budget that deviates from the global default. */
 	public static final String MAX_TOOL_CALLS = "agentMaxToolCalls";
+
+	/** Key in the toolContext holding the {@link RunContext} the strategies see. */
+	public static final String RUN_CONTEXT = "agentRunContext";
+
+	/** Key in the toolContext holding the active strategies ({@code List<Active>}). */
+	public static final String STRATEGIES = "agentStrategies";
 
 	private static final Logger log = LoggerFactory.getLogger(TracingToolCallingManager.class);
 
@@ -95,8 +103,28 @@ public class TracingToolCallingManager implements ToolCallingManager {
 		}
 		long duration = System.currentTimeMillis() - start;
 
-		writeToolSteps(runId, request, result, duration);
+		List<RunStep> steps = writeToolSteps(runId, request, result, duration);
+		notifyStrategies(prompt, steps);
 		return result;
+	}
+
+	/** Hook 2: strategies observe each tool round. Observation only — a failing strategy must not stop the run. */
+	@SuppressWarnings("unchecked")
+	private void notifyStrategies(Prompt prompt, List<RunStep> steps) {
+		Map<String, Object> toolContext = toolContext(prompt);
+		if (!(toolContext.get(RUN_CONTEXT) instanceof RunContext context)
+				|| !(toolContext.get(STRATEGIES) instanceof List<?> active)) {
+			return;
+		}
+		for (Active a : (List<Active>) active) {
+			try {
+				a.strategy().afterToolRound(context, a.config(), steps);
+			}
+			catch (RuntimeException ex) {
+				log.warn("Strategy '{}' failed in afterToolRound of run {}: {}", a.strategy().id(), context.runId(),
+						ex.getMessage());
+			}
+		}
 	}
 
 	private void writeModelStep(UUID runId, ChatResponse response, AssistantMessage request) {
@@ -125,7 +153,8 @@ public class TracingToolCallingManager implements ToolCallingManager {
 	 * The results sit at the end of the returned history. They are matched by tool call id,
 	 * not by position — with parallel calls the order is not guaranteed.
 	 */
-	private void writeToolSteps(UUID runId, AssistantMessage request, ToolExecutionResult result, long duration) {
+	private List<RunStep> writeToolSteps(UUID runId, AssistantMessage request, ToolExecutionResult result,
+			long duration) {
 		Map<String, String> responses = result.conversationHistory().stream()
 				.filter(ToolResponseMessage.class::isInstance)
 				.map(ToolResponseMessage.class::cast)
@@ -135,8 +164,9 @@ public class TracingToolCallingManager implements ToolCallingManager {
 						toolResponse -> toolResponse.responseData() == null ? "" : toolResponse.responseData(),
 						(previous, next) -> next));
 
+		List<RunStep> steps = new java.util.ArrayList<>();
 		for (AssistantMessage.ToolCall call : request.getToolCalls()) {
-			runs.addStep(runId, new RunStep(
+			RunStep step = new RunStep(
 					runs.nextStepNumber(runId),
 					StepType.TOOL,
 					call.name(),
@@ -145,9 +175,12 @@ public class TracingToolCallingManager implements ToolCallingManager {
 					null,
 					duration,
 					null,
-					Instant.now()));
+					Instant.now());
+			runs.addStep(runId, step);
+			steps.add(step);
 			log.debug("Run {}: tool {} executed", runId, call.name());
 		}
+		return List.copyOf(steps);
 	}
 
 	/**

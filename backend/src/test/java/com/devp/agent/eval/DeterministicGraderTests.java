@@ -24,7 +24,7 @@ class DeterministicGraderTests {
 	private final DeterministicGrader grader = new DeterministicGrader();
 
 	private static Task task(Criterion... criteria) {
-		return new Task("t", "T", 1, null, 1, List.of(), null, null, null, null, List.of(criteria),
+		return new Task("t", "T", 1, null, 1, List.of(), null, null, null, null, null, List.of(criteria),
 				"Do something.", Map.of(), "t.md");
 	}
 

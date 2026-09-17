@@ -57,7 +57,7 @@ export type SoulDetail = {
 
 export type RunStep = {
   seq: number
-  type: 'MODEL' | 'TOOL'
+  type: 'MODEL' | 'TOOL' | 'VERIFY'
   name: string | null
   input: string | null
   output: string | null
@@ -82,12 +82,14 @@ export type AgentRun = {
   taskVersion: number | null
   soulId: string
   soulVersion: number
+  profileId: string | null
+  profileVersion: number | null
   providerId: string
   model: string | null
   temperature: number | null
   systemPrompt: string | null
   tools: string[]
-  status: 'RUNNING' | 'DONE' | 'BUDGET_EXCEEDED' | 'FAILED'
+  status: 'RUNNING' | 'DONE' | 'BUDGET_EXCEEDED' | 'VERIFICATION_FAILED' | 'FAILED'
   answer: string | null
   error: string | null
   steps: number
@@ -108,6 +110,7 @@ export type TaskSummary = {
   tags: string[]
   soul: string | null
   provider: string | null
+  profile: string | null
 }
 
 export type Criterion = {
@@ -123,6 +126,25 @@ export type Task = TaskSummary & {
   maxDurationMs: number | null
   sections: Record<string, string>
   source: string
+}
+
+export type StrategyConfig = {
+  id: string
+  params: Record<string, unknown>
+}
+
+export type ProfileSummary = {
+  id: string
+  name: string
+  version: number
+  description: string | null
+  strategies: StrategyConfig[]
+  isDefault: boolean
+}
+
+export type ProfileListResponse = {
+  defaultProfile: string
+  profiles: ProfileSummary[]
 }
 
 export type ToolInfo = {
@@ -185,8 +207,10 @@ export const api = {
   reloadSouls: () => request<SoulListResponse>('/api/souls/reload', { method: 'POST' }),
   tools: () => request<ToolListResponse>('/api/tools'),
   reloadTools: () => request<ToolListResponse>('/api/tools/reload', { method: 'POST' }),
-  startRun: (body: { goal?: string; task?: string; provider: string; soul: string }) =>
+  startRun: (body: { goal?: string; task?: string; provider: string; soul: string; profile: string }) =>
     request<AgentRun>('/api/runs', { method: 'POST', body: JSON.stringify(body) }),
+  profiles: () => request<ProfileListResponse>('/api/profiles'),
+  reloadProfiles: () => request<ProfileListResponse>('/api/profiles/reload', { method: 'POST' }),
   tasks: () => request<TaskSummary[]>('/api/tasks'),
   task: (id: string) => request<Task>(`/api/tasks/${encodeURIComponent(id)}`),
   reloadTasks: () => request<TaskSummary[]>('/api/tasks/reload', { method: 'POST' }),

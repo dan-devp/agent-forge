@@ -54,6 +54,7 @@ public final class TaskParser {
 					document.strings("tags"),
 					document.text("soul"),
 					document.text("provider"),
+					document.text("profile"),
 					document.integer("max-tool-calls"),
 					document.longValue("max-duration-ms"),
 					CriterionParser.parse(document),

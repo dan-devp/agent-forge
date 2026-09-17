@@ -31,11 +31,13 @@ public class RunRepository {
 	/** Creates the run as soon as it begins — a crash then stays visible as RUNNING. */
 	public void start(AgentRun run) {
 		db.sql("""
-				insert into agent_run (id, goal, task_id, task_version, soul_id, soul_version, provider_id,
-				                       model, temperature, system_prompt, tools, status, started_at)
-				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				insert into agent_run (id, goal, task_id, task_version, soul_id, soul_version, profile_id,
+				                       profile_version, provider_id, model, temperature, system_prompt, tools,
+				                       status, started_at)
+				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
 				.params(run.id(), run.goal(), run.taskId(), run.taskVersion(), run.soulId(), run.soulVersion(),
+						run.profileId(), run.profileVersion(),
 						run.providerId(), run.model(), run.temperature(), run.systemPrompt(),
 						run.tools().toArray(String[]::new), run.status().name(), Timestamp.from(run.startedAt()))
 				.update();
@@ -109,9 +111,9 @@ public class RunRepository {
 				.query(RunRepository::mapRun)
 				.optional();
 		return run.map(r -> new AgentRun(r.id(), r.goal(), r.taskId(), r.taskVersion(), r.soulId(), r.soulVersion(),
-				r.providerId(), r.model(), r.temperature(), r.systemPrompt(), r.tools(), r.status(), r.answer(),
-				r.error(), r.steps(), r.totalTokens(), r.durationMs(), r.startedAt(), r.finishedAt(), trace(id),
-				scores(id)));
+				r.profileId(), r.profileVersion(), r.providerId(), r.model(), r.temperature(), r.systemPrompt(),
+				r.tools(), r.status(), r.answer(), r.error(), r.steps(), r.totalTokens(), r.durationMs(),
+				r.startedAt(), r.finishedAt(), trace(id), scores(id)));
 	}
 
 	/** History without traces — the list must not load half the database. */
@@ -147,6 +149,8 @@ public class RunRepository {
 				(Integer) rs.getObject("task_version"),
 				rs.getString("soul_id"),
 				rs.getInt("soul_version"),
+				rs.getString("profile_id"),
+				(Integer) rs.getObject("profile_version"),
 				rs.getString("provider_id"),
 				rs.getString("model"),
 				temperature(rs.getBigDecimal("temperature")),

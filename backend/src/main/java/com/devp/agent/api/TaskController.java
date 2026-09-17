@@ -46,11 +46,11 @@ public class TaskController {
 
 	/** Overview without the full text. */
 	public record TaskSummary(String id, String name, int version, String description, int difficulty,
-			List<String> tags, String soul, String provider) {
+			List<String> tags, String soul, String provider, String profile) {
 
 		static TaskSummary of(Task task) {
 			return new TaskSummary(task.id(), task.name(), task.version(), task.description(),
-					task.difficulty(), task.tags(), task.soul(), task.provider());
+					task.difficulty(), task.tags(), task.soul(), task.provider(), task.profile());
 		}
 	}
 }

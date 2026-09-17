@@ -51,6 +51,10 @@ services:
       SOUL_LOCATIONS: ${SOUL_LOCATIONS:-classpath:souls/}
       SOUL_ACTIVE: ${SOUL_ACTIVE:-forge}
 
+      # --- Strategy profiles ---
+      PROFILE_LOCATIONS: ${PROFILE_LOCATIONS:-classpath:profiles/}
+      PROFILE_DEFAULT: ${PROFILE_DEFAULT:-baseline}
+
       # --- Database (runs, traces, scores) ---
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-agent}
       DB_USER: ${POSTGRES_USER:-agent}
@@ -60,6 +64,7 @@ services:
       AGENT_MAX_TOOL_CALLS: ${AGENT_MAX_TOOL_CALLS:-20}
       AGENT_MAX_CALLS_PER_TOOL: ${AGENT_MAX_CALLS_PER_TOOL:-8}
       AGENT_MAX_DURATION_MS: ${AGENT_MAX_DURATION_MS:-180000}
+      AGENT_MAX_VERIFY_ROUNDS: ${AGENT_MAX_VERIFY_ROUNDS:-3}
 
       # --- Tools ---
       TOOLS_BUILTIN_ENABLED: ${TOOLS_BUILTIN_ENABLED:-true}

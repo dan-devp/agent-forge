@@ -7,5 +7,12 @@ public enum StepType {
 	MODEL,
 
 	/** One executed tool call including arguments and result. */
-	TOOL
+	TOOL,
+
+	/**
+	 * A strategy rejected the answer before DONE and sent feedback. Its own type so the
+	 * evaluation can later count how often a verifier saved a run and how often it only
+	 * cost tokens.
+	 */
+	VERIFY
 }

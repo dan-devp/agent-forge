@@ -36,7 +36,7 @@ public class RunController {
 
 	@PostMapping
 	public AgentRun start(@Validated @RequestBody RunRequest request) {
-		return agent.run(request.goal(), request.task(), request.provider(), request.soul());
+		return agent.run(request.goal(), request.task(), request.provider(), request.soul(), request.profile());
 	}
 
 	/** History without traces. */
@@ -52,8 +52,8 @@ public class RunController {
 	}
 
 	/**
-	 * Either {@code task} (named task) or {@code goal} (free-form goal); {@code provider} and
-	 * {@code soul} override the task's defaults.
+	 * Either {@code task} (named task) or {@code goal} (free-form goal); {@code provider},
+	 * {@code soul} and {@code profile} override the task's defaults.
 	 */
 	public record RunRequest(
 			@Size(max = 4000, message = "goal is too long (max. 4000 characters)")
@@ -63,7 +63,9 @@ public class RunController {
 
 			String provider,
 
-			String soul) {
+			String soul,
+
+			String profile) {
 	}
 
 	/** The requested run id does not exist. */
