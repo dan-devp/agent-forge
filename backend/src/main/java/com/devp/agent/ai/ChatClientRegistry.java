@@ -103,6 +103,7 @@ public class ChatClientRegistry {
 							id,
 							p.getLabel() == null ? id : p.getLabel(),
 							p.getModel(),
+							p.getBaseUrl(),
 							p.isLocal(),
 							p.isConfigured(),
 							id.equals(properties.getDefaultProvider()));
@@ -117,8 +118,9 @@ public class ChatClientRegistry {
 	public record ResolvedProvider(String id, AiProperties.Provider config, ChatClient client) {
 	}
 
-	public record ProviderInfo(String id, String label, String model, boolean local, boolean configured,
-			boolean isDefault) {
+	/** {@code baseUrl} without the key — the settings view must show where a run would actually go. */
+	public record ProviderInfo(String id, String label, String model, String baseUrl, boolean local,
+			boolean configured, boolean isDefault) {
 	}
 
 	/** The requested provider id does not exist. */

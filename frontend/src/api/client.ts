@@ -7,6 +7,7 @@ export type ProviderInfo = {
   id: string
   label: string
   model: string
+  baseUrl: string | null
   local: boolean
   configured: boolean
   isDefault: boolean
@@ -82,6 +83,8 @@ export type AgentRun = {
   goal: string
   taskId: string | null
   taskVersion: number | null
+  agentId: string | null
+  agentVersion: number | null
   soulId: string
   soulVersion: number
   profileId: string | null
@@ -153,13 +156,16 @@ export type ProfileListResponse = {
 
 export type Training = {
   id: string
+  experimentId: string | null
   taskId: string
   taskVersion: number
+  agentId: string | null
+  agentVersion: number | null
   soulId: string | null
   profileId: string | null
   providerId: string | null
   repetitions: number
-  status: 'RUNNING' | 'DONE' | 'FAILED'
+  status: 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED'
   completed: number
   error: string | null
   createdAt: string
@@ -222,6 +228,54 @@ export type TrainingDetail = {
   memory: TrainingMemory[]
 }
 
+/** An agent: model, identity and tool allowlist as one versioned entity. */
+export type AgentView = {
+  id: string
+  name: string
+  version: number
+  description: string | null
+  provider: string | null
+  soul: string | null
+  toolMode: 'ALL' | 'NONE' | 'ALLOWLIST'
+  tools: string[]
+  effectiveTools: string[]
+  missingTools: string[]
+  sections: Record<string, string>
+  source: string
+}
+
+export type AgentListResponse = {
+  defaultAgent: string
+  agents: AgentView[]
+}
+
+/** One agent, one task, several profiles — the comparison that makes a training measurable. */
+export type Experiment = {
+  id: string
+  name: string | null
+  taskId: string
+  taskVersion: number
+  agentId: string | null
+  agentVersion: number | null
+  providerId: string | null
+  repetitions: number
+  status: 'RUNNING' | 'DONE' | 'FAILED'
+  error: string | null
+  createdAt: string
+  finishedAt: string | null
+}
+
+export type ExperimentArm = {
+  training: Training
+  statistics: TrainingStatistics
+  memoryEntries: number
+}
+
+export type ExperimentDetail = {
+  experiment: Experiment
+  arms: ExperimentArm[]
+}
+
 export type ToolInfo = {
   name: string
   description: string | null
@@ -282,7 +336,9 @@ export const api = {
   reloadSouls: () => request<SoulListResponse>('/api/souls/reload', { method: 'POST' }),
   tools: () => request<ToolListResponse>('/api/tools'),
   reloadTools: () => request<ToolListResponse>('/api/tools/reload', { method: 'POST' }),
-  startRun: (body: { goal?: string; task?: string; provider: string; soul: string; profile: string }) =>
+  agents: () => request<AgentListResponse>('/api/agents'),
+  reloadAgents: () => request<AgentListResponse>('/api/agents/reload', { method: 'POST' }),
+  startRun: (body: { goal?: string; task?: string; agent?: string; provider?: string; soul?: string; profile?: string }) =>
     request<AgentRun>('/api/runs', { method: 'POST', body: JSON.stringify(body) }),
   profiles: () => request<ProfileListResponse>('/api/profiles'),
   reloadProfiles: () => request<ProfileListResponse>('/api/profiles/reload', { method: 'POST' }),
@@ -291,8 +347,20 @@ export const api = {
   reloadTasks: () => request<TaskSummary[]>('/api/tasks/reload', { method: 'POST' }),
   runs: () => request<AgentRun[]>('/api/runs'),
   run: (id: string) => request<AgentRun>(`/api/runs/${encodeURIComponent(id)}`),
-  startTraining: (body: { task: string; repetitions: number; provider: string; soul: string; profile: string }) =>
+  startTraining: (body: { task: string; repetitions: number; agent?: string; provider?: string; soul?: string; profile?: string }) =>
     request<Training>('/api/trainings', { method: 'POST', body: JSON.stringify(body) }),
   training: (id: string) => request<TrainingDetail>(`/api/trainings/${encodeURIComponent(id)}`),
   trainings: (task?: string) => request<Training[]>(task ? `/api/trainings?task=${encodeURIComponent(task)}` : '/api/trainings'),
+  startExperiment: (body: {
+    name?: string
+    task: string
+    repetitions: number
+    agent?: string
+    provider?: string
+    profiles: string[]
+    includeBaseline: boolean
+  }) => request<Experiment>('/api/experiments', { method: 'POST', body: JSON.stringify(body) }),
+  experiments: (task?: string) =>
+    request<Experiment[]>(task ? `/api/experiments?task=${encodeURIComponent(task)}` : '/api/experiments'),
+  experiment: (id: string) => request<ExperimentDetail>(`/api/experiments/${encodeURIComponent(id)}`),
 }

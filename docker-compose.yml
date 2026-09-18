@@ -45,6 +45,13 @@ services:
       LOCAL_AI_MODEL: ${LOCAL_AI_MODEL:-local-model}
       LOCAL_AI_ENABLED: ${LOCAL_AI_ENABLED:-true}
 
+      # --- Gateway (LiteLLM): one provider per model, URL and key shared ---
+      LITELLM_BASE_URL: ${LITELLM_BASE_URL:-}
+      LITELLM_API_KEY: ${LITELLM_API_KEY:-not-set}
+      LITELLM_ENABLED: ${LITELLM_ENABLED:-true}
+      GATEWAY_MODEL: ${GATEWAY_MODEL:-gpt-4o-mini}
+      QWEN_MODEL: ${QWEN_MODEL:-Qwen/Qwen3.6-27B-FP8}
+
       # --- SOUL ---
       # For own SOULs without a rebuild: mount ./souls here (see volumes below)
       # and set SOUL_LOCATIONS=classpath:souls/,file:/souls/.

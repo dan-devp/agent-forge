@@ -16,8 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class TrainingStatisticsTests {
 
-	private static final Training TRAINING = new Training(UUID.randomUUID(), "t", 1, "forge", "baseline", "local", 6,
-			TrainingStatus.DONE, 6, null, Instant.now(), Instant.now());
+	private static final Training TRAINING = new Training(UUID.randomUUID(), null, "t", 1, "forge", 1, "forge",
+			"baseline", "local", 6, TrainingStatus.DONE, 6, null, Instant.now(), Instant.now());
 
 	private static AgentRun run(RunStatus status, Boolean passed, Integer tokens, Long duration) {
 		AgentRun run = new AgentRun(UUID.randomUUID(), "goal", "t", 1, "forge", 1, "local", "m", status, "answer", null,

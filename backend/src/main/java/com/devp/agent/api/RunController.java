@@ -36,7 +36,8 @@ public class RunController {
 
 	@PostMapping
 	public AgentRun start(@Validated @RequestBody RunRequest request) {
-		return agent.run(request.goal(), request.task(), request.provider(), request.soul(), request.profile());
+		return agent.run(request.goal(), request.task(), request.agent(), request.provider(), request.soul(),
+				request.profile());
 	}
 
 	/** History without traces. */
@@ -52,14 +53,17 @@ public class RunController {
 	}
 
 	/**
-	 * Either {@code task} (named task) or {@code goal} (free-form goal); {@code provider},
-	 * {@code soul} and {@code profile} override the task's defaults.
+	 * Either {@code task} (named task) or {@code goal} (free-form goal). {@code agent} picks
+	 * the worker; {@code provider}, {@code soul} and {@code profile} override what the agent
+	 * and the task bring along.
 	 */
 	public record RunRequest(
 			@Size(max = 4000, message = "goal is too long (max. 4000 characters)")
 			String goal,
 
 			String task,
+
+			String agent,
 
 			String provider,
 

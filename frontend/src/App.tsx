@@ -1,74 +1,63 @@
 import { useEffect, useState } from 'react'
 import {
   api,
+  type AgentListResponse,
   type ProfileListResponse,
-  type SoulDetail,
   type SoulListResponse,
   type StatusResponse,
   type TaskSummary,
   type ToolListResponse,
 } from './api/client'
-import { Sidebar, type Selection } from './components/Sidebar'
-import { RunPanel } from './components/RunPanel'
+import { NavSidebar } from './components/NavSidebar'
+import type { Area } from './components/areas'
+import { AgentsPanel } from './components/AgentsPanel'
+import { TasksPanel } from './components/TasksPanel'
+import { StrategiesPanel } from './components/StrategiesPanel'
+import { SettingsPanel } from './components/SettingsPanel'
+import { ExperimentPanel } from './components/ExperimentPanel'
 import { TrainingPanel } from './components/TrainingPanel'
+import { RunPanel } from './components/RunPanel'
 import { HistoryPanel } from './components/HistoryPanel'
 import { ChatPanel } from './components/ChatPanel'
 import './App.css'
 
-type Tab = 'run' | 'training' | 'history' | 'chat'
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'run', label: 'Lauf' },
-  { id: 'training', label: 'Training' },
-  { id: 'history', label: 'Historie' },
-  { id: 'chat', label: 'Chat' },
-]
+type TrainingTab = 'experiment' | 'training'
+type RunTab = 'run' | 'history' | 'chat'
 
 function App() {
   const [status, setStatus] = useState<StatusResponse | null>(null)
   const [souls, setSouls] = useState<SoulListResponse | null>(null)
-  const [soulDetail, setSoulDetail] = useState<SoulDetail | null>(null)
+  const [agents, setAgents] = useState<AgentListResponse | null>(null)
   const [profiles, setProfiles] = useState<ProfileListResponse | null>(null)
   const [tools, setTools] = useState<ToolListResponse | null>(null)
   const [tasks, setTasks] = useState<TaskSummary[] | null>(null)
+
+  const [area, setArea] = useState<Area>('training')
+  const [trainingTab, setTrainingTab] = useState<TrainingTab>('experiment')
+  const [runTab, setRunTab] = useState<RunTab>('run')
+
+  const [agent, setAgent] = useState('')
+  // Empty means: whatever the agent says, otherwise the global default.
+  const [provider, setProvider] = useState('')
   const [task, setTask] = useState('')
-  const [selection, setSelection] = useState<Selection>({ provider: '', soul: '', profile: '' })
-  const [tab, setTab] = useState<Tab>('run')
+
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fail = (e: Error) => setError(e.message)
 
   useEffect(() => {
+    api.status().then(setStatus).catch(fail)
+    api.souls().then(setSouls).catch(fail)
     api
-      .status()
-      .then((s) => {
-        setStatus(s)
-        // Prefer the default, otherwise the first usable provider.
-        const preferred =
-          s.providers.find((p) => p.isDefault && p.configured) ?? s.providers.find((p) => p.configured) ?? s.providers[0]
-        setSelection((sel) => ({ ...sel, provider: preferred?.id ?? '' }))
+      .agents()
+      .then((a) => {
+        setAgents(a)
+        setAgent(a.defaultAgent)
       })
       .catch(fail)
-
-    api
-      .souls()
-      .then((s) => {
-        setSouls(s)
-        setSelection((sel) => ({ ...sel, soul: s.activeSoul }))
-      })
-      .catch(fail)
-
-    api
-      .profiles()
-      .then((p) => {
-        setProfiles(p)
-        setSelection((sel) => ({ ...sel, profile: p.defaultProfile }))
-      })
-      .catch(fail)
-
+    api.profiles().then(setProfiles).catch(fail)
     api.tools().then(setTools).catch(fail)
-
     api
       .tasks()
       .then((t) => {
@@ -77,12 +66,6 @@ function App() {
       })
       .catch(fail)
   }, [])
-
-  // Always load the detail (incl. rendered prompt) for the currently selected SOUL.
-  useEffect(() => {
-    if (!selection.soul) return
-    api.soul(selection.soul).then(setSoulDetail).catch(fail)
-  }, [selection.soul])
 
   async function perform(action: () => Promise<void>) {
     setBusy(true)
@@ -103,18 +86,21 @@ function App() {
       if (!list.some((t) => t.id === task)) setTask(list[0]?.id ?? '')
     })
 
+  const reloadAgents = () =>
+    perform(async () => {
+      const a = await api.reloadAgents()
+      setAgents(a)
+      if (!a.agents.some((x) => x.id === agent)) setAgent(a.defaultAgent)
+    })
+
   const reloadProfiles = () =>
     perform(async () => {
-      const p = await api.reloadProfiles()
-      setProfiles(p)
-      if (!p.profiles.some((x) => x.id === selection.profile)) setSelection((s) => ({ ...s, profile: p.defaultProfile }))
+      setProfiles(await api.reloadProfiles())
     })
 
   const reloadSouls = () =>
     perform(async () => {
-      const s = await api.reloadSouls()
-      setSouls(s)
-      if (!s.souls.some((x) => x.id === selection.soul)) setSelection((sel) => ({ ...sel, soul: s.activeSoul }))
+      setSouls(await api.reloadSouls())
     })
 
   const reloadTools = () =>
@@ -131,10 +117,7 @@ function App() {
         </div>
         <div className="chips">
           <span className="chip">
-            <strong>{status?.providers.length ?? '…'}</strong> Provider
-          </span>
-          <span className="chip">
-            <strong>{souls?.souls.length ?? '…'}</strong> SOULs
+            <strong>{agents?.agents.length ?? '…'}</strong> Agenten
           </span>
           <span className="chip">
             <strong>{tasks?.length ?? '…'}</strong> Aufgaben
@@ -143,35 +126,27 @@ function App() {
             <strong>{profiles?.profiles.length ?? '…'}</strong> Profile
           </span>
           <span className="chip">
-            <strong>{tools?.tools.length ?? '…'}</strong> Tools
+            <strong>{tools?.tools.length ?? '…'}</strong> Werkzeuge
+          </span>
+          <span className="chip">
+            <strong>{status?.providers.length ?? '…'}</strong> Modelle
           </span>
         </div>
       </header>
 
       <div className="layout">
-        <Sidebar
+        <NavSidebar
+          area={area}
+          onArea={setArea}
+          agents={agents}
+          agent={agent}
+          onAgent={setAgent}
           status={status}
-          souls={souls}
-          soulDetail={soulDetail}
-          profiles={profiles}
-          tools={tools}
-          selection={selection}
-          busy={busy}
-          onChange={(next) => setSelection((s) => ({ ...s, ...next }))}
-          onReloadProfiles={reloadProfiles}
-          onReloadTools={reloadTools}
-          onReloadSouls={reloadSouls}
+          provider={provider}
+          onProvider={setProvider}
         />
 
         <main className="main">
-          <nav className="tabs" aria-label="Bereiche">
-            {TABS.map((t) => (
-              <button key={t.id} className={`tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
-                {t.label}
-              </button>
-            ))}
-          </nav>
-
           {error && (
             <div className="banner">
               <span>{error}</span>
@@ -181,31 +156,103 @@ function App() {
             </div>
           )}
 
-          {tab === 'run' && (
-            <RunPanel
-              tasks={tasks}
-              task={task}
-              onTaskChange={setTask}
-              selection={selection}
+          {area === 'training' && (
+            <>
+              <nav className="tabs" aria-label="Training">
+                <button
+                  className={`tab ${trainingTab === 'experiment' ? 'active' : ''}`}
+                  onClick={() => setTrainingTab('experiment')}
+                >
+                  Experimente
+                </button>
+                <button
+                  className={`tab ${trainingTab === 'training' ? 'active' : ''}`}
+                  onClick={() => setTrainingTab('training')}
+                >
+                  Einzeltraining
+                </button>
+              </nav>
+              {trainingTab === 'experiment' ? (
+                <ExperimentPanel
+                  tasks={tasks}
+                  task={task}
+                  onTaskChange={setTask}
+                  profiles={profiles}
+                  agent={agent}
+                  provider={provider}
+                  busy={busy}
+                  perform={perform}
+                  onError={setError}
+                />
+              ) : (
+                <TrainingPanel
+                  tasks={tasks}
+                  task={task}
+                  onTaskChange={setTask}
+                  profiles={profiles}
+                  agent={agent}
+                  provider={provider}
+                  busy={busy}
+                  perform={perform}
+                  onError={setError}
+                />
+              )}
+            </>
+          )}
+
+          {area === 'runs' && (
+            <>
+              <nav className="tabs" aria-label="Läufe">
+                <button className={`tab ${runTab === 'run' ? 'active' : ''}`} onClick={() => setRunTab('run')}>
+                  Einzellauf
+                </button>
+                <button className={`tab ${runTab === 'history' ? 'active' : ''}`} onClick={() => setRunTab('history')}>
+                  Historie
+                </button>
+                <button className={`tab ${runTab === 'chat' ? 'active' : ''}`} onClick={() => setRunTab('chat')}>
+                  Chat
+                </button>
+              </nav>
+              {runTab === 'run' && (
+                <RunPanel
+                  tasks={tasks}
+                  task={task}
+                  onTaskChange={setTask}
+                  profiles={profiles}
+                  agent={agent}
+                  provider={provider}
+                  busy={busy}
+                  perform={perform}
+                  onReloadTasks={reloadTasks}
+                  onError={setError}
+                />
+              )}
+              {runTab === 'history' && <HistoryPanel perform={perform} onError={setError} />}
+              {runTab === 'chat' && <ChatPanel souls={souls} provider={provider} busy={busy} perform={perform} />}
+            </>
+          )}
+
+          {area === 'agents' && (
+            <AgentsPanel agents={agents} agent={agent} onAgent={setAgent} busy={busy} onReload={reloadAgents} />
+          )}
+
+          {area === 'tasks' && (
+            <TasksPanel tasks={tasks} task={task} onTask={setTask} busy={busy} onReload={reloadTasks} onError={setError} />
+          )}
+
+          {area === 'strategies' && <StrategiesPanel profiles={profiles} busy={busy} onReload={reloadProfiles} />}
+
+          {area === 'settings' && (
+            <SettingsPanel
+              status={status}
+              souls={souls}
+              tools={tools}
               busy={busy}
-              perform={perform}
-              onReloadTasks={reloadTasks}
-              onError={(m) => setError(m)}
+              onReloadSouls={reloadSouls}
+              onReloadTools={reloadTools}
+              onError={setError}
             />
           )}
-          {tab === 'training' && (
-            <TrainingPanel
-              tasks={tasks}
-              task={task}
-              onTaskChange={setTask}
-              selection={selection}
-              busy={busy}
-              perform={perform}
-              onError={(m) => setError(m)}
-            />
-          )}
-          {tab === 'history' && <HistoryPanel perform={perform} onError={(m) => setError(m)} />}
-          {tab === 'chat' && <ChatPanel selection={selection} busy={busy} perform={perform} />}
         </main>
       </div>
     </div>

@@ -42,7 +42,7 @@ public class TrainingController {
 	@PostMapping
 	public ResponseEntity<Training> start(@Validated @RequestBody TrainingRequest request) {
 		Training created = trainings.start(request.task(), request.repetitions() == null ? 5 : request.repetitions(),
-				request.provider(), request.soul(), request.profile());
+				request.agent(), request.provider(), request.soul(), request.profile());
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(created);
 	}
 
@@ -67,6 +67,8 @@ public class TrainingController {
 			String task,
 
 			Integer repetitions,
+
+			String agent,
 
 			String provider,
 

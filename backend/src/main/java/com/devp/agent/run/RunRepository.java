@@ -31,13 +31,13 @@ public class RunRepository {
 	/** Creates the run as soon as it begins — a crash then stays visible as RUNNING. */
 	public void start(AgentRun run) {
 		db.sql("""
-				insert into agent_run (id, goal, task_id, task_version, soul_id, soul_version, profile_id,
-				                       profile_version, training_id, provider_id, model, temperature, system_prompt,
-				                       tools, status, started_at)
-				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				insert into agent_run (id, goal, task_id, task_version, agent_id, agent_version, soul_id, soul_version,
+				                       profile_id, profile_version, training_id, provider_id, model, temperature,
+				                       system_prompt, tools, status, started_at)
+				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
-				.params(run.id(), run.goal(), run.taskId(), run.taskVersion(), run.soulId(), run.soulVersion(),
-						run.profileId(), run.profileVersion(), run.trainingId(),
+				.params(run.id(), run.goal(), run.taskId(), run.taskVersion(), run.agentId(), run.agentVersion(),
+						run.soulId(), run.soulVersion(), run.profileId(), run.profileVersion(), run.trainingId(),
 						run.providerId(), run.model(), run.temperature(), run.systemPrompt(),
 						run.tools().toArray(String[]::new), run.status().name(), Timestamp.from(run.startedAt()))
 				.update();
@@ -110,9 +110,9 @@ public class RunRepository {
 				.param(id)
 				.query(RunRepository::mapRun)
 				.optional();
-		return run.map(r -> new AgentRun(r.id(), r.goal(), r.taskId(), r.taskVersion(), r.soulId(), r.soulVersion(),
-				r.profileId(), r.profileVersion(), r.trainingId(), r.providerId(), r.model(), r.temperature(),
-				r.systemPrompt(),
+		return run.map(r -> new AgentRun(r.id(), r.goal(), r.taskId(), r.taskVersion(), r.agentId(), r.agentVersion(),
+				r.soulId(), r.soulVersion(), r.profileId(), r.profileVersion(), r.trainingId(), r.providerId(),
+				r.model(), r.temperature(), r.systemPrompt(),
 				r.tools(), r.status(), r.answer(), r.error(), r.steps(), r.totalTokens(), r.durationMs(),
 				r.startedAt(), r.finishedAt(), trace(id), scores(id)));
 	}
@@ -148,6 +148,8 @@ public class RunRepository {
 				rs.getString("goal"),
 				rs.getString("task_id"),
 				(Integer) rs.getObject("task_version"),
+				rs.getString("agent_id"),
+				(Integer) rs.getObject("agent_version"),
 				rs.getString("soul_id"),
 				rs.getInt("soul_version"),
 				rs.getString("profile_id"),

@@ -1,7 +1,7 @@
 import type { AgentRun, RunStep, Training } from '../api/client'
 import { RUN_STATUS_TEXT } from './status'
 
-type Tone = 'ok' | 'warn' | 'bad' | 'info' | 'accent' | 'neutral'
+type Tone = 'ok' | 'warn' | 'bad' | 'info' | 'accent' | 'solid' | 'neutral'
 
 export function Badge({ tone = 'neutral', mono, children }: { tone?: Tone; mono?: boolean; children: React.ReactNode }) {
   return <span className={`badge ${tone === 'neutral' ? '' : tone} ${mono ? 'mono' : ''}`.trim()}>{children}</span>

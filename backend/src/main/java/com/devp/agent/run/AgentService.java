@@ -10,6 +10,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.devp.agent.agent.Agent;
+import com.devp.agent.agent.AgentRepository;
 import com.devp.agent.ai.ChatClientRegistry;
 import com.devp.agent.ai.ChatClientRegistry.ResolvedProvider;
 import com.devp.agent.ai.ChatService.AiNotConfiguredException;
@@ -58,6 +60,7 @@ public class AgentService {
 	private static final Logger log = LoggerFactory.getLogger(AgentService.class);
 
 	private final ChatClientRegistry providers;
+	private final AgentRepository agents;
 	private final SoulRepository souls;
 	private final TaskRepository tasks;
 	private final ProfileRepository profiles;
@@ -69,10 +72,12 @@ public class AgentService {
 	private final TrainingRepository trainings;
 	private final AgentProperties properties;
 
-	public AgentService(ChatClientRegistry providers, SoulRepository souls, TaskRepository tasks,
-			ProfileRepository profiles, StrategyRegistry strategies, SoulRenderer renderer, ToolRegistry tools,
-			RunRepository runs, EvaluationService evaluation, TrainingRepository trainings, AgentProperties properties) {
+	public AgentService(ChatClientRegistry providers, AgentRepository agents, SoulRepository souls,
+			TaskRepository tasks, ProfileRepository profiles, StrategyRegistry strategies, SoulRenderer renderer,
+			ToolRegistry tools, RunRepository runs, EvaluationService evaluation, TrainingRepository trainings,
+			AgentProperties properties) {
 		this.providers = providers;
+		this.agents = agents;
 		this.souls = souls;
 		this.tasks = tasks;
 		this.profiles = profiles;
@@ -94,13 +99,14 @@ public class AgentService {
 	 *
 	 * @param goal       free-form goal, {@code null} when a task is named
 	 * @param taskId     task id or {@code null}
-	 * @param providerId provider id, or {@code null} for the task default resp. the global default
-	 * @param soulId     SOUL id, or {@code null} for the task default resp. the active SOUL
+	 * @param agentId    agent id, or {@code null} for the default agent
+	 * @param providerId provider id, or {@code null} for the agent's resp. the task default
+	 * @param soulId     SOUL id, or {@code null} for the agent's resp. the task default
 	 * @param profileId  profile id, or {@code null} for the task default resp. {@code baseline}
 	 * @param trainingId the training this run belongs to, or {@code null} for a single run
 	 */
-	public AgentRun run(String goal, String taskId, String providerId, String soulId, String profileId,
-			UUID trainingId) {
+	public AgentRun run(String goal, String taskId, String agentId, String providerId, String soulId,
+			String profileId, UUID trainingId) {
 		Task task = (taskId == null || taskId.isBlank()) ? null : tasks.resolve(taskId);
 
 		if (task == null && (goal == null || goal.isBlank())) {
@@ -108,10 +114,14 @@ public class AgentService {
 		}
 		if (task != null) {
 			goal = task.goal();
-			soulId = orDefault(soulId, task.soul());
-			providerId = orDefault(providerId, task.provider());
 			profileId = orDefault(profileId, task.profile());
 		}
+
+		// Call beats agent beats task: the agent is the composition deliberately chosen for
+		// this run, the task's values are only defaults from before agents existed.
+		Agent agent = agents.resolve(agentId);
+		soulId = orDefault(soulId, orDefault(agent.soul(), task == null ? null : task.soul()));
+		providerId = orDefault(providerId, orDefault(agent.provider(), task == null ? null : task.provider()));
 
 		ResolvedProvider provider = providers.resolve(providerId);
 		Soul soul = souls.resolve(soulId);
@@ -140,19 +150,25 @@ public class AgentService {
 		// Record what the model will see before the first call — if the run crashes, the
 		// parameters are still there.
 		String systemPrompt = systemPrompt(soul, context);
-		List<ToolCallback> offered = new ArrayList<>(tools.callbacks());
+		// The agent's allowlist governs the registered tools. What a strategy brings along is
+		// part of the profile, not of the agent's environment, and is offered unfiltered.
+		List<ToolCallback> offered = new ArrayList<>(tools.callbacks().stream()
+				.filter(t -> agent.tools().allows(t.getToolDefinition().name()))
+				.toList());
 		offered.addAll(context.extraTools());
 		List<String> offeredNames = offered.stream().map(t -> t.getToolDefinition().name()).toList();
 
 		AgentRun started = new AgentRun(id, goal, task == null ? null : task.id(),
-				task == null ? null : task.version(), soul.id(), soul.version(), profile.id(), profile.version(),
+				task == null ? null : task.version(), agent.id(), agent.version(), soul.id(), soul.version(),
+				profile.id(), profile.version(),
 				trainingId, provider.id(), provider.config().getModel(), provider.config().getTemperature(), systemPrompt,
 				offeredNames, RunStatus.RUNNING, null, null, 0, null, null, start, null, List.of(), List.of());
 		runs.start(started);
-		log.info("Run {} started: task {}, SOUL {} v{}, profile {} v{} ({} strateg{}), provider {}, {} tool(s)",
-				id, task == null ? "(free-form)" : task.id() + " v" + task.version(), soul.id(), soul.version(),
-				profile.id(), profile.version(), active.size(), active.size() == 1 ? "y" : "ies", provider.id(),
-				offered.size());
+		log.info("Run {} started: task {}, agent {} v{}, SOUL {} v{}, profile {} v{} ({} strateg{}), provider {}, "
+						+ "{} of {} tool(s)",
+				id, task == null ? "(free-form)" : task.id() + " v" + task.version(), agent.id(), agent.version(),
+				soul.id(), soul.version(), profile.id(), profile.version(), active.size(),
+				active.size() == 1 ? "y" : "ies", provider.id(), offered.size(), tools.callbacks().size());
 
 		Map<String, Object> toolContext = toolContext(id, deadline, task, context, active);
 		List<Message> conversation = new ArrayList<>(List.of(new SystemMessage(systemPrompt), new UserMessage(goal)));
@@ -233,13 +249,9 @@ public class AgentService {
 	}
 
 	/** A single run outside any training. */
-	public AgentRun run(String goal, String taskId, String providerId, String soulId, String profileId) {
-		return run(goal, taskId, providerId, soulId, profileId, null);
-	}
-
-	/** Compatibility for callers without a profile. */
-	public AgentRun run(String goal, String taskId, String providerId, String soulId) {
-		return run(goal, taskId, providerId, soulId, null, null);
+	public AgentRun run(String goal, String taskId, String agentId, String providerId, String soulId,
+			String profileId) {
+		return run(goal, taskId, agentId, providerId, soulId, profileId, null);
 	}
 
 	/** The rendered SOUL plus whatever the strategies added, separated so both stay recognizable. */
@@ -308,7 +320,8 @@ public class AgentService {
 				.orElse(null);
 
 		AgentRun finished = new AgentRun(
-				started.id(), started.goal(), started.taskId(), started.taskVersion(), started.soulId(),
+				started.id(), started.goal(), started.taskId(), started.taskVersion(), started.agentId(),
+				started.agentVersion(), started.soulId(),
 				started.soulVersion(), started.profileId(), started.profileVersion(), started.trainingId(),
 				started.providerId(),
 				model == null ? started.model() : model, started.temperature(), started.systemPrompt(),

@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.devp.agent.agent.Agent;
+import com.devp.agent.agent.AgentRepository;
 import com.devp.agent.ai.ChatClientRegistry;
 import com.devp.agent.config.AgentProperties;
 import com.devp.agent.profile.ProfileRepository;
@@ -40,7 +42,8 @@ public class TrainingService {
 
 	private final TrainingRepository trainings;
 	private final RunRepository runs;
-	private final AgentService agent;
+	private final AgentService runner;
+	private final AgentRepository agents;
 	private final TaskRepository tasks;
 	private final SoulRepository souls;
 	private final ProfileRepository profiles;
@@ -48,12 +51,13 @@ public class TrainingService {
 	private final AgentProperties properties;
 	private final TrainingService self;
 
-	public TrainingService(TrainingRepository trainings, RunRepository runs, AgentService agent, TaskRepository tasks,
-			SoulRepository souls, ProfileRepository profiles, ChatClientRegistry providers, AgentProperties properties,
-			@Lazy TrainingService self) {
+	public TrainingService(TrainingRepository trainings, RunRepository runs, AgentService runner,
+			AgentRepository agents, TaskRepository tasks, SoulRepository souls, ProfileRepository profiles,
+			ChatClientRegistry providers, AgentProperties properties, @Lazy TrainingService self) {
 		this.trainings = trainings;
 		this.runs = runs;
-		this.agent = agent;
+		this.runner = runner;
+		this.agents = agents;
 		this.tasks = tasks;
 		this.souls = souls;
 		this.profiles = profiles;
@@ -64,37 +68,59 @@ public class TrainingService {
 	}
 
 	/**
-	 * Creates the training and schedules its runs. Resolves task, SOUL, profile and provider
-	 * once, so all runs share the same settings even if a file is reloaded meanwhile.
+	 * Creates the training and schedules its runs. Resolves task, agent, SOUL, profile and
+	 * provider once, so all runs share the same settings even if a file is reloaded meanwhile.
 	 */
-	public Training start(String taskId, int repetitions, String providerId, String soulId, String profileId) {
+	public Training start(String taskId, int repetitions, String agentId, String providerId, String soulId,
+			String profileId) {
+		Training created = create(null, taskId, repetitions, agentId, providerId, soulId, profileId);
+		self.execute(created);
+		return created;
+	}
+
+	/**
+	 * Creates a training without starting it — the experiment schedules its arms itself, so
+	 * that they run one after another instead of fighting over the single training thread.
+	 */
+	public Training create(UUID experimentId, String taskId, int repetitions, String agentId, String providerId,
+			String soulId, String profileId) {
 		Task task = tasks.resolve(taskId);
 		if (repetitions < 1 || repetitions > properties.getMaxTrainingRepetitions()) {
 			throw new IllegalArgumentException("repetitions must be between 1 and %d."
 					.formatted(properties.getMaxTrainingRepetitions()));
 		}
-		String soul = souls.resolve(orDefault(soulId, task.soul())).id();
+		Agent agent = agents.resolve(agentId);
+		String soul = souls.resolve(orDefault(soulId, orDefault(agent.soul(), task.soul()))).id();
 		String profile = profiles.resolve(orDefault(profileId, task.profile())).id();
-		String provider = providers.resolve(orDefault(providerId, task.provider())).id();
+		String provider = providers.resolve(orDefault(providerId, orDefault(agent.provider(), task.provider()))).id();
 
-		Training created = new Training(UUID.randomUUID(), task.id(), task.version(), soul, profile, provider,
-				repetitions, TrainingStatus.RUNNING, 0, null, Instant.now(), null);
+		// An arm waits for the arms before it; a training started on its own begins at once.
+		TrainingStatus status = experimentId == null ? TrainingStatus.RUNNING : TrainingStatus.QUEUED;
+		Training created = new Training(UUID.randomUUID(), experimentId, task.id(), task.version(), agent.id(),
+				agent.version(), soul, profile, provider, repetitions, status, 0, null, Instant.now(), null);
 		trainings.create(created);
-		log.info("Training {} created: task {} v{} x{}, SOUL {}, profile {}, provider {}", created.id(), task.id(),
-				task.version(), repetitions, soul, profile, provider);
-
-		self.execute(created);
+		log.info("Training {} created: task {} v{} x{}, agent {} v{}, SOUL {}, profile {}, provider {}", created.id(),
+				task.id(), task.version(), repetitions, agent.id(), agent.version(), soul, profile, provider);
 		return created;
 	}
 
 	@Async("trainingExecutor")
 	public void execute(Training created) {
+		runNow(created);
+	}
+
+	/**
+	 * The loop itself, synchronous. Called by {@link #execute} on the training thread and
+	 * directly by the experiment, which is already on that thread.
+	 */
+	public void runNow(Training created) {
 		int completed = 0;
+		trainings.markRunning(created.id());
 		try {
 			for (int i = 0; i < created.repetitions(); i++) {
 				try {
-					agent.run(null, created.taskId(), created.providerId(), created.soulId(), created.profileId(),
-							created.id());
+					runner.run(null, created.taskId(), created.agentId(), created.providerId(), created.soulId(),
+							created.profileId(), created.id());
 				}
 				catch (RuntimeException ex) {
 					// The run itself is already recorded as FAILED; the training continues.
@@ -129,11 +155,7 @@ public class TrainingService {
 		return trainings.runIds(trainingId).stream()
 				.map(runs::find)
 				.flatMap(Optional::stream)
-				.map(run -> new AgentRun(run.id(), run.goal(), run.taskId(), run.taskVersion(), run.soulId(),
-						run.soulVersion(), run.profileId(), run.profileVersion(), run.trainingId(), run.providerId(),
-						run.model(), run.temperature(), run.systemPrompt(), run.tools(), run.status(), run.answer(),
-						run.error(), run.steps(), run.totalTokens(), run.durationMs(), run.startedAt(),
-						run.finishedAt(), List.of(), run.scores()))
+				.map(AgentRun::withoutTrace)
 				.toList();
 	}
 

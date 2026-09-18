@@ -5,6 +5,8 @@
 # --- Secrets -----------------------------------------------------------------
 .env
 .env.local
+.env.bak
+.env.*.bak
 .env.*.local
 *.pem
 *.key

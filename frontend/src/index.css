@@ -1,94 +1,123 @@
-/* Design tokens. Light by default, dark via prefers-color-scheme or data-theme. */
+/*
+ * Design tokens.
+ *
+ * Warm paper instead of cold grey: the surface recedes, the content carries the contrast.
+ * Three signal colours only — near-black for "active/selected", terracotta for identity and
+ * failure, muted hues for status. Everything technical (ids, models, hashes, numbers) is set
+ * in mono; prose is sans. That split is the whole typographic system.
+ */
 :root {
-  --bg: #f6f7f9;
+  --bg: #f7f6f2;
   --surface: #ffffff;
-  --surface-2: #f0f2f5;
-  --border: #e2e5ea;
-  --border-strong: #c9ced6;
-  --text: #1f2430;
-  --text-muted: #6b7280;
-  --text-faint: #9aa1ad;
-  --accent: #4f46e5;
-  --accent-soft: rgba(79, 70, 229, 0.1);
+  --surface-2: #f2f0ea;
+  --surface-3: #ebe8df;
+  --border: #e6e3da;
+  --border-strong: #d2cdc0;
+
+  --text: #1b1b19;
+  --text-muted: #6f6c64;
+  --text-faint: #9c9890;
+
+  /* Identity and emphasis: filled terracotta with white text, as on session pills. */
+  --accent: #c0614a;
+  --accent-soft: rgba(192, 97, 74, 0.12);
   --accent-text: #ffffff;
 
-  --ok: #15803d;
-  --ok-soft: rgba(21, 128, 61, 0.12);
-  --warn: #b45309;
-  --warn-soft: rgba(180, 83, 9, 0.12);
-  --bad: #b91c1c;
-  --bad-soft: rgba(185, 28, 28, 0.12);
-  --info: #1d4ed8;
-  --info-soft: rgba(29, 78, 216, 0.12);
-  --neutral: #4b5563;
-  --neutral-soft: rgba(75, 85, 99, 0.12);
+  /* "Selected" is not a colour but a weight: near-black, white text. */
+  --solid: #1b1b19;
+  --solid-text: #faf9f6;
 
-  --radius: 10px;
-  --radius-sm: 6px;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+  --ok: #3d7f63;
+  --ok-soft: rgba(61, 127, 99, 0.13);
+  --warn: #9a6a1c;
+  --warn-soft: rgba(154, 106, 28, 0.14);
+  --bad: #a93d28;
+  --bad-soft: rgba(169, 61, 40, 0.13);
+  --info: #3c6f9e;
+  --info-soft: rgba(60, 111, 158, 0.13);
+  --neutral: #5f5c55;
+  --neutral-soft: rgba(95, 92, 85, 0.1);
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 5px;
+  --shadow: 0 1px 2px rgba(27, 27, 25, 0.04);
+  --shadow-lift: 0 2px 8px rgba(27, 27, 25, 0.06);
 
   --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   color-scheme: light dark;
-  font: 14px/1.5 var(--sans);
+  font: 14px/1.55 var(--sans);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
+/* The dark variant stays warm — same paper, lights out. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #0f1117;
-    --surface: #161922;
-    --surface-2: #1d212c;
-    --border: #262b38;
-    --border-strong: #363c4b;
-    --text: #e6e8ee;
-    --text-muted: #9aa3b5;
-    --text-faint: #6b7385;
-    --accent: #818cf8;
-    --accent-soft: rgba(129, 140, 248, 0.16);
-    --accent-text: #0f1117;
+    --bg: #171614;
+    --surface: #1f1e1b;
+    --surface-2: #26241f;
+    --surface-3: #2f2c26;
+    --border: #322f29;
+    --border-strong: #4a463d;
 
-    --ok: #4ade80;
-    --ok-soft: rgba(74, 222, 128, 0.14);
-    --warn: #fbbf24;
-    --warn-soft: rgba(251, 191, 36, 0.14);
-    --bad: #f87171;
-    --bad-soft: rgba(248, 113, 113, 0.14);
-    --info: #60a5fa;
-    --info-soft: rgba(96, 165, 250, 0.14);
-    --neutral: #cbd5e1;
-    --neutral-soft: rgba(203, 213, 225, 0.12);
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --text: #edeae3;
+    --text-muted: #a5a096;
+    --text-faint: #7a756c;
+
+    --accent: #d4795f;
+    --accent-soft: rgba(212, 121, 95, 0.16);
+    --accent-text: #171614;
+
+    --solid: #edeae3;
+    --solid-text: #171614;
+
+    --ok: #6fbf95;
+    --ok-soft: rgba(111, 191, 149, 0.15);
+    --warn: #d3a44f;
+    --warn-soft: rgba(211, 164, 79, 0.15);
+    --bad: #e08167;
+    --bad-soft: rgba(224, 129, 103, 0.15);
+    --info: #79a9d4;
+    --info-soft: rgba(121, 169, 212, 0.15);
+    --neutral: #bdb7ac;
+    --neutral-soft: rgba(189, 183, 172, 0.12);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-lift: 0 2px 10px rgba(0, 0, 0, 0.45);
   }
 }
 
 :root[data-theme='dark'] {
-  --bg: #0f1117;
-  --surface: #161922;
-  --surface-2: #1d212c;
-  --border: #262b38;
-  --border-strong: #363c4b;
-  --text: #e6e8ee;
-  --text-muted: #9aa3b5;
-  --text-faint: #6b7385;
-  --accent: #818cf8;
-  --accent-soft: rgba(129, 140, 248, 0.16);
-  --accent-text: #0f1117;
-  --ok: #4ade80;
-  --ok-soft: rgba(74, 222, 128, 0.14);
-  --warn: #fbbf24;
-  --warn-soft: rgba(251, 191, 36, 0.14);
-  --bad: #f87171;
-  --bad-soft: rgba(248, 113, 113, 0.14);
-  --info: #60a5fa;
-  --info-soft: rgba(96, 165, 250, 0.14);
-  --neutral: #cbd5e1;
-  --neutral-soft: rgba(203, 213, 225, 0.12);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --bg: #171614;
+  --surface: #1f1e1b;
+  --surface-2: #26241f;
+  --surface-3: #2f2c26;
+  --border: #322f29;
+  --border-strong: #4a463d;
+  --text: #edeae3;
+  --text-muted: #a5a096;
+  --text-faint: #7a756c;
+  --accent: #d4795f;
+  --accent-soft: rgba(212, 121, 95, 0.16);
+  --accent-text: #171614;
+  --solid: #edeae3;
+  --solid-text: #171614;
+  --ok: #6fbf95;
+  --ok-soft: rgba(111, 191, 149, 0.15);
+  --warn: #d3a44f;
+  --warn-soft: rgba(211, 164, 79, 0.15);
+  --bad: #e08167;
+  --bad-soft: rgba(224, 129, 103, 0.15);
+  --info: #79a9d4;
+  --info-soft: rgba(121, 169, 212, 0.15);
+  --neutral: #bdb7ac;
+  --neutral-soft: rgba(189, 183, 172, 0.12);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 2px 10px rgba(0, 0, 0, 0.45);
 }
 
 * {
@@ -111,7 +140,7 @@ h2,
 h3 {
   margin: 0;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   color: var(--text);
 }
 
@@ -120,28 +149,8 @@ p {
 }
 
 code,
-pre {
+pre,
+.mono {
   font-family: var(--mono);
-  font-size: 0.85em;
-}
-
-button,
-select,
-input,
-textarea {
-  font: inherit;
-  color: inherit;
-}
-
-button {
-  cursor: pointer;
-}
-
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-::selection {
-  background: var(--accent-soft);
+  font-size: 0.86em;
 }

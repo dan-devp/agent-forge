@@ -27,13 +27,21 @@ public class TrainingRepository {
 
 	public void create(Training training) {
 		db.sql("""
-				insert into agent_training (id, task_id, task_version, soul_id, profile_id, provider_id, repetitions,
-				                            status, completed, created_at)
-				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				insert into agent_training (id, experiment_id, task_id, task_version, agent_id, agent_version, soul_id,
+				                            profile_id, provider_id, repetitions, status, completed, created_at)
+				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
-				.params(training.id(), training.taskId(), training.taskVersion(), training.soulId(),
+				.params(training.id(), training.experimentId(), training.taskId(), training.taskVersion(),
+						training.agentId(), training.agentVersion(), training.soulId(),
 						training.profileId(), training.providerId(), training.repetitions(), training.status().name(),
 						training.completed(), Timestamp.from(training.createdAt()))
+				.update();
+	}
+
+	/** An arm leaves the queue. Idempotent — a training started on its own is already RUNNING. */
+	public void markRunning(UUID id) {
+		db.sql("update agent_training set status = ? where id = ?")
+				.params(TrainingStatus.RUNNING.name(), id)
 				.update();
 	}
 
@@ -63,6 +71,14 @@ public class TrainingRepository {
 	public List<Training> listForTask(String taskId, int limit) {
 		return db.sql("select * from agent_training where task_id = ? order by created_at desc limit ?")
 				.params(taskId, limit)
+				.query(TrainingRepository::map)
+				.list();
+	}
+
+	/** Trainings of one experiment in start order — the arms that get compared. */
+	public List<Training> listForExperiment(UUID experimentId) {
+		return db.sql("select * from agent_training where experiment_id = ? order by created_at")
+				.param(experimentId)
 				.query(TrainingRepository::map)
 				.list();
 	}
@@ -128,8 +144,11 @@ public class TrainingRepository {
 		Timestamp finished = rs.getTimestamp("finished_at");
 		return new Training(
 				rs.getObject("id", UUID.class),
+				rs.getObject("experiment_id", UUID.class),
 				rs.getString("task_id"),
 				rs.getInt("task_version"),
+				rs.getString("agent_id"),
+				(Integer) rs.getObject("agent_version"),
 				rs.getString("soul_id"),
 				rs.getString("profile_id"),
 				rs.getString("provider_id"),

@@ -1,8 +1,11 @@
 package com.devp.agent.api;
 
+import com.devp.agent.agent.AgentParser.AgentParseException;
+import com.devp.agent.agent.AgentRepository.UnknownAgentException;
 import com.devp.agent.ai.ChatClientRegistry.UnknownProviderException;
 import com.devp.agent.ai.ChatService.AiNotConfiguredException;
 import com.devp.agent.ai.ChatService.ModelCallFailedException;
+import com.devp.agent.api.ExperimentController.UnknownExperimentException;
 import com.devp.agent.api.RunController.UnknownRunException;
 import com.devp.agent.api.TrainingController.UnknownTrainingException;
 import com.devp.agent.profile.ProfileParser.ProfileParseException;
@@ -63,6 +66,21 @@ public class ApiExceptionHandler {
 	@ExceptionHandler(IllegalArgumentException.class)
 	public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
 		return problem(HttpStatus.BAD_REQUEST, "Invalid request", ex);
+	}
+
+	@ExceptionHandler(UnknownAgentException.class)
+	public ProblemDetail handleUnknownAgent(UnknownAgentException ex) {
+		return problem(HttpStatus.NOT_FOUND, "Unknown agent", ex);
+	}
+
+	@ExceptionHandler(AgentParseException.class)
+	public ProblemDetail handleAgentParse(AgentParseException ex) {
+		return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Agent invalid", ex);
+	}
+
+	@ExceptionHandler(UnknownExperimentException.class)
+	public ProblemDetail handleUnknownExperiment(UnknownExperimentException ex) {
+		return problem(HttpStatus.NOT_FOUND, "Unknown experiment", ex);
 	}
 
 	@ExceptionHandler(UnknownTrainingException.class)

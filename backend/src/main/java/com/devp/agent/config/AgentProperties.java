@@ -33,6 +33,12 @@ public class AgentProperties {
 	/** Upper bound for runs in one training — a typo must not schedule a thousand model calls. */
 	private int maxTrainingRepetitions = 50;
 
+	/**
+	 * Upper bound for the arms of one experiment. An experiment costs arms x repetitions
+	 * runs, and they are executed one after another — a wide comparison is a long wait.
+	 */
+	private int maxExperimentArms = 6;
+
 	public int getMaxToolCalls() {
 		return maxToolCalls;
 	}
@@ -79,5 +85,13 @@ public class AgentProperties {
 
 	public void setMaxTrainingRepetitions(int maxTrainingRepetitions) {
 		this.maxTrainingRepetitions = maxTrainingRepetitions;
+	}
+
+	public int getMaxExperimentArms() {
+		return maxExperimentArms;
+	}
+
+	public void setMaxExperimentArms(int maxExperimentArms) {
+		this.maxExperimentArms = maxExperimentArms;
 	}
 }

@@ -37,15 +37,15 @@ class TrainingRepositoryTests {
 	}
 
 	private Training created(String taskId) {
-		return new Training(UUID.randomUUID(), taskId, 1, "forge", "baseline", "local", 3, TrainingStatus.RUNNING, 0,
-				null, Instant.now(), null);
+		return new Training(UUID.randomUUID(), null, taskId, 1, "forge", 1, "forge", "baseline", "local", 3,
+				TrainingStatus.RUNNING, 0, null, Instant.now(), null);
 	}
 
 	private UUID runIn(UUID trainingId, Instant startedAt) {
 		UUID id = UUID.randomUUID();
-		runs.start(new AgentRun(id, "goal", "time-and-division", 1, "forge", 1, "baseline", 1, trainingId, "local", "m",
-				0.7, "prompt", List.of(), RunStatus.RUNNING, null, null, 0, null, null, startedAt, null, List.of(),
-				List.of()));
+		runs.start(new AgentRun(id, "goal", "time-and-division", 1, "forge", 1, "forge", 1, "baseline", 1, trainingId,
+				"local", "m", 0.7, "prompt", List.of(), RunStatus.RUNNING, null, null, 0, null, null, startedAt, null,
+				List.of(), List.of()));
 		return id;
 	}
 
@@ -99,8 +99,8 @@ class TrainingRepositoryTests {
 	void listsPerTaskNewestFirst() {
 		Training a = created("time-and-division");
 		trainings.create(a);
-		Training b = new Training(UUID.randomUUID(), "time-and-division", 1, "forge", "reflexion", "local", 3,
-				TrainingStatus.RUNNING, 0, null, Instant.now().plusSeconds(1), null);
+		Training b = new Training(UUID.randomUUID(), null, "time-and-division", 1, "forge", 1, "forge", "reflexion",
+				"local", 3, TrainingStatus.RUNNING, 0, null, Instant.now().plusSeconds(1), null);
 		trainings.create(b);
 		trainings.create(created("no-tool"));
 

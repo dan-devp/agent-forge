@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type AgentRun, type Task, type TaskSummary } from '../api/client'
-import type { Selection } from './Sidebar'
+import { api, type AgentRun, type ProfileListResponse, type Task, type TaskSummary } from '../api/client'
 import { Badge } from './Badge'
 import { RunDetail } from './RunDetail'
 
@@ -8,7 +7,9 @@ type Props = {
   tasks: TaskSummary[] | null
   task: string
   onTaskChange: (id: string) => void
-  selection: Selection
+  profiles: ProfileListResponse | null
+  agent: string
+  provider: string
   busy: boolean
   perform: (action: () => Promise<void>) => void
   onReloadTasks: () => void
@@ -17,6 +18,9 @@ type Props = {
 
 /** One run: pick a task or type a goal, start, read answer, scores and trace. */
 export function RunPanel(p: Props) {
+  // Derived, not stored: the default only exists once the profiles are loaded.
+  const [chosenProfile, setProfile] = useState<string | null>(null)
+  const profile = chosenProfile ?? p.profiles?.defaultProfile ?? ''
   const [taskDetail, setTaskDetail] = useState<Task | null>(null)
   const [goal, setGoal] = useState('Welcher Wochentag ist heute, und wie oft passt 7 in 100?')
   const [run, setRun] = useState<AgentRun | null>(null)
@@ -33,9 +37,9 @@ export function RunPanel(p: Props) {
   const start = () =>
     p.perform(async () => {
       setRun(null)
-      const { provider, soul, profile } = p.selection
+      const common = { agent: p.agent || undefined, provider: p.provider || undefined, profile: profile || undefined }
       // Named task when one is selected — only that one can be evaluated later.
-      setRun(await api.startRun(p.task ? { task: p.task, provider, soul, profile } : { goal, provider, soul, profile }))
+      setRun(await api.startRun(p.task ? { task: p.task, ...common } : { goal, ...common }))
     })
 
   return (
@@ -57,7 +61,14 @@ export function RunPanel(p: Props) {
                 </option>
               ))}
             </select>
-            <button className="btn primary" onClick={start} disabled={p.busy || (!p.task && !goal.trim()) || !p.selection.provider}>
+            <select value={profile} onChange={(e) => setProfile(e.target.value)} disabled={!p.profiles}>
+              {p.profiles?.profiles.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name} · v{x.version}
+                </option>
+              ))}
+            </select>
+            <button className="btn primary" onClick={start} disabled={p.busy || (!p.task && !goal.trim())}>
               {p.busy ? <span className="spinner" /> : null}
               {p.busy ? 'Agent arbeitet …' : 'Lauf starten'}
             </button>
