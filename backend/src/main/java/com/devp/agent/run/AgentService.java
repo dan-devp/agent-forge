@@ -22,12 +22,15 @@ import com.devp.agent.run.TracingToolCallingManager.BudgetExceededException;
 import com.devp.agent.soul.Soul;
 import com.devp.agent.soul.SoulRenderer;
 import com.devp.agent.soul.SoulRepository;
+import com.devp.agent.strategy.MemoryStore;
 import com.devp.agent.strategy.RunContext;
 import com.devp.agent.strategy.StrategyRegistry;
 import com.devp.agent.strategy.StrategyRegistry.Active;
 import com.devp.agent.task.Task;
 import com.devp.agent.task.TaskRepository;
 import com.devp.agent.tools.ToolRegistry;
+import com.devp.agent.training.TrainingMemoryStore;
+import com.devp.agent.training.TrainingRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,11 +66,12 @@ public class AgentService {
 	private final ToolRegistry tools;
 	private final RunRepository runs;
 	private final EvaluationService evaluation;
+	private final TrainingRepository trainings;
 	private final AgentProperties properties;
 
 	public AgentService(ChatClientRegistry providers, SoulRepository souls, TaskRepository tasks,
 			ProfileRepository profiles, StrategyRegistry strategies, SoulRenderer renderer, ToolRegistry tools,
-			RunRepository runs, EvaluationService evaluation, AgentProperties properties) {
+			RunRepository runs, EvaluationService evaluation, TrainingRepository trainings, AgentProperties properties) {
 		this.providers = providers;
 		this.souls = souls;
 		this.tasks = tasks;
@@ -77,6 +81,7 @@ public class AgentService {
 		this.tools = tools;
 		this.runs = runs;
 		this.evaluation = evaluation;
+		this.trainings = trainings;
 		this.properties = properties;
 	}
 
@@ -92,10 +97,10 @@ public class AgentService {
 	 * @param providerId provider id, or {@code null} for the task default resp. the global default
 	 * @param soulId     SOUL id, or {@code null} for the task default resp. the active SOUL
 	 * @param profileId  profile id, or {@code null} for the task default resp. {@code baseline}
-	 * @param seriesId   the series this run belongs to, or {@code null} for a single run
+	 * @param trainingId the training this run belongs to, or {@code null} for a single run
 	 */
 	public AgentRun run(String goal, String taskId, String providerId, String soulId, String profileId,
-			UUID seriesId) {
+			UUID trainingId) {
 		Task task = (taskId == null || taskId.isBlank()) ? null : tasks.resolve(taskId);
 
 		if (task == null && (goal == null || goal.isBlank())) {
@@ -126,8 +131,10 @@ public class AgentService {
 				: properties.getMaxDurationMs();
 		long deadline = System.currentTimeMillis() + timeBudget;
 
-		// Hook 1: strategies may extend the prompt and offer tools before the first round.
-		RunContext context = new RunContext(id, goal, task, soul, profile);
+		// Hook 1: strategies may extend the prompt and offer tools before the first round. Inside a
+		// training they also see what earlier runs remembered; alone they get an empty store.
+		MemoryStore memory = trainingId == null ? MemoryStore.NONE : new TrainingMemoryStore(trainings, trainingId, id);
+		RunContext context = new RunContext(id, goal, task, soul, profile, memory);
 		active.forEach(a -> a.strategy().beforeRun(context, a.config()));
 
 		// Record what the model will see before the first call — if the run crashes, the
@@ -139,7 +146,7 @@ public class AgentService {
 
 		AgentRun started = new AgentRun(id, goal, task == null ? null : task.id(),
 				task == null ? null : task.version(), soul.id(), soul.version(), profile.id(), profile.version(),
-				seriesId, provider.id(), provider.config().getModel(), provider.config().getTemperature(), systemPrompt,
+				trainingId, provider.id(), provider.config().getModel(), provider.config().getTemperature(), systemPrompt,
 				offeredNames, RunStatus.RUNNING, null, null, 0, null, null, start, null, List.of(), List.of());
 		runs.start(started);
 		log.info("Run {} started: task {}, SOUL {} v{}, profile {} v{} ({} strateg{}), provider {}, {} tool(s)",
@@ -225,7 +232,7 @@ public class AgentService {
 		}
 	}
 
-	/** A single run outside any series. */
+	/** A single run outside any training. */
 	public AgentRun run(String goal, String taskId, String providerId, String soulId, String profileId) {
 		return run(goal, taskId, providerId, soulId, profileId, null);
 	}
@@ -302,7 +309,7 @@ public class AgentService {
 
 		AgentRun finished = new AgentRun(
 				started.id(), started.goal(), started.taskId(), started.taskVersion(), started.soulId(),
-				started.soulVersion(), started.profileId(), started.profileVersion(), started.seriesId(),
+				started.soulVersion(), started.profileId(), started.profileVersion(), started.trainingId(),
 				started.providerId(),
 				model == null ? started.model() : model, started.temperature(), started.systemPrompt(),
 				started.tools(), status, answer, error, trace.size(), total,

@@ -66,7 +66,7 @@ export function HistoryPanel(p: Props) {
                     ) : (
                       <span className="faint">frei</span>
                     )}
-                    {r.seriesId && <span className="faint"> · Serie</span>}
+                    {r.trainingId && <span className="faint"> · Training</span>}
                   </td>
                   <td>
                     {r.soulId} <span className="faint">v{r.soulVersion}</span>

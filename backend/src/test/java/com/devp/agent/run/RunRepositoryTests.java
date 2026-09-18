@@ -173,7 +173,7 @@ class RunRepositoryTests {
 				Instant.now(), null, List.of(), List.of()));
 
 		AgentRun read = repository.find(id).orElseThrow();
-		assertThat(read.seriesId()).isNull();
+		assertThat(read.trainingId()).isNull();
 		assertThat(read.profileId()).isEqualTo("reflexion");
 		assertThat(read.profileVersion()).isEqualTo(2);
 		assertThat(read.temperature()).isEqualTo(0.2);

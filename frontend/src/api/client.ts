@@ -75,6 +75,8 @@ export type RunScore = {
   createdAt: string
 }
 
+export type RunStatus = 'RUNNING' | 'DONE' | 'BUDGET_EXCEEDED' | 'VERIFICATION_FAILED' | 'FAILED'
+
 export type AgentRun = {
   id: string
   goal: string
@@ -84,13 +86,13 @@ export type AgentRun = {
   soulVersion: number
   profileId: string | null
   profileVersion: number | null
-  seriesId: string | null
+  trainingId: string | null
   providerId: string
   model: string | null
   temperature: number | null
   systemPrompt: string | null
   tools: string[]
-  status: 'RUNNING' | 'DONE' | 'BUDGET_EXCEEDED' | 'VERIFICATION_FAILED' | 'FAILED'
+  status: RunStatus
   answer: string | null
   error: string | null
   steps: number
@@ -149,7 +151,7 @@ export type ProfileListResponse = {
   availableStrategies: string[]
 }
 
-export type Series = {
+export type Training = {
   id: string
   taskId: string
   taskVersion: number
@@ -171,7 +173,18 @@ export type Aggregate = {
   max: number
 }
 
-export type SeriesStatistics = {
+export type RunPoint = {
+  index: number
+  runId: string
+  status: RunStatus
+  passed: boolean | null
+  score: number | null
+  tokens: number | null
+  durationMs: number | null
+  toolCalls: number
+}
+
+export type TrainingStatistics = {
   repetitions: number
   completed: number
   graded: number
@@ -182,16 +195,31 @@ export type SeriesStatistics = {
   passAtK: boolean
   passHatK: boolean
   flaky: boolean
+  firstHalfPassRate: number | null
+  secondHalfPassRate: number | null
+  firstPassAt: number | null
+  timeline: RunPoint[]
   statusCounts: Record<string, number>
   tokens: Aggregate
   durationMs: Aggregate
   toolCalls: Aggregate
 }
 
-export type SeriesDetail = {
-  series: Series
-  statistics: SeriesStatistics
+export type TrainingMemory = {
+  id: number
+  trainingId: string
+  strategyId: string
+  runId: string | null
+  kind: string
+  content: string
+  createdAt: string
+}
+
+export type TrainingDetail = {
+  training: Training
+  statistics: TrainingStatistics
   runs: AgentRun[]
+  memory: TrainingMemory[]
 }
 
 export type ToolInfo = {
@@ -262,9 +290,9 @@ export const api = {
   task: (id: string) => request<Task>(`/api/tasks/${encodeURIComponent(id)}`),
   reloadTasks: () => request<TaskSummary[]>('/api/tasks/reload', { method: 'POST' }),
   runs: () => request<AgentRun[]>('/api/runs'),
-  startSeries: (body: { task: string; repetitions: number; provider: string; soul: string; profile: string }) =>
-    request<Series>('/api/series', { method: 'POST', body: JSON.stringify(body) }),
-  series: (id: string) => request<SeriesDetail>(`/api/series/${encodeURIComponent(id)}`),
-  seriesList: () => request<Series[]>('/api/series'),
   run: (id: string) => request<AgentRun>(`/api/runs/${encodeURIComponent(id)}`),
+  startTraining: (body: { task: string; repetitions: number; provider: string; soul: string; profile: string }) =>
+    request<Training>('/api/trainings', { method: 'POST', body: JSON.stringify(body) }),
+  training: (id: string) => request<TrainingDetail>(`/api/trainings/${encodeURIComponent(id)}`),
+  trainings: (task?: string) => request<Training[]>(task ? `/api/trainings?task=${encodeURIComponent(task)}` : '/api/trainings'),
 }

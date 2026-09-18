@@ -4,7 +4,7 @@ import com.devp.agent.ai.ChatClientRegistry.UnknownProviderException;
 import com.devp.agent.ai.ChatService.AiNotConfiguredException;
 import com.devp.agent.ai.ChatService.ModelCallFailedException;
 import com.devp.agent.api.RunController.UnknownRunException;
-import com.devp.agent.api.SeriesController.UnknownSeriesException;
+import com.devp.agent.api.TrainingController.UnknownTrainingException;
 import com.devp.agent.profile.ProfileParser.ProfileParseException;
 import com.devp.agent.profile.ProfileRepository.UnknownProfileException;
 import com.devp.agent.soul.SoulParser.SoulParseException;
@@ -65,9 +65,9 @@ public class ApiExceptionHandler {
 		return problem(HttpStatus.BAD_REQUEST, "Invalid request", ex);
 	}
 
-	@ExceptionHandler(UnknownSeriesException.class)
-	public ProblemDetail handleUnknownSeries(UnknownSeriesException ex) {
-		return problem(HttpStatus.NOT_FOUND, "Unknown series", ex);
+	@ExceptionHandler(UnknownTrainingException.class)
+	public ProblemDetail handleUnknownTraining(UnknownTrainingException ex) {
+		return problem(HttpStatus.NOT_FOUND, "Unknown training", ex);
 	}
 
 	@ExceptionHandler(UnknownRunException.class)

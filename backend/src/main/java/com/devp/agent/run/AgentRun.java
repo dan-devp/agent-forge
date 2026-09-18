@@ -9,8 +9,8 @@ import java.util.UUID;
  *
  * <p>Carries the SOUL, task and profile versions it ran under — a later evaluation must be
  * able to refer to the identity, the task revision and the active strategies that produced
- * the run. {@code taskId} is {@code null} when the goal was typed freely; {@code seriesId}
- * is {@code null} for a single run.
+ * the run. {@code taskId} is {@code null} when the goal was typed freely; {@code trainingId}
+ * is {@code null} for a single run outside a training.
  *
  * <p>{@code temperature}, {@code systemPrompt} and {@code tools} record what the model
  * actually saw. Without them two runs are not comparable: a changed SOUL file, a
@@ -28,7 +28,7 @@ public record AgentRun(
 		int soulVersion,
 		String profileId,
 		Integer profileVersion,
-		UUID seriesId,
+		UUID trainingId,
 		String providerId,
 		String model,
 		Double temperature,
@@ -45,7 +45,7 @@ public record AgentRun(
 		List<RunStep> trace,
 		List<RunScore> scores) {
 
-	/** Without profile, series, parameters and scores — for callers that do not know them (mostly tests). */
+	/** Without profile, training, parameters and scores — for callers that do not know them (mostly tests). */
 	public AgentRun(UUID id, String goal, String taskId, Integer taskVersion, String soulId, int soulVersion,
 			String providerId, String model, RunStatus status, String answer, String error, int steps,
 			Integer totalTokens, Long durationMs, Instant startedAt, Instant finishedAt, List<RunStep> trace) {
@@ -55,7 +55,7 @@ public record AgentRun(
 	}
 
 	public AgentRun withScores(List<RunScore> scores) {
-		return new AgentRun(id, goal, taskId, taskVersion, soulId, soulVersion, profileId, profileVersion, seriesId,
+		return new AgentRun(id, goal, taskId, taskVersion, soulId, soulVersion, profileId, profileVersion, trainingId,
 				providerId, model, temperature, systemPrompt, tools, status, answer, error, steps, totalTokens,
 				durationMs, startedAt, finishedAt, trace, scores);
 	}

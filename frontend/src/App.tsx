@@ -10,16 +10,16 @@ import {
 } from './api/client'
 import { Sidebar, type Selection } from './components/Sidebar'
 import { RunPanel } from './components/RunPanel'
-import { SeriesPanel } from './components/SeriesPanel'
+import { TrainingPanel } from './components/TrainingPanel'
 import { HistoryPanel } from './components/HistoryPanel'
 import { ChatPanel } from './components/ChatPanel'
 import './App.css'
 
-type Tab = 'run' | 'series' | 'history' | 'chat'
+type Tab = 'run' | 'training' | 'history' | 'chat'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'run', label: 'Lauf' },
-  { id: 'series', label: 'Serie' },
+  { id: 'training', label: 'Training' },
   { id: 'history', label: 'Historie' },
   { id: 'chat', label: 'Chat' },
 ]
@@ -193,8 +193,8 @@ function App() {
               onError={(m) => setError(m)}
             />
           )}
-          {tab === 'series' && (
-            <SeriesPanel
+          {tab === 'training' && (
+            <TrainingPanel
               tasks={tasks}
               task={task}
               onTaskChange={setTask}

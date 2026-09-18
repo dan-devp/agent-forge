@@ -653,3 +653,73 @@ textarea {
   color: var(--text-muted);
   margin-top: 0.4rem;
 }
+
+/* ---- Learning curve / memory ------------------------------------------- */
+
+.curve {
+  width: 100%;
+  max-width: 720px;
+  height: auto;
+  display: block;
+}
+
+.curve .grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.curve .axis {
+  fill: var(--text-faint);
+  font-size: 9px;
+  font-family: var(--mono);
+}
+
+.curve .bar.pass {
+  fill: var(--ok);
+}
+
+.curve .bar.fail {
+  fill: var(--bad);
+}
+
+.curve .bar.ungraded {
+  fill: var(--surface-2);
+  stroke: var(--border-strong);
+}
+
+.curve .bar.pending {
+  fill: var(--border);
+}
+
+.curve .running {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.memory {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.memory li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+}
+
+.memory .content {
+  flex-basis: 100%;
+  white-space: pre-wrap;
+  color: var(--text);
+}

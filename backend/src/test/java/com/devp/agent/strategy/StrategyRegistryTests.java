@@ -55,7 +55,7 @@ class StrategyRegistryTests {
 	@Test
 	void hooksDefaultToNoOp() {
 		Strategy inert = named("inert");
-		RunContext context = new RunContext(UUID.randomUUID(), "goal", null, null, null);
+		RunContext context = new RunContext(UUID.randomUUID(), "goal", null, null, null, null);
 		StrategyConfig config = new StrategyConfig("inert", Map.of());
 
 		inert.beforeRun(context, config);
@@ -66,12 +66,16 @@ class StrategyRegistryTests {
 		assertThat(inert.beforeFinish(context, config, "anything")).isEqualTo(Optional.empty());
 		assertThat(context.promptAdditions()).isEmpty();
 		assertThat(context.extraTools()).isEmpty();
+		// Outside a training there is nothing to remember into — reads empty, writes vanish.
+		assertThat(context.memory().persistent()).isFalse();
+		context.memory().write("inert", "note", "x");
+		assertThat(context.memory().read("inert")).isEmpty();
 	}
 
 	@Test
 	void requireTextRejectsUntilPresent() {
 		RequireTextStrategy strategy = new RequireTextStrategy();
-		RunContext context = new RunContext(UUID.randomUUID(), "goal", null, null, null);
+		RunContext context = new RunContext(UUID.randomUUID(), "goal", null, null, null, null);
 		StrategyConfig config = new StrategyConfig("require-text", Map.of("text", "Rest"));
 
 		assertThat(strategy.beforeFinish(context, config, "14 rest 2")).isEmpty();

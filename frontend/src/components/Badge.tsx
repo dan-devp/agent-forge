@@ -1,4 +1,4 @@
-import type { AgentRun, RunStep, Series } from '../api/client'
+import type { AgentRun, RunStep, Training } from '../api/client'
 import { RUN_STATUS_TEXT } from './status'
 
 type Tone = 'ok' | 'warn' | 'bad' | 'info' | 'accent' | 'neutral'
@@ -19,15 +19,15 @@ export function RunStatusBadge({ status }: { status: AgentRun['status'] }) {
   return <Badge tone={RUN_STATUS_TONE[status]}>{RUN_STATUS_TEXT[status]}</Badge>
 }
 
-export function SeriesStatusBadge({ series }: { series: Series }) {
-  if (series.status === 'RUNNING') {
+export function TrainingStatusBadge({ training }: { training: Training }) {
+  if (training.status === 'RUNNING') {
     return (
       <Badge tone="info">
-        läuft · {series.completed}/{series.repetitions}
+        läuft · {training.completed}/{training.repetitions}
       </Badge>
     )
   }
-  return <Badge tone={series.status === 'DONE' ? 'ok' : 'bad'}>{series.status === 'DONE' ? 'fertig' : 'fehlgeschlagen'}</Badge>
+  return <Badge tone={training.status === 'DONE' ? 'ok' : 'bad'}>{training.status === 'DONE' ? 'fertig' : 'fehlgeschlagen'}</Badge>
 }
 
 const STEP_TONE: Record<RunStep['type'], Tone> = {

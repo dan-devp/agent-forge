@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { AgentRun } from '../api/client'
 import { PassBadge, RunStatusBadge, StepBadge } from './Badge'
 
-/** One run in full: parameters, answer, scores, trace. Shared by run, history and series. */
+/** One run in full: parameters, answer, scores, trace. Shared by run, history and training. */
 export function RunDetail({ run, compact = false }: { run: AgentRun; compact?: boolean }) {
   const [promptOpen, setPromptOpen] = useState(false)
 
