@@ -689,3 +689,76 @@ textarea {
 .spinner {
   color: var(--text-muted);
 }
+
+/* ---- Agents ------------------------------------------------------------- */
+
+/* The system prompt as prose: readable width, preserved line breaks. */
+.prose {
+  font-family: var(--sans);
+  font-size: 1rem;
+  margin: 0;
+  padding: 1rem 1.2rem;
+  background: var(--surface-2);
+  border-radius: 14px;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  max-width: 72ch;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* A tool as a toggle pill: grey off, terracotta on. */
+.check-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: var(--r-pill);
+  background: var(--pill);
+  color: var(--pill-text);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.check-pill.on {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.check-pill input {
+  display: none;
+}
+
+.segment {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--surface-2);
+  border-radius: var(--r-pill);
+}
+
+.segment button {
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--r-pill);
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.segment button.on {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+textarea.prompt {
+  min-height: 14rem;
+  font-family: var(--sans);
+}

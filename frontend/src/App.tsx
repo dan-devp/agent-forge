@@ -5,6 +5,7 @@ import { AREAS } from './components/areas'
 import { Home } from './components/Home'
 import { AreaShell } from './components/AreaShell'
 import { ModelsArea } from './components/ModelsArea'
+import { AgentsArea } from './components/AgentsArea'
 import './App.css'
 
 function Topbar({ status }: { status: Status | null }) {
@@ -53,7 +54,8 @@ function App() {
           <Route element={<AreaShell status={status} error={error} onDismissError={() => setError(null)} />}>
             <Route path="/models" element={<ModelsArea onError={setError} onChanged={refreshStatus} />} />
             <Route path="/models/:id" element={<ModelsArea onError={setError} onChanged={refreshStatus} />} />
-            <Route path="/agents/*" element={null} />
+            <Route path="/agents" element={<AgentsArea onError={setError} onChanged={refreshStatus} />} />
+            <Route path="/agents/:id" element={<AgentsArea onError={setError} onChanged={refreshStatus} />} />
             <Route path="/tasks/*" element={null} />
             <Route path="/runs/*" element={null} />
           </Route>

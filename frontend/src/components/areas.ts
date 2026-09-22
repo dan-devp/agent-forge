@@ -12,7 +12,7 @@ export const AREAS: {
   count: (s: Status) => number
 }[] = [
   { id: 'models', path: '/models', label: 'Modelle', hint: 'Endpunkt, Modell-Id, Schlüsselvariable', ready: true, count: (s) => s.models },
-  { id: 'agents', path: '/agents', label: 'Agenten', hint: 'Modell + Systemprompt + Werkzeuge', ready: false, count: (s) => s.agents },
+  { id: 'agents', path: '/agents', label: 'Agenten', hint: 'Modell + Systemprompt + Werkzeuge', ready: true, count: (s) => s.agents },
   { id: 'tasks', path: '/tasks', label: 'Aufgaben', hint: 'Eingabe + Evals', ready: false, count: (s) => s.tasks },
   { id: 'runs', path: '/runs', label: 'Läufe', hint: 'Starten, Trace, Urteile', ready: false, count: (s) => s.runs },
 ]

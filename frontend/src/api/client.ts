@@ -99,3 +99,55 @@ export const api = {
   secrets: () => request<SecretNames>('/api/secrets'),
   providers: () => request<ProviderInfo[]>('/api/providers'),
 }
+
+export type ToolInfo = { name: string; description: string; source: 'builtin' | 'mcp' }
+
+export type ToolList = {
+  tools: ToolInfo[]
+  servers: { id: string; label: string; transport: string; target: string; enabled: boolean; connected: boolean; toolCount: number; error: string | null }[]
+}
+
+/** `tools` is "all", "none" or a list of names, as in the file. */
+export type ToolAccess = 'all' | 'none' | string[]
+
+export type AgentView = {
+  id: string
+  version: number
+  name: string
+  description: string | null
+  model: string
+  modelExists: boolean
+  tools: ToolAccess
+  effectiveTools: string[]
+  missingTools: string[]
+  systemPrompt: string
+}
+
+export type AgentDetail = {
+  agent: AgentView
+  versions: number[]
+  runs: number
+}
+
+export type AgentRequest = {
+  id?: string
+  name: string
+  description: string | null
+  model: string
+  tools: ToolAccess
+  systemPrompt: string
+}
+
+export const agentsApi = {
+  list: () => request<AgentView[]>('/api/agents'),
+  get: (id: string) => request<AgentDetail>(`/api/agents/${encodeURIComponent(id)}`),
+  version: (id: string, version: number) => request<AgentView>(`/api/agents/${encodeURIComponent(id)}/versions/${version}`),
+  source: (id: string, version: number) =>
+    request<string>(`/api/agents/${encodeURIComponent(id)}/versions/${version}/source`),
+  create: (body: AgentRequest) => request<AgentView>('/api/agents', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id: string, body: AgentRequest) =>
+    request<AgentView>(`/api/agents/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) }),
+  remove: (id: string) => request<void>(`/api/agents/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  reload: () => request<AgentView[]>('/api/agents/reload', { method: 'POST' }),
+  tools: () => request<ToolList>('/api/tools'),
+}
