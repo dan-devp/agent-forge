@@ -849,3 +849,71 @@ textarea.prompt {
   grid-column: 1 / -1;
   color: var(--text-muted);
 }
+
+/* ---- Tasks: eval editor ------------------------------------------------- */
+
+.eval-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.eval-item {
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.eval-item .eval-head {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.eval-item .eval-head .idx {
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 1.4rem;
+}
+
+.eval-item .eval-head select {
+  flex: 1;
+  background: var(--surface);
+}
+
+.eval-item .field input,
+.eval-item .field select,
+.eval-item .field textarea {
+  background: var(--surface);
+}
+
+.eval-item .desc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+/* A configured eval in the detail view: type pill plus its parameters as mono chips. */
+.eval-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 0.55rem 0.8rem;
+  background: var(--surface-2);
+  border-radius: 12px;
+}
+
+.eval-row .kv {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.eval-row .kv b {
+  color: var(--text);
+  font-weight: 600;
+}

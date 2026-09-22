@@ -7,6 +7,7 @@ import { AreaShell } from './components/AreaShell'
 import { ModelsArea } from './components/ModelsArea'
 import { AgentsArea } from './components/AgentsArea'
 import { EvalsArea } from './components/EvalsArea'
+import { TasksArea } from './components/TasksArea'
 import { ToolsArea } from './components/ToolsArea'
 import './App.css'
 
@@ -58,7 +59,8 @@ function App() {
             <Route path="/models/:id" element={<ModelsArea onError={setError} onChanged={refreshStatus} />} />
             <Route path="/agents" element={<AgentsArea onError={setError} onChanged={refreshStatus} />} />
             <Route path="/agents/:id" element={<AgentsArea onError={setError} onChanged={refreshStatus} />} />
-            <Route path="/tasks/*" element={null} />
+            <Route path="/tasks" element={<TasksArea onError={setError} onChanged={refreshStatus} />} />
+            <Route path="/tasks/:id" element={<TasksArea onError={setError} onChanged={refreshStatus} />} />
             <Route path="/runs/*" element={null} />
             <Route path="/evals" element={<EvalsArea onError={setError} />} />
             <Route path="/tools" element={<ToolsArea onError={setError} onChanged={refreshStatus} />} />

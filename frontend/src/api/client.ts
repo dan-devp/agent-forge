@@ -176,3 +176,39 @@ export const catalogApi = {
   tools: () => request<ToolList>('/api/tools'),
   reloadTools: () => request<ToolList>('/api/tools/reload', { method: 'POST' }),
 }
+
+export type EvalConfig = { type: string; params: Record<string, unknown> }
+
+export type Task = {
+  id: string
+  version: number
+  name: string
+  description: string | null
+  maxToolCalls: number | null
+  evals: EvalConfig[]
+  input: string
+}
+
+export type TaskDetail = { task: Task; versions: number[]; runs: number }
+
+export type TaskRequest = {
+  id?: string
+  name: string
+  description: string | null
+  maxToolCalls: number | null
+  evals: EvalConfig[]
+  input: string
+}
+
+export const tasksApi = {
+  list: () => request<Task[]>('/api/tasks'),
+  get: (id: string) => request<TaskDetail>(`/api/tasks/${encodeURIComponent(id)}`),
+  version: (id: string, version: number) => request<Task>(`/api/tasks/${encodeURIComponent(id)}/versions/${version}`),
+  source: (id: string, version: number) =>
+    request<string>(`/api/tasks/${encodeURIComponent(id)}/versions/${version}/source`),
+  create: (body: TaskRequest) => request<Task>('/api/tasks', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id: string, body: TaskRequest) =>
+    request<Task>(`/api/tasks/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) }),
+  remove: (id: string) => request<void>(`/api/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  reload: () => request<Task[]>('/api/tasks/reload', { method: 'POST' }),
+}

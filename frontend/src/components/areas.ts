@@ -15,7 +15,7 @@ export const AREAS: {
 }[] = [
   { id: 'models', path: '/models', label: 'Modelle', hint: 'Endpunkt, Modell-Id, Schlüsselvariable', ready: true, count: (s) => s.models },
   { id: 'agents', path: '/agents', label: 'Agenten', hint: 'Modell + Systemprompt + Werkzeuge', ready: true, count: (s) => s.agents },
-  { id: 'tasks', path: '/tasks', label: 'Aufgaben', hint: 'Eingabe + Evals', ready: false, count: (s) => s.tasks },
+  { id: 'tasks', path: '/tasks', label: 'Aufgaben', hint: 'Eingabe + Evals', ready: true, count: (s) => s.tasks },
   { id: 'runs', path: '/runs', label: 'Läufe', hint: 'Starten, Trace, Urteile', ready: false, count: (s) => s.runs },
   { id: 'evals', path: '/evals', label: 'Evals', hint: 'Prüfungen, die eine Aufgabe nutzen kann', ready: true, readonly: true, count: (s) => s.evals },
   { id: 'tools', path: '/tools', label: 'Werkzeuge', hint: 'Eingebaut und über MCP-Server', ready: true, readonly: true, count: (s) => s.tools },
