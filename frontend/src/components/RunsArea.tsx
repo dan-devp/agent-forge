@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { agentsApi, runsApi, tasksApi, type AgentView, type Cell, type CellRun, type Matrix, type Task } from '../api/client'
+import { HistoryView, TryView } from './RunViews'
 
 type Props = {
   onError: (message: string) => void
@@ -39,6 +40,7 @@ export function RunsArea(p: Props) {
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
   const agentId = params.get('agent') ?? ''
+  const view = params.get('view') ?? 'matrix'
 
   const [agents, setAgents] = useState<AgentView[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
@@ -55,7 +57,7 @@ export function RunsArea(p: Props) {
       .list()
       .then((list) => {
         setAgents(list)
-        if (!agentId && list.length > 0) setParams({ agent: list[0].id }, { replace: true })
+        if (!agentId && list.length > 0) setParams({ agent: list[0].id, view }, { replace: true })
       })
       .catch(fail)
     tasksApi.list().then(setTasks).catch(fail)
@@ -139,12 +141,40 @@ export function RunsArea(p: Props) {
       ? matrix.rows.find((r) => r.agentVersion === selected.version)?.cells.find((c) => c.taskId === selected.task) ?? null
       : null
 
+  const switcher = (
+    <nav className="view-switch" aria-label="Ansicht">
+      {(['matrix', 'history', 'try'] as const).map((v) => (
+        <Link key={v} to={`/runs?agent=${encodeURIComponent(agentId)}&view=${v}`} className={view === v ? 'on' : ''}>
+          {v === 'matrix' ? 'Matrix' : v === 'history' ? 'Historie' : 'Ausprobieren'}
+        </Link>
+      ))}
+    </nav>
+  )
+
+  if (view === 'history') {
+    return (
+      <>
+        {switcher}
+        <HistoryView agents={agents} tasks={tasks} onError={p.onError} />
+      </>
+    )
+  }
+  if (view === 'try') {
+    return (
+      <>
+        {switcher}
+        <TryView agents={agents} onError={p.onError} onChanged={p.onChanged} />
+      </>
+    )
+  }
+
   return (
     <>
+      {switcher}
       <section className="card">
         <div className="card-head">
           <h2>Läufe</h2>
-          <select value={agentId} onChange={(e) => setParams({ agent: e.target.value })} style={{ width: 'auto' }}>
+          <select value={agentId} onChange={(e) => setParams({ agent: e.target.value, view })} style={{ width: 'auto' }}>
             {agents.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name} · {a.id}

@@ -9,6 +9,7 @@ import { AgentsArea } from './components/AgentsArea'
 import { EvalsArea } from './components/EvalsArea'
 import { TasksArea } from './components/TasksArea'
 import { RunsArea } from './components/RunsArea'
+import { RunDetail } from './components/RunDetail'
 import { ToolsArea } from './components/ToolsArea'
 import './App.css'
 
@@ -63,7 +64,7 @@ function App() {
             <Route path="/tasks" element={<TasksArea onError={setError} onChanged={refreshStatus} />} />
             <Route path="/tasks/:id" element={<TasksArea onError={setError} onChanged={refreshStatus} />} />
             <Route path="/runs" element={<RunsArea onError={setError} onChanged={refreshStatus} />} />
-            <Route path="/runs/:id" element={<section className="card"><p className="empty">Lauf-Detail kommt als Nächstes.</p></section>} />
+            <Route path="/runs/:id" element={<RunDetail onError={setError} />} />
             <Route path="/evals" element={<EvalsArea onError={setError} />} />
             <Route path="/tools" element={<ToolsArea onError={setError} onChanged={refreshStatus} />} />
           </Route>

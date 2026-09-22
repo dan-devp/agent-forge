@@ -1072,3 +1072,100 @@ textarea.prompt {
   text-align: center;
   background: var(--surface-2);
 }
+
+/* ---- Run detail: trace ---------------------------------------------------- */
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.step {
+  background: var(--surface-2);
+  border-radius: 14px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.step.tool {
+  margin-left: 1.5rem;
+}
+
+.step.errored {
+  outline: 2px solid var(--fail);
+}
+
+.step-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.step-head .spacer {
+  flex: 1;
+}
+
+.step-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.step-block .lbl {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.step-block pre,
+.step-block code {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  background: var(--surface);
+  border-radius: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.88rem;
+}
+
+.step.model .step-block pre {
+  font-family: var(--sans);
+  font-size: 0.95rem;
+}
+
+.kv {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.prose.answer {
+  border-left: 4px solid var(--accent);
+  max-width: none;
+}
+
+.view-switch {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: var(--surface);
+  border-radius: var(--r-pill);
+  margin-bottom: 0.25rem;
+  align-self: flex-start;
+}
+
+.view-switch a {
+  padding: 0.35rem 0.95rem;
+  border-radius: var(--r-pill);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.view-switch a.on {
+  background: var(--accent);
+  color: var(--accent-text);
+}
