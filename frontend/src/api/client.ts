@@ -5,6 +5,7 @@ export type Status = {
   tasks: number
   tools: number
   runs: number
+  evals: number
 }
 
 export type ProviderKey = 'openai' | 'anthropic' | 'custom' | 'local'
@@ -150,4 +151,28 @@ export const agentsApi = {
   remove: (id: string) => request<void>(`/api/agents/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   reload: () => request<AgentView[]>('/api/agents/reload', { method: 'POST' }),
   tools: () => request<ToolList>('/api/tools'),
+}
+
+export type EvalParamType = 'STRING' | 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'MODEL' | 'TOOL'
+
+export type EvalParam = {
+  name: string
+  label: string
+  type: EvalParamType
+  required: boolean
+  defaultValue: string | number | boolean | null
+  description: string
+}
+
+export type EvalType = {
+  type: string
+  label: string
+  description: string
+  params: EvalParam[]
+}
+
+export const catalogApi = {
+  evals: () => request<EvalType[]>('/api/evals'),
+  tools: () => request<ToolList>('/api/tools'),
+  reloadTools: () => request<ToolList>('/api/tools/reload', { method: 'POST' }),
 }

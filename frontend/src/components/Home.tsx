@@ -12,13 +12,16 @@ export function Home({ status }: { status: Status | null }) {
       </div>
       <div className="tiles">
         {AREAS.map((a) => (
-          <Link key={a.id} to={a.path} className={`tile ${a.ready ? '' : 'disabled'}`}>
+          <Link key={a.id} to={a.path} className={`tile ${a.ready ? '' : 'disabled'} ${a.readonly ? 'readonly' : ''}`}>
             <div className="tile-head">
               <h2>{a.label}</h2>
               <span className="count">{status ? a.count(status) : '…'}</span>
             </div>
             <p className="hint">{a.hint}</p>
-            <div className="foot">{!a.ready && <span className="pill ghost">kommt als Nächstes</span>}</div>
+            <div className="foot">
+              {!a.ready && <span className="pill ghost">kommt als Nächstes</span>}
+              {a.readonly && <span className="pill ghost">vom System, nur ansehen</span>}
+            </div>
           </Link>
         ))}
       </div>
