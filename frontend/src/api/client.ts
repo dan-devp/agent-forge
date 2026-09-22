@@ -165,7 +165,7 @@ export type Training = {
   profileId: string | null
   providerId: string | null
   repetitions: number
-  status: 'QUEUED' | 'RUNNING' | 'DONE' | 'FAILED'
+  status: 'QUEUED' | 'RUNNING' | 'DONE' | 'CANCELLED' | 'FAILED'
   completed: number
   error: string | null
   createdAt: string
@@ -250,8 +250,40 @@ export type AgentListResponse = {
 }
 
 /** One agent, one task, several profiles — the comparison that makes a training measurable. */
+/** The saved configuration. Starting it is a separate act, and possible many times. */
+export type Plan = {
+  id: string
+  name: string
+  description: string | null
+  taskId: string
+  agentId: string | null
+  providerId: string | null
+  profiles: string[]
+  includeBaseline: boolean
+  repetitions: number
+  createdAt: string
+  updatedAt: string
+}
+
+export type PlanDetail = {
+  plan: Plan
+  experiments: Experiment[]
+}
+
+export type PlanBody = {
+  name: string
+  description?: string
+  task: string
+  agent?: string
+  provider?: string
+  profiles: string[]
+  includeBaseline: boolean
+  repetitions: number
+}
+
 export type Experiment = {
   id: string
+  planId: string | null
   name: string | null
   taskId: string
   taskVersion: number
@@ -259,13 +291,13 @@ export type Experiment = {
   agentVersion: number | null
   providerId: string | null
   repetitions: number
-  status: 'RUNNING' | 'DONE' | 'FAILED'
+  status: 'RUNNING' | 'DONE' | 'CANCELLED' | 'FAILED'
   error: string | null
   createdAt: string
   finishedAt: string | null
 }
 
-export type ExperimentArm = {
+export type ExperimentTraining = {
   training: Training
   statistics: TrainingStatistics
   memoryEntries: number
@@ -273,7 +305,7 @@ export type ExperimentArm = {
 
 export type ExperimentDetail = {
   experiment: Experiment
-  arms: ExperimentArm[]
+  trainings: ExperimentTraining[]
 }
 
 export type ToolInfo = {
@@ -363,4 +395,18 @@ export const api = {
   experiments: (task?: string) =>
     request<Experiment[]>(task ? `/api/experiments?task=${encodeURIComponent(task)}` : '/api/experiments'),
   experiment: (id: string) => request<ExperimentDetail>(`/api/experiments/${encodeURIComponent(id)}`),
+  cancelExperiment: (id: string) =>
+    request<Experiment>(`/api/experiments/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
+  cancelTraining: (id: string) =>
+    request<Training>(`/api/trainings/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
+  plans: () => request<Plan[]>('/api/plans'),
+  plan: (id: string) => request<PlanDetail>(`/api/plans/${encodeURIComponent(id)}`),
+  createPlan: (body: PlanBody) => request<Plan>('/api/plans', { method: 'POST', body: JSON.stringify(body) }),
+  updatePlan: (id: string, body: PlanBody) =>
+    request<Plan>(`/api/plans/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) }),
+  startPlan: (id: string) => request<Experiment>(`/api/plans/${encodeURIComponent(id)}/start`, { method: 'POST' }),
+  deletePlan: (id: string) =>
+    fetch(`/api/plans/${encodeURIComponent(id)}`, { method: 'DELETE' }).then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    }),
 }

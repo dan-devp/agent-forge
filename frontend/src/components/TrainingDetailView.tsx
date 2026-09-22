@@ -4,6 +4,7 @@ import { RUN_STATUS_TEXT } from './status'
 import { LearningCurve } from './LearningCurve'
 import { mean, pct, range } from './format'
 import { RunStrip } from './RunStrip'
+import { RawJson } from './RawJson'
 
 type Props = {
   detail: TrainingDetail
@@ -128,6 +129,8 @@ export function TrainingDetailView({ detail, selectedRunId, onOpenRun }: Props) 
       <div className="section-title">
         <span>Gelernt · {detail.memory.length} Einträge</span>
       </div>
+      <RawJson label={`GET /api/trainings/${t.id}`} value={detail} />
+
       {detail.memory.length === 0 ? (
         <p className="hint">Nichts. Bei Baseline erwartet — keine Strategie schreibt hier.</p>
       ) : (

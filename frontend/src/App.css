@@ -912,3 +912,105 @@ textarea {
   background: var(--solid);
   color: var(--solid-text);
 }
+
+/* ---- Raw record: what the API answered, under a fold ------------------- */
+
+.raw {
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+}
+
+.raw summary {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  list-style: none;
+}
+
+.raw summary::before {
+  content: '▸ ';
+}
+
+.raw[open] summary::before {
+  content: '▾ ';
+}
+
+.raw summary::-webkit-details-marker {
+  display: none;
+}
+
+.raw pre {
+  margin: 0.5rem 0 0;
+  padding: 0.7rem 0.8rem;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  max-height: 20rem;
+  overflow: auto;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+/* ---- Dialog ------------------------------------------------------------ */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(27, 27, 25, 0.35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3rem 1rem;
+  overflow: auto;
+}
+
+.modal {
+  width: min(44rem, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+
+/* Steps: one decision per step, all of them reachable — a wizard that locks you in is worse
+   than a form, because correcting step 1 should not mean redoing step 4. */
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.7rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.step-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.step-chip.on {
+  background: var(--solid);
+  color: var(--solid-text);
+}
+
+.step-no {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.spacer {
+  flex: 1;
+}

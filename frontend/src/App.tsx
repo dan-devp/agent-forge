@@ -14,7 +14,7 @@ import { AgentsPanel } from './components/AgentsPanel'
 import { TasksPanel } from './components/TasksPanel'
 import { StrategiesPanel } from './components/StrategiesPanel'
 import { SettingsPanel } from './components/SettingsPanel'
-import { ExperimentPanel } from './components/ExperimentPanel'
+import { PlansPanel } from './components/PlansPanel'
 import { TrainingPanel } from './components/TrainingPanel'
 import { RunPanel } from './components/RunPanel'
 import { HistoryPanel } from './components/HistoryPanel'
@@ -135,16 +135,7 @@ function App() {
       </header>
 
       <div className="layout">
-        <NavSidebar
-          area={area}
-          onArea={setArea}
-          agents={agents}
-          agent={agent}
-          onAgent={setAgent}
-          status={status}
-          provider={provider}
-          onProvider={setProvider}
-        />
+        <NavSidebar area={area} onArea={setArea} />
 
         <main className="main">
           {error && (
@@ -163,7 +154,7 @@ function App() {
                   className={`tab ${trainingTab === 'experiment' ? 'active' : ''}`}
                   onClick={() => setTrainingTab('experiment')}
                 >
-                  Experimente
+                  Pläne und Durchläufe
                 </button>
                 <button
                   className={`tab ${trainingTab === 'training' ? 'active' : ''}`}
@@ -173,13 +164,11 @@ function App() {
                 </button>
               </nav>
               {trainingTab === 'experiment' ? (
-                <ExperimentPanel
+                <PlansPanel
                   tasks={tasks}
-                  task={task}
-                  onTaskChange={setTask}
                   profiles={profiles}
-                  agent={agent}
-                  provider={provider}
+                  agents={agents}
+                  status={status}
                   busy={busy}
                   perform={perform}
                   onError={setError}
@@ -190,8 +179,12 @@ function App() {
                   task={task}
                   onTaskChange={setTask}
                   profiles={profiles}
+                  agents={agents}
                   agent={agent}
+                  onAgent={setAgent}
+                  status={status}
                   provider={provider}
+                  onProvider={setProvider}
                   busy={busy}
                   perform={perform}
                   onError={setError}
@@ -219,8 +212,12 @@ function App() {
                   task={task}
                   onTaskChange={setTask}
                   profiles={profiles}
+                  agents={agents}
                   agent={agent}
+                  onAgent={setAgent}
+                  status={status}
                   provider={provider}
+                  onProvider={setProvider}
                   busy={busy}
                   perform={perform}
                   onReloadTasks={reloadTasks}
@@ -228,7 +225,16 @@ function App() {
                 />
               )}
               {runTab === 'history' && <HistoryPanel perform={perform} onError={setError} />}
-              {runTab === 'chat' && <ChatPanel souls={souls} provider={provider} busy={busy} perform={perform} />}
+              {runTab === 'chat' && (
+                <ChatPanel
+                  souls={souls}
+                  status={status}
+                  provider={provider}
+                  onProvider={setProvider}
+                  busy={busy}
+                  perform={perform}
+                />
+              )}
             </>
           )}
 

@@ -7,7 +7,10 @@ import java.util.List;
 import com.devp.agent.config.ProfileProperties;
 import com.devp.agent.profile.ProfileParser.ProfileParseException;
 import com.devp.agent.profile.ProfileRepository.UnknownProfileException;
+import com.devp.agent.strategy.ExampleStrategy;
+import com.devp.agent.strategy.ReflectionStrategy;
 import com.devp.agent.strategy.RequireTextStrategy;
+import com.devp.agent.strategy.SelfCheckStrategy;
 import com.devp.agent.strategy.StrategyRegistry;
 
 import org.junit.jupiter.api.Test;
@@ -18,7 +21,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProfileRepositoryTests {
 
-	private static final StrategyRegistry REGISTRY = new StrategyRegistry(List.of(new RequireTextStrategy()));
+	// Every strategy the application registers — the bundled profiles may name all of them.
+	private static final StrategyRegistry REGISTRY = new StrategyRegistry(List.of(new RequireTextStrategy(),
+			new ReflectionStrategy(), new SelfCheckStrategy(), new ExampleStrategy()));
 
 	private static ProfileRepository repository(String defaultProfile, String... locations) {
 		ProfileProperties properties = new ProfileProperties();

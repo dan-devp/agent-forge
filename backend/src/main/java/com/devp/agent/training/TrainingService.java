@@ -79,7 +79,7 @@ public class TrainingService {
 	}
 
 	/**
-	 * Creates a training without starting it — the experiment schedules its arms itself, so
+	 * Creates a training without starting it — the experiment schedules its trainings itself, so
 	 * that they run one after another instead of fighting over the single training thread.
 	 */
 	public Training create(UUID experimentId, String taskId, int repetitions, String agentId, String providerId,
@@ -94,7 +94,7 @@ public class TrainingService {
 		String profile = profiles.resolve(orDefault(profileId, task.profile())).id();
 		String provider = providers.resolve(orDefault(providerId, orDefault(agent.provider(), task.provider()))).id();
 
-		// An arm waits for the arms before it; a training started on its own begins at once.
+		// A training waits for the trainings before it; a training started on its own begins at once.
 		TrainingStatus status = experimentId == null ? TrainingStatus.RUNNING : TrainingStatus.QUEUED;
 		Training created = new Training(UUID.randomUUID(), experimentId, task.id(), task.version(), agent.id(),
 				agent.version(), soul, profile, provider, repetitions, status, 0, null, Instant.now(), null);
@@ -115,9 +115,22 @@ public class TrainingService {
 	 */
 	public void runNow(Training created) {
 		int completed = 0;
-		trainings.markRunning(created.id());
+		if (trainings.markRunning(created.id()) == 0 && cancelled(created.id())) {
+			// Cancelled while it was still waiting in the queue. Nothing to do, nothing to write.
+			log.info("Training {} was cancelled before it started", created.id());
+			return;
+		}
 		try {
 			for (int i = 0; i < created.repetitions(); i++) {
+				// Asked before every run, not during: a model call in flight is not interrupted,
+				// so the answer it was paid for still becomes a data point.
+				if (cancelled(created.id())) {
+					log.info("Training {} cancelled after {} of {} run(s)", created.id(), completed,
+							created.repetitions());
+					trainings.finish(created.withProgress(completed)
+							.finished(TrainingStatus.CANCELLED, null, Instant.now()));
+					return;
+				}
 				try {
 					runner.run(null, created.taskId(), created.agentId(), created.providerId(), created.soulId(),
 							created.profileId(), created.id());
@@ -138,6 +151,22 @@ public class TrainingService {
 			trainings.finish(created.withProgress(completed).finished(TrainingStatus.FAILED,
 					"%s: %s".formatted(ex.getClass().getSimpleName(), ex.getMessage()), Instant.now()));
 		}
+	}
+
+	/** The cancel flag lives in the database, so it also reaches a loop on another thread. */
+	private boolean cancelled(UUID id) {
+		return trainings.status(id).filter(s -> s == TrainingStatus.CANCELLED).isPresent();
+	}
+
+	/**
+	 * Stops a training. It takes effect before the next run — the current model call is paid
+	 * for either way, so its answer is kept rather than thrown away.
+	 *
+	 * @return false if the training had already finished
+	 */
+	public boolean cancel(UUID id) {
+		find(id).orElseThrow(() -> new IllegalArgumentException("Unknown training '%s'.".formatted(id)));
+		return trainings.cancel(id) > 0;
 	}
 
 	public Optional<Training> find(UUID id) {

@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import com.devp.agent.experiment.Experiment;
 import com.devp.agent.experiment.ExperimentService;
-import com.devp.agent.experiment.ExperimentService.Arm;
+import com.devp.agent.experiment.ExperimentService.TrainingSummary;
 
 import jakarta.validation.constraints.NotBlank;
 
@@ -21,12 +21,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Experiments: one agent on one task under several profiles, arm after arm.
+ * Experiments: one agent on one task under several profiles, training after training.
  *
- * <p>{@code POST} answers 202 at once with the created experiment; the arms are trained in
+ * <p>{@code POST} answers 202 at once with the created experiment; the trainings are trained in
  * the background, one at a time. Poll {@code GET /api/experiments/{id}} until {@code status}
- * is no longer RUNNING — it returns every arm with its statistics in one response, so the
- * comparison table does not have to fetch each arm separately.
+ * is no longer RUNNING — it returns every training with its statistics in one response, so the
+ * comparison table does not have to fetch each training separately.
  */
 @RestController
 @RequestMapping("/api/experiments")
@@ -52,17 +52,28 @@ public class ExperimentController {
 		return experiments.list(task);
 	}
 
-	/** The experiment with all its arms and their statistics — the comparison in one request. */
+	/**
+	 * Stops a running experiment. Queued trainings end at once, the training in progress after its
+	 * current run — an answer already paid for stays a data point.
+	 */
+	@PostMapping("/{id}/cancel")
+	public Experiment cancel(@PathVariable UUID id) {
+		experiments.cancel(id);
+		return experiments.find(id)
+				.orElseThrow(() -> new UnknownExperimentException("Unknown experiment '%s'.".formatted(id)));
+	}
+
+	/** The experiment with all its trainings and their statistics — the comparison in one request. */
 	@GetMapping("/{id}")
 	public ExperimentDetail detail(@PathVariable UUID id) {
 		Experiment experiment = experiments.find(id)
 				.orElseThrow(() -> new UnknownExperimentException("Unknown experiment '%s'.".formatted(id)));
-		return new ExperimentDetail(experiment, experiments.arms(id));
+		return new ExperimentDetail(experiment, experiments.trainings(id));
 	}
 
 	/**
-	 * @param profiles       profiles to compare; the baseline arm is added unless excluded
-	 * @param includeBaseline default true — without a reference arm nothing is measured
+	 * @param profiles       profiles to compare; the baseline training is added unless excluded
+	 * @param includeBaseline default true — without a reference training nothing is measured
 	 */
 	public record ExperimentRequest(
 			String name,
@@ -83,7 +94,7 @@ public class ExperimentController {
 			Boolean includeBaseline) {
 	}
 
-	public record ExperimentDetail(Experiment experiment, List<Arm> arms) {
+	public record ExperimentDetail(Experiment experiment, List<TrainingSummary> trainings) {
 	}
 
 	/** The requested experiment id does not exist. */

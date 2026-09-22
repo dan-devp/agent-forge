@@ -6,6 +6,7 @@ import com.devp.agent.ai.ChatClientRegistry.UnknownProviderException;
 import com.devp.agent.ai.ChatService.AiNotConfiguredException;
 import com.devp.agent.ai.ChatService.ModelCallFailedException;
 import com.devp.agent.api.ExperimentController.UnknownExperimentException;
+import com.devp.agent.plan.PlanService.UnknownPlanException;
 import com.devp.agent.api.RunController.UnknownRunException;
 import com.devp.agent.api.TrainingController.UnknownTrainingException;
 import com.devp.agent.profile.ProfileParser.ProfileParseException;
@@ -76,6 +77,11 @@ public class ApiExceptionHandler {
 	@ExceptionHandler(AgentParseException.class)
 	public ProblemDetail handleAgentParse(AgentParseException ex) {
 		return problem(HttpStatus.INTERNAL_SERVER_ERROR, "Agent invalid", ex);
+	}
+
+	@ExceptionHandler(UnknownPlanException.class)
+	public ProblemDetail handleUnknownPlan(UnknownPlanException ex) {
+		return problem(HttpStatus.NOT_FOUND, "Unknown plan", ex);
 	}
 
 	@ExceptionHandler(UnknownExperimentException.class)

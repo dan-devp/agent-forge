@@ -1,5 +1,6 @@
 import type { ProfileListResponse } from '../api/client'
 import { Badge } from './Badge'
+import { RawJson } from './RawJson'
 
 type Props = {
   profiles: ProfileListResponse | null
@@ -83,6 +84,7 @@ export function StrategiesPanel(p: Props) {
               </article>
             ))}
           </div>
+          <RawJson label="GET /api/profiles" value={p.profiles} />
         </div>
       </section>
     </>

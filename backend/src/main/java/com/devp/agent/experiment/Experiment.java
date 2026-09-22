@@ -11,13 +11,15 @@ import java.util.UUID;
  * whether it did better. The baseline is therefore part of the experiment rather than
  * something to remember to start by hand.
  *
- * <p>Everything that must stay equal between the arms is fixed here: agent, task revision,
+ * <p>Everything that must stay equal between the trainings is fixed here: agent, task revision,
  * provider and the number of repetitions. What differs is exactly one thing — the profile.
  *
- * @param name a label for humans; the arms are identified by their profile
+ * @param planId the plan this execution came from, {@code null} for a one-off start
+ * @param name   a label for humans; the trainings are identified by their profile
  */
 public record Experiment(
 		UUID id,
+		UUID planId,
 		String name,
 		String taskId,
 		int taskVersion,
@@ -31,7 +33,7 @@ public record Experiment(
 		Instant finishedAt) {
 
 	public Experiment finished(ExperimentStatus status, String error, Instant finishedAt) {
-		return new Experiment(id, name, taskId, taskVersion, agentId, agentVersion, providerId, repetitions, status,
-				error, createdAt, finishedAt);
+		return new Experiment(id, planId, name, taskId, taskVersion, agentId, agentVersion, providerId, repetitions,
+				status, error, createdAt, finishedAt);
 	}
 }

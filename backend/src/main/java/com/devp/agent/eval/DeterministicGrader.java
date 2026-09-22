@@ -2,9 +2,7 @@ package com.devp.agent.eval;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 import com.devp.agent.run.AgentRun;
 import com.devp.agent.run.RunScore;
@@ -47,7 +45,7 @@ public class DeterministicGrader implements Grader {
 		StringBuilder rationale = new StringBuilder();
 		int satisfied = 0;
 		for (Criterion criterion : task.success()) {
-			boolean ok = check(criterion, answer, calledTools);
+			boolean ok = CriterionCheck.satisfied(criterion, answer, calledTools);
 			if (ok) {
 				satisfied++;
 			}
@@ -62,18 +60,4 @@ public class DeterministicGrader implements Grader {
 				rationale.toString().strip(), Instant.now()));
 	}
 
-	private static boolean check(Criterion criterion, String answer, List<String> tools) {
-		return switch (criterion.type()) {
-			case CONTAINS -> answer != null && lower(answer).contains(lower(criterion.value()));
-			case NOT_CONTAINS -> answer != null && !lower(answer).contains(lower(criterion.value()));
-			case REGEX -> answer != null && Pattern.compile(criterion.value()).matcher(answer).find();
-			case NOT_REGEX -> answer != null && !Pattern.compile(criterion.value()).matcher(answer).find();
-			case TOOL_CALLED -> tools.contains(criterion.value());
-			case TOOL_NOT_CALLED -> "*".equals(criterion.value()) ? tools.isEmpty() : !tools.contains(criterion.value());
-		};
-	}
-
-	private static String lower(String text) {
-		return text.toLowerCase(Locale.ROOT);
-	}
 }

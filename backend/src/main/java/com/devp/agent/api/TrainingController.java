@@ -52,6 +52,14 @@ public class TrainingController {
 		return trainings.list(task);
 	}
 
+	/** Stops a running training. Takes effect before the next run, not during one. */
+	@PostMapping("/{id}/cancel")
+	public Training cancel(@PathVariable UUID id) {
+		trainings.cancel(id);
+		return trainings.find(id)
+				.orElseThrow(() -> new UnknownTrainingException("Unknown training '%s'.".formatted(id)));
+	}
+
 	/** Training, statistics computed now, its runs without traces, and what it remembers. */
 	@GetMapping("/{id}")
 	public TrainingDetail detail(@PathVariable UUID id) {

@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { api, type ChatResult, type SoulListResponse } from '../api/client'
+import { api, type ChatResult, type SoulListResponse, type StatusResponse } from '../api/client'
 
 type Props = {
   souls: SoulListResponse | null
+  status: StatusResponse | null
   provider: string
+  onProvider: (id: string) => void
   busy: boolean
   perform: (action: () => Promise<void>) => void
 }
@@ -30,6 +32,14 @@ export function ChatPanel(p: Props) {
       <div className="panel-body">
         <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} placeholder="Nachricht an den Agenten" />
         <div className="toolbar">
+          <select value={p.provider} onChange={(e) => p.onProvider(e.target.value)} disabled={!p.status}>
+            <option value="">Modell: Standard</option>
+            {p.status?.providers.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.label} · {x.model}
+              </option>
+            ))}
+          </select>
           <select value={soul} onChange={(e) => setSoul(e.target.value)} disabled={!p.souls}>
             {p.souls?.souls.map((s) => (
               <option key={s.id} value={s.id}>
@@ -41,6 +51,10 @@ export function ChatPanel(p: Props) {
             {p.busy ? 'Läuft …' : 'Fragen'}
           </button>
         </div>
+        <p className="hint faint">
+          Dieser Weg kennt keinen Agenten: /api/chat ist der Ein-Turn-Endpunkt von vor der Agent-Entitaet, ohne Werkzeuge,
+          ohne Trace und ohne Bewertung. Zum Hoeren, wie eine SOUL klingt — nicht zum Messen.
+        </p>
         {result && (
           <>
             <div className="answer">{result.answer}</div>

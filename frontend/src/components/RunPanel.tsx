@@ -1,15 +1,28 @@
 import { useEffect, useState } from 'react'
-import { api, type AgentRun, type ProfileListResponse, type Task, type TaskSummary } from '../api/client'
+import {
+  api,
+  type AgentListResponse,
+  type AgentRun,
+  type ProfileListResponse,
+  type StatusResponse,
+  type Task,
+  type TaskSummary,
+} from '../api/client'
 import { Badge } from './Badge'
 import { RunDetail } from './RunDetail'
+import { AgentPicker } from './AgentPicker'
 
 type Props = {
   tasks: TaskSummary[] | null
   task: string
   onTaskChange: (id: string) => void
   profiles: ProfileListResponse | null
+  agents: AgentListResponse | null
   agent: string
+  onAgent: (id: string) => void
+  status: StatusResponse | null
   provider: string
+  onProvider: (id: string) => void
   busy: boolean
   perform: (action: () => Promise<void>) => void
   onReloadTasks: () => void
@@ -52,6 +65,16 @@ export function RunPanel(p: Props) {
           </button>
         </div>
         <div className="panel-body">
+          <div className="toolbar">
+            <AgentPicker
+              agents={p.agents}
+              agent={p.agent}
+              onAgent={p.onAgent}
+              status={p.status}
+              provider={p.provider}
+              onProvider={p.onProvider}
+            />
+          </div>
           <div className="toolbar">
             <select className="grow" value={p.task} onChange={(e) => p.onTaskChange(e.target.value)} disabled={!p.tasks}>
               <option value="">— freier Auftrag (nicht auswertbar) —</option>

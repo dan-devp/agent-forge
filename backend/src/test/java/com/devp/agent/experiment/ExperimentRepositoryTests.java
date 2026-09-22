@@ -33,7 +33,7 @@ class ExperimentRepositoryTests {
 	}
 
 	private Experiment created(String taskId) {
-		return new Experiment(UUID.randomUUID(), "Reflexion vs Baseline", taskId, 1, "forge", 1, "local", 3,
+		return new Experiment(UUID.randomUUID(), null, "Reflexion vs Baseline", taskId, 1, "forge", 1, "local", 3,
 				ExperimentStatus.RUNNING, null, Instant.now(), null);
 	}
 
@@ -54,16 +54,16 @@ class ExperimentRepositoryTests {
 		assertThat(read.repetitions()).isEqualTo(3);
 	}
 
-	/** The arms hang from the experiment and keep the order they were queued in. */
+	/** The trainings hang from the experiment and keep the order they were queued in. */
 	@Test
-	void listsItsArmsInStartOrder() {
+	void listsItsTrainingsInStartOrder() {
 		Experiment experiment = created("no-tool");
 		experiments.create(experiment);
-		Training baseline = arm(experiment.id(), "baseline", Instant.now());
-		Training reflexion = arm(experiment.id(), "reflexion", Instant.now().plusSeconds(1));
+		Training baseline = training(experiment.id(), "baseline", Instant.now());
+		Training reflexion = training(experiment.id(), "reflexion", Instant.now().plusSeconds(1));
 		trainings.create(baseline);
 		trainings.create(reflexion);
-		trainings.create(arm(null, "baseline", Instant.now()));
+		trainings.create(training(null, "baseline", Instant.now()));
 
 		assertThat(trainings.listForExperiment(experiment.id()))
 				.extracting(Training::profileId)
@@ -74,8 +74,8 @@ class ExperimentRepositoryTests {
 	void listsPerTaskNewestFirst() {
 		Experiment older = created("no-tool");
 		experiments.create(older);
-		Experiment newer = new Experiment(UUID.randomUUID(), "zweiter Versuch", "no-tool", 1, "forge", 1, "local", 3,
-				ExperimentStatus.RUNNING, null, Instant.now().plusSeconds(1), null);
+		Experiment newer = new Experiment(UUID.randomUUID(), null, "zweiter Versuch", "no-tool", 1, "forge", 1,
+				"local", 3, ExperimentStatus.RUNNING, null, Instant.now().plusSeconds(1), null);
 		experiments.create(newer);
 		experiments.create(created("time-and-division"));
 
@@ -85,12 +85,12 @@ class ExperimentRepositoryTests {
 		assertThat(experiments.list(10)).hasSize(3);
 	}
 
-	/** An arm waits before it runs — otherwise the UI shows a training as running that has not started. */
+	/** A training waits before it runs — otherwise the UI shows a training as running that has not started. */
 	@Test
-	void queuedArmBecomesRunning() {
+	void queuedTrainingBecomesRunning() {
 		Experiment experiment = created("no-tool");
 		experiments.create(experiment);
-		Training queued = arm(experiment.id(), "baseline", Instant.now());
+		Training queued = training(experiment.id(), "baseline", Instant.now());
 		trainings.create(queued);
 
 		assertThat(trainings.find(queued.id()).orElseThrow().status()).isEqualTo(TrainingStatus.QUEUED);
@@ -100,7 +100,7 @@ class ExperimentRepositoryTests {
 		assertThat(trainings.find(queued.id()).orElseThrow().status()).isEqualTo(TrainingStatus.RUNNING);
 	}
 
-	private static Training arm(UUID experimentId, String profileId, Instant createdAt) {
+	private static Training training(UUID experimentId, String profileId, Instant createdAt) {
 		return new Training(UUID.randomUUID(), experimentId, "no-tool", 1, "forge", 1, "forge", profileId, "local", 2,
 				experimentId == null ? TrainingStatus.RUNNING : TrainingStatus.QUEUED, 0, null, createdAt, null);
 	}

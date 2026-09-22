@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { AgentRun } from '../api/client'
 import { PassBadge, RunStatusBadge, StepBadge } from './Badge'
+import { RawJson } from './RawJson'
 
 /** One run in full: parameters, answer, scores, trace. Shared by run, history and training. */
 export function RunDetail({ run, compact = false }: { run: AgentRun; compact?: boolean }) {
@@ -102,6 +103,8 @@ export function RunDetail({ run, compact = false }: { run: AgentRun; compact?: b
           </ol>
         </>
       )}
+
+      <RawJson label={`GET /api/runs/${run.id}`} value={run} />
     </div>
   )
 }

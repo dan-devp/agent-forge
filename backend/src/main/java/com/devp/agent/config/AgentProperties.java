@@ -34,10 +34,10 @@ public class AgentProperties {
 	private int maxTrainingRepetitions = 50;
 
 	/**
-	 * Upper bound for the arms of one experiment. An experiment costs arms x repetitions
+	 * Upper bound for the trainings of one experiment. An experiment costs trainings x repetitions
 	 * runs, and they are executed one after another — a wide comparison is a long wait.
 	 */
-	private int maxExperimentArms = 6;
+	private int maxExperimentTrainings = 6;
 
 	public int getMaxToolCalls() {
 		return maxToolCalls;
@@ -87,11 +87,11 @@ public class AgentProperties {
 		this.maxTrainingRepetitions = maxTrainingRepetitions;
 	}
 
-	public int getMaxExperimentArms() {
-		return maxExperimentArms;
+	public int getMaxExperimentTrainings() {
+		return maxExperimentTrainings;
 	}
 
-	public void setMaxExperimentArms(int maxExperimentArms) {
-		this.maxExperimentArms = maxExperimentArms;
+	public void setMaxExperimentTrainings(int maxExperimentTrainings) {
+		this.maxExperimentTrainings = maxExperimentTrainings;
 	}
 }

@@ -11,7 +11,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 /**
- * Storage for experiments. The arms live in {@code agent_training}, linked by
+ * Storage for experiments. The trainings live in {@code agent_training}, linked by
  * {@code experiment_id}; nothing about them is duplicated here.
  */
 @Repository
@@ -25,11 +25,12 @@ public class ExperimentRepository {
 
 	public void create(Experiment experiment) {
 		db.sql("""
-				insert into agent_experiment (id, name, task_id, task_version, agent_id, agent_version, provider_id,
-				                              repetitions, status, created_at)
-				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				insert into agent_experiment (id, plan_id, name, task_id, task_version, agent_id, agent_version,
+				                              provider_id, repetitions, status, created_at)
+				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
-				.params(experiment.id(), experiment.name(), experiment.taskId(), experiment.taskVersion(),
+				.params(experiment.id(), experiment.planId(), experiment.name(), experiment.taskId(),
+						experiment.taskVersion(),
 						experiment.agentId(), experiment.agentVersion(), experiment.providerId(),
 						experiment.repetitions(), experiment.status().name(), Timestamp.from(experiment.createdAt()))
 				.update();
@@ -39,6 +40,26 @@ public class ExperimentRepository {
 		db.sql("update agent_experiment set status = ?, error = ?, finished_at = ? where id = ?")
 				.params(experiment.status().name(), experiment.error(),
 						Timestamp.from(experiment.finishedAt()), experiment.id())
+				.update();
+	}
+
+	/** Executions of one plan, newest first — the time series over a configuration. */
+	public List<Experiment> listForPlan(UUID planId, int limit) {
+		return db.sql("select * from agent_experiment where plan_id = ? order by created_at desc limit ?")
+				.params(planId, limit)
+				.query(ExperimentRepository::map)
+				.list();
+	}
+
+	/**
+	 * Stopping is a status change, nothing more: the loop reads it before the next training. An
+	 * experiment that has already finished stays as it is — the update names the state it
+	 * is allowed to leave.
+	 */
+	public int cancel(UUID id) {
+		return db.sql("update agent_experiment set status = ?, finished_at = ? where id = ? and status = ?")
+				.params(ExperimentStatus.CANCELLED.name(), Timestamp.from(java.time.Instant.now()), id,
+						ExperimentStatus.RUNNING.name())
 				.update();
 	}
 
@@ -67,6 +88,7 @@ public class ExperimentRepository {
 		Timestamp finished = rs.getTimestamp("finished_at");
 		return new Experiment(
 				rs.getObject("id", UUID.class),
+				rs.getObject("plan_id", UUID.class),
 				rs.getString("name"),
 				rs.getString("task_id"),
 				rs.getInt("task_version"),

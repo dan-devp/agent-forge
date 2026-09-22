@@ -2,7 +2,7 @@ import type { RunPoint } from '../api/client'
 
 /**
  * One square per run, in order: filled dark = passed, terracotta = failed, hollow = not run
- * yet. Small enough for a table cell, so a comparison row shows not just how often an arm
+ * yet. Small enough for a table cell, so a comparison row shows not just how often a training
  * passed but *when* — three failures then three passes is a different thing from the
  * reverse, and an aggregate hides exactly that.
  */

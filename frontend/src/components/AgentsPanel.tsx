@@ -88,6 +88,12 @@ export function AgentsPanel(p: Props) {
                 </p>
               )}
               <p className="hint faint">{a.source}</p>
+
+              {/* What the API actually answers — the card is an interpretation, this is the record. */}
+              <details className="raw" onClick={(e) => e.stopPropagation()}>
+                <summary>JSON · GET /api/agents/{a.id}</summary>
+                <pre>{JSON.stringify(a, null, 2)}</pre>
+              </details>
             </article>
           ))}
         </div>

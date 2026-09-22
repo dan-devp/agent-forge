@@ -38,10 +38,39 @@ public class TrainingRepository {
 				.update();
 	}
 
-	/** An arm leaves the queue. Idempotent — a training started on its own is already RUNNING. */
-	public void markRunning(UUID id) {
-		db.sql("update agent_training set status = ? where id = ?")
-				.params(TrainingStatus.RUNNING.name(), id)
+	/**
+	 * A training leaves the queue. Only out of QUEUED: a training cancelled while it waited must not
+	 * be revived by the loop that picks it up a moment later.
+	 */
+	public int markRunning(UUID id) {
+		return db.sql("update agent_training set status = ? where id = ? and status = ?")
+				.params(TrainingStatus.RUNNING.name(), id, TrainingStatus.QUEUED.name())
+				.update();
+	}
+
+	/** Status only — the loop asks before every run whether it may still continue. */
+	public Optional<TrainingStatus> status(UUID id) {
+		return db.sql("select status from agent_training where id = ?")
+				.param(id)
+				.query(String.class)
+				.optional()
+				.map(TrainingStatus::valueOf);
+	}
+
+	/** Stops one training. A finished one is left alone; the update names the states it may leave. */
+	public int cancel(UUID id) {
+		return db.sql("update agent_training set status = ?, finished_at = ? where id = ? and status in (?, ?)")
+				.params(TrainingStatus.CANCELLED.name(), Timestamp.from(Instant.now()), id,
+						TrainingStatus.QUEUED.name(), TrainingStatus.RUNNING.name())
+				.update();
+	}
+
+	/** Stops every training of an experiment that has not finished yet. */
+	public int cancelPending(UUID experimentId) {
+		return db.sql("update agent_training set status = ?, finished_at = ? "
+						+ "where experiment_id = ? and status in (?, ?)")
+				.params(TrainingStatus.CANCELLED.name(), Timestamp.from(Instant.now()), experimentId,
+						TrainingStatus.QUEUED.name(), TrainingStatus.RUNNING.name())
 				.update();
 	}
 
@@ -75,7 +104,7 @@ public class TrainingRepository {
 				.list();
 	}
 
-	/** Trainings of one experiment in start order — the arms that get compared. */
+	/** Trainings of one experiment in start order — the trainings that get compared. */
 	public List<Training> listForExperiment(UUID experimentId) {
 		return db.sql("select * from agent_training where experiment_id = ? order by created_at")
 				.param(experimentId)

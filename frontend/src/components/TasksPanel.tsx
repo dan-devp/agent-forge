@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, type Task, type TaskSummary } from '../api/client'
 import { Badge } from './Badge'
+import { RawJson } from './RawJson'
 
 type Props = {
   tasks: TaskSummary[] | null
@@ -110,6 +111,7 @@ export function TasksPanel(p: Props) {
               </div>
             ))}
             <p className="hint faint">{detail.source}</p>
+            <RawJson label={`GET /api/tasks/${detail.id}`} value={detail} />
           </div>
         </section>
       )}

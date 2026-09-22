@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import {
   api,
+  type AgentListResponse,
   type AgentRun,
   type ProfileListResponse,
+  type StatusResponse,
   type TaskSummary,
   type Training,
   type TrainingDetail,
@@ -12,20 +14,25 @@ import { Badge, TrainingStatusBadge } from './Badge'
 import { RunDetail } from './RunDetail'
 import { TrainingDetailView } from './TrainingDetailView'
 import { mean, pct } from './format'
+import { AgentPicker } from './AgentPicker'
 
 type Props = {
   tasks: TaskSummary[] | null
   task: string
   onTaskChange: (id: string) => void
   profiles: ProfileListResponse | null
+  agents: AgentListResponse | null
   agent: string
+  onAgent: (id: string) => void
+  status: StatusResponse | null
   provider: string
+  onProvider: (id: string) => void
   busy: boolean
   perform: (action: () => Promise<void>) => void
   onError: (message: string) => void
 }
 
-/** A single training: one agent, one profile, one task, N runs in order — without a comparison arm. */
+/** A single training: one agent, one profile, one task, N runs in order — without a comparison training. */
 export function TrainingPanel(p: Props) {
   // Derived, not stored: the default only exists once the profiles are loaded.
   const [chosenProfile, setProfile] = useState<string | null>(null)
@@ -107,6 +114,16 @@ export function TrainingPanel(p: Props) {
         </div>
         <div className="panel-body">
           <div className="toolbar">
+            <AgentPicker
+              agents={p.agents}
+              agent={p.agent}
+              onAgent={p.onAgent}
+              status={p.status}
+              provider={p.provider}
+              onProvider={p.onProvider}
+            />
+          </div>
+          <div className="toolbar">
             <select className="grow" value={p.task} onChange={(e) => p.onTaskChange(e.target.value)} disabled={!p.tasks}>
               <option value="">— Aufgabe wählen —</option>
               {p.tasks?.map((t) => (
@@ -186,6 +203,20 @@ export function TrainingPanel(p: Props) {
         <section className="panel">
           <div className="panel-head">
             <h2>Lernkurve</h2>
+            {(detail.training.status === 'RUNNING' || detail.training.status === 'QUEUED') && (
+              <button
+                className="btn sm"
+                disabled={p.busy}
+                onClick={() =>
+                  p.perform(async () => {
+                    await api.cancelTraining(detail.training.id)
+                    setDetail(await api.training(detail.training.id))
+                  })
+                }
+              >
+                stoppen
+              </button>
+            )}
           </div>
           <TrainingDetailView
             detail={detail}

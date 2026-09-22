@@ -29,13 +29,13 @@ import org.springframework.stereotype.Service;
 
 /**
  * Runs an experiment: the same agent on the same task under several profiles, each for N
- * runs, arm after arm.
+ * runs, training after training.
  *
- * <p>The baseline arm is added unless it is switched off. Without it the other arms measure
+ * <p>The baseline training is added unless it is switched off. Without it the other trainings measure
  * nothing: a rising pass rate may just as well be model variance, and only a flat reference
  * curve under identical conditions tells the difference.
  *
- * <p>Arms run strictly one after another on the single training thread. Running them in
+ * <p>Trainings run strictly one after another on the single training thread. Running them in
  * parallel would mean several trainings hitting the same provider at once — the numbers
  * would then carry the provider's load as an unrecorded variable.
  */
@@ -73,46 +73,52 @@ public class ExperimentService {
 	}
 
 	/**
-	 * Creates the experiment with all its arms and schedules them. Everything that must stay
-	 * equal between the arms is resolved once, here.
+	 * Creates the experiment with all its trainings and schedules them. Everything that must stay
+	 * equal between the trainings is resolved once, here.
 	 *
 	 * @param profileIds      the profiles to compare; the baseline is added on top unless excluded
-	 * @param includeBaseline add the default profile as a reference arm
+	 * @param includeBaseline add the default profile as a reference training
 	 */
 	public Experiment start(String name, String taskId, int repetitions, String agentId, String providerId,
 			String soulId, List<String> profileIds, boolean includeBaseline) {
+		return start(null, name, taskId, repetitions, agentId, providerId, soulId, profileIds, includeBaseline);
+	}
+
+	/** The same, as one execution of a saved plan. */
+	public Experiment start(UUID planId, String name, String taskId, int repetitions, String agentId,
+			String providerId, String soulId, List<String> profileIds, boolean includeBaseline) {
 
 		Task task = tasks.resolve(taskId);
 		Agent agent = agents.resolve(agentId);
 		String provider = providers.resolve(orDefault(providerId, orDefault(agent.provider(), task.provider()))).id();
-		List<String> arms = arms(profileIds, includeBaseline);
+		List<String> trainingProfiles = trainingProfiles(profileIds, includeBaseline);
 
 		if (repetitions < 1 || repetitions > properties.getMaxTrainingRepetitions()) {
 			throw new IllegalArgumentException("repetitions must be between 1 and %d."
 					.formatted(properties.getMaxTrainingRepetitions()));
 		}
-		if (arms.size() > properties.getMaxExperimentArms()) {
+		if (trainingProfiles.size() > properties.getMaxExperimentTrainings()) {
 			throw new IllegalArgumentException("An experiment compares at most %d profiles, asked for %d."
-					.formatted(properties.getMaxExperimentArms(), arms.size()));
+					.formatted(properties.getMaxExperimentTrainings(), trainingProfiles.size()));
 		}
 
-		Experiment created = new Experiment(UUID.randomUUID(), name, task.id(), task.version(), agent.id(),
+		Experiment created = new Experiment(UUID.randomUUID(), planId, name, task.id(), task.version(), agent.id(),
 				agent.version(), provider, repetitions, ExperimentStatus.RUNNING, null, Instant.now(), null);
 		experiments.create(created);
 
 		List<Training> queued = new ArrayList<>();
-		for (String profileId : arms) {
+		for (String profileId : trainingProfiles) {
 			queued.add(training.create(created.id(), task.id(), repetitions, agent.id(), provider, soulId, profileId));
 		}
-		log.info("Experiment {} created: task {} v{}, agent {} v{}, {} arm(s) x{}: {}", created.id(), task.id(),
-				task.version(), agent.id(), agent.version(), arms.size(), repetitions, arms);
+		log.info("Experiment {} created: task {} v{}, agent {} v{}, {} training(s) x{}: {}", created.id(), task.id(),
+				task.version(), agent.id(), agent.version(), trainingProfiles.size(), repetitions, trainingProfiles);
 
 		self.execute(created, queued);
 		return created;
 	}
 
 	/** Profiles to compare, baseline first, without duplicates and each one verified to exist. */
-	private List<String> arms(List<String> profileIds, boolean includeBaseline) {
+	private List<String> trainingProfiles(List<String> profileIds, boolean includeBaseline) {
 		Set<String> ids = new LinkedHashSet<>();
 		if (includeBaseline) {
 			ids.add(profiles.resolve(profileProperties.getDefaultProfile()).id());
@@ -130,19 +136,51 @@ public class ExperimentService {
 	}
 
 	@Async("trainingExecutor")
-	public void execute(Experiment created, List<Training> arms) {
+	public void execute(Experiment created, List<Training> planned) {
 		try {
-			for (Training arm : arms) {
-				training.runNow(arm);
+			for (Training next : planned) {
+				// Read before every training, not once: stopping happens while this loop runs.
+				if (cancelled(created.id())) {
+					log.info("Experiment {} cancelled", created.id());
+					trainings.cancelPending(created.id());
+					return;
+				}
+				training.runNow(next);
+			}
+			if (cancelled(created.id())) {
+				trainings.cancelPending(created.id());
+				return;
 			}
 			experiments.finish(created.finished(ExperimentStatus.DONE, null, Instant.now()));
-			log.info("Experiment {} done: {} arm(s)", created.id(), arms.size());
+			log.info("Experiment {} done: {} training(s)", created.id(), planned.size());
 		}
 		catch (RuntimeException ex) {
 			log.error("Experiment {} aborted: {}", created.id(), ex.getMessage());
 			experiments.finish(created.finished(ExperimentStatus.FAILED,
 					"%s: %s".formatted(ex.getClass().getSimpleName(), ex.getMessage()), Instant.now()));
 		}
+	}
+
+	private boolean cancelled(UUID id) {
+		return experiments.find(id).filter(e -> e.status() == ExperimentStatus.CANCELLED).isPresent();
+	}
+
+	/**
+	 * Stops an experiment: the trainings that have not started are cancelled at once, the training in
+	 * progress after its current run. What already ran stays — it is data, not waste.
+	 *
+	 * @return false if the experiment had already finished
+	 */
+	public boolean cancel(UUID id) {
+		find(id).orElseThrow(() -> new IllegalArgumentException("Unknown experiment '%s'.".formatted(id)));
+		boolean stopped = experiments.cancel(id) > 0;
+		trainings.cancelPending(id);
+		return stopped;
+	}
+
+	/** Executions of one plan, newest first. */
+	public List<Experiment> listForPlan(UUID planId) {
+		return experiments.listForPlan(planId, properties.getHistoryLimit());
 	}
 
 	public Optional<Experiment> find(UUID id) {
@@ -155,10 +193,10 @@ public class ExperimentService {
 				: experiments.listForTask(taskId, properties.getHistoryLimit());
 	}
 
-	/** The arms of an experiment with their statistics — one request instead of one per arm. */
-	public List<Arm> arms(UUID experimentId) {
+	/** The trainings of an experiment with their statistics — one request instead of one per training. */
+	public List<TrainingSummary> trainings(UUID experimentId) {
 		return trainings.listForExperiment(experimentId).stream()
-				.map(t -> new Arm(t, training.statistics(t, training.runsOf(t.id())), training.memory(t.id()).size()))
+				.map(t -> new TrainingSummary(t, training.statistics(t, training.runsOf(t.id())), training.memory(t.id()).size()))
 				.toList();
 	}
 
@@ -167,10 +205,10 @@ public class ExperimentService {
 	}
 
 	/**
-	 * One arm as the comparison shows it: the training, its statistics and how much its
+	 * One training as the comparison shows it: the training, its statistics and how much its
 	 * strategies remembered. The memory itself stays behind the training endpoint — a
-	 * comparison table must not carry every lesson of every arm.
+	 * comparison table must not carry every lesson of every training.
 	 */
-	public record Arm(Training training, TrainingStatistics statistics, int memoryEntries) {
+	public record TrainingSummary(Training training, TrainingStatistics statistics, int memoryEntries) {
 	}
 }
