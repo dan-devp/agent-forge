@@ -27,6 +27,9 @@ services:
       context: ./backend
     image: forge-backend:dev
     container_name: forge-backend
+    # A transient database hiccup at start (recovery mode after an unclean stop) must not
+    # leave the backend dead until someone notices.
+    restart: unless-stopped
     ports:
       - "8080:8080"
     # Everything in .env reaches the container — including the API_KEY_* variables the
