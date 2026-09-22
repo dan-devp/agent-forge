@@ -41,7 +41,7 @@ class TracingToolCallingManagerTests {
 	void startRun() {
 		runs.deleteAll();
 		runId = UUID.randomUUID();
-		runs.start(RunRepositoryTests.started(runId));
+		runs.create(RunRepositoryTests.started(runId));
 	}
 
 	private static Prompt prompt(Map<String, Object> toolContext) {

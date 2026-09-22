@@ -23,6 +23,12 @@ public class RunProperties {
 	/** How many runs the history lists at most. */
 	private int historyLimit = 100;
 
+	/** Upper bound for repetitions in one batch — a typo must not schedule a hundred model calls. */
+	private int maxRepetitions = 20;
+
+	/** Upper bound for runs in one batch (tasks x repetitions). */
+	private int maxBatchRuns = 100;
+
 	public int getMaxToolCalls() {
 		return maxToolCalls;
 	}
@@ -53,5 +59,21 @@ public class RunProperties {
 
 	public void setHistoryLimit(int historyLimit) {
 		this.historyLimit = historyLimit;
+	}
+
+	public int getMaxRepetitions() {
+		return maxRepetitions;
+	}
+
+	public void setMaxRepetitions(int maxRepetitions) {
+		this.maxRepetitions = maxRepetitions;
+	}
+
+	public int getMaxBatchRuns() {
+		return maxBatchRuns;
+	}
+
+	public void setMaxBatchRuns(int maxBatchRuns) {
+		this.maxBatchRuns = maxBatchRuns;
 	}
 }

@@ -4,6 +4,7 @@ import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Storage for runs, traces and verdicts.
  *
  * <p>{@link JdbcClient} instead of JPA on purpose: steps are only appended and never
- * changed, and later retrieval over traces will want SQL an ORM does not help with.
+ * changed, and retrieval over traces wants SQL an ORM does not help with.
  */
 @Repository
 public class RunRepository {
@@ -27,16 +28,40 @@ public class RunRepository {
 		this.db = db;
 	}
 
-	/** Creates the run as soon as it begins — a crash then stays visible as RUNNING. */
-	public void start(Run run) {
+	/** Creates the run with everything the model will see. Queued or running — a crash stays visible either way. */
+	public void create(Run run) {
 		db.sql("""
-				insert into run (id, task_id, task_version, agent_id, agent_version, model_id, model_version,
-				                 model_name, temperature, system_prompt, input, tools, status, started_at)
-				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				insert into run (id, batch_id, task_id, task_version, agent_id, agent_version, model_id, model_version,
+				                 model_name, temperature, system_prompt, input, tools, status, queued_at, started_at)
+				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
-				.params(run.id(), run.taskId(), run.taskVersion(), run.agentId(), run.agentVersion(), run.modelId(),
-						run.modelVersion(), run.modelName(), run.temperature(), run.systemPrompt(), run.input(),
-						run.tools().toArray(String[]::new), run.status().name(), Timestamp.from(run.startedAt()))
+				.params(run.id(), run.batchId(), run.taskId(), run.taskVersion(), run.agentId(), run.agentVersion(),
+						run.modelId(), run.modelVersion(), run.modelName(), run.temperature(), run.systemPrompt(),
+						run.input(), run.tools().toArray(String[]::new), run.status().name(),
+						ts(run.queuedAt()), ts(run.startedAt()))
+				.update();
+	}
+
+	/**
+	 * QUEUED -> RUNNING, compare-and-set. Returns false when the run was cancelled in the
+	 * meantime — the executor then skips it instead of reviving it.
+	 */
+	public boolean markRunning(UUID id, Instant startedAt) {
+		return db.sql("update run set status = ?, started_at = ? where id = ? and status = ?")
+				.params(RunStatus.RUNNING.name(), ts(startedAt), id, RunStatus.QUEUED.name())
+				.update() == 1;
+	}
+
+	/** QUEUED -> CANCELLED. A running call is left alone: it is paid for. */
+	public boolean cancel(UUID id) {
+		return db.sql("update run set status = ?, finished_at = ? where id = ? and status = ?")
+				.params(RunStatus.CANCELLED.name(), ts(Instant.now()), id, RunStatus.QUEUED.name())
+				.update() == 1;
+	}
+
+	public int cancelBatch(UUID batchId) {
+		return db.sql("update run set status = ?, finished_at = ? where batch_id = ? and status = ?")
+				.params(RunStatus.CANCELLED.name(), ts(Instant.now()), batchId, RunStatus.QUEUED.name())
 				.update();
 	}
 
@@ -46,7 +71,7 @@ public class RunRepository {
 				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
 				.params(runId, step.seq(), step.type().name(), step.name(), step.input(), step.output(),
-						step.tokens(), step.durationMs(), step.error(), Timestamp.from(step.createdAt()))
+						step.tokens(), step.durationMs(), step.error(), ts(step.createdAt()))
 				.update();
 	}
 
@@ -58,7 +83,7 @@ public class RunRepository {
 				 where id = ?
 				""")
 				.params(run.status().name(), run.answer(), run.error(), run.modelName(), run.steps(),
-						run.totalTokens(), run.durationMs(), Timestamp.from(run.finishedAt()), run.id())
+						run.totalTokens(), run.durationMs(), ts(run.finishedAt()), run.id())
 				.update();
 	}
 
@@ -69,7 +94,7 @@ public class RunRepository {
 				values (?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
 				.params(runId, eval.index(), eval.type(), eval.passed(), eval.rationale(), eval.model(),
-						eval.tokens(), eval.durationMs(), Timestamp.from(eval.createdAt()))
+						eval.tokens(), eval.durationMs(), ts(eval.createdAt()))
 				.update();
 	}
 
@@ -114,22 +139,38 @@ public class RunRepository {
 				.param(id)
 				.query(RunRepository::mapRun)
 				.optional()
-				.map(r -> new Run(r.id(), r.taskId(), r.taskVersion(), r.agentId(), r.agentVersion(), r.modelId(),
-						r.modelVersion(), r.modelName(), r.temperature(), r.systemPrompt(), r.input(), r.tools(),
-						r.status(), r.answer(), r.error(), r.steps(), r.totalTokens(), r.durationMs(), r.passed(),
-						r.startedAt(), r.finishedAt(), trace(id), evals(id)));
+				.map(r -> new Run(r.id(), r.batchId(), r.taskId(), r.taskVersion(), r.agentId(), r.agentVersion(),
+						r.modelId(), r.modelVersion(), r.modelName(), r.temperature(), r.systemPrompt(), r.input(),
+						r.tools(), r.status(), r.answer(), r.error(), r.steps(), r.totalTokens(), r.durationMs(),
+						r.passed(), r.queuedAt(), r.startedAt(), r.finishedAt(), trace(id), evals(id)));
 	}
 
 	/** History without traces, prompts or inputs — the list must not load half the database. */
-	public List<Run> list(int limit, String taskId, String agentId) {
+	public List<Run> list(int limit, String taskId, String agentId, UUID batchId) {
 		return db.sql("""
 				select * from run
 				 where (cast(? as text) is null or task_id = ?)
 				   and (cast(? as text) is null or agent_id = ?)
-				 order by started_at desc
+				   and (cast(? as uuid) is null or batch_id = ?)
+				 order by coalesce(queued_at, started_at) desc
 				 limit ?
 				""")
-				.params(taskId, taskId, agentId, agentId, limit)
+				.params(taskId, taskId, agentId, agentId, batchId, batchId, limit)
+				.query(RunRepository::mapRun)
+				.list()
+				.stream()
+				.map(Run::summary)
+				.toList();
+	}
+
+	/** Everything the matrix needs for one agent: one summary per task run, oldest first. */
+	public List<Run> matrixRows(String agentId) {
+		return db.sql("""
+				select * from run
+				 where agent_id = ? and task_id is not null
+				 order by coalesce(queued_at, started_at), id
+				""")
+				.param(agentId)
 				.query(RunRepository::mapRun)
 				.list()
 				.stream()
@@ -141,7 +182,6 @@ public class RunRepository {
 		return db.sql("select count(*) from run").query(Integer.class).single();
 	}
 
-	/** Do any runs reference this entity? Used before archiving, to warn rather than to block. */
 	public int countByAgent(String agentId) {
 		return db.sql("select count(*) from run where agent_id = ?").param(agentId).query(Integer.class).single();
 	}
@@ -171,9 +211,9 @@ public class RunRepository {
 	}
 
 	private static Run mapRun(ResultSet rs, int rowNum) throws SQLException {
-		Timestamp finished = rs.getTimestamp("finished_at");
 		return new Run(
 				rs.getObject("id", UUID.class),
+				rs.getObject("batch_id", UUID.class),
 				rs.getString("task_id"),
 				(Integer) rs.getObject("task_version"),
 				rs.getString("agent_id"),
@@ -193,10 +233,19 @@ public class RunRepository {
 				(Integer) rs.getObject("total_tokens"),
 				(Long) rs.getObject("duration_ms"),
 				(Boolean) rs.getObject("passed"),
-				rs.getTimestamp("started_at").toInstant(),
-				finished == null ? null : finished.toInstant(),
+				instant(rs.getTimestamp("queued_at")),
+				instant(rs.getTimestamp("started_at")),
+				instant(rs.getTimestamp("finished_at")),
 				List.of(),
 				List.of());
+	}
+
+	private static Instant instant(Timestamp ts) {
+		return ts == null ? null : ts.toInstant();
+	}
+
+	private static Timestamp ts(Instant instant) {
+		return instant == null ? null : Timestamp.from(instant);
 	}
 
 	private static List<String> tools(Array array) throws SQLException {

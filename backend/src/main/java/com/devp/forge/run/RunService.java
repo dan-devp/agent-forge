@@ -17,6 +17,7 @@ import com.devp.forge.ai.ChatClientRegistry.ModelCallFailedException;
 import com.devp.forge.config.RunProperties;
 import com.devp.forge.eval.EvaluationService;
 import com.devp.forge.model.Model;
+import com.devp.forge.model.ModelRepository;
 import com.devp.forge.run.TracingToolCallingManager.BudgetExceededException;
 import com.devp.forge.task.Task;
 import com.devp.forge.task.TaskRepository;
@@ -33,10 +34,10 @@ import org.springframework.stereotype.Service;
  * Executes a run: agent and task in, a loop of model rounds and tool calls, answer out,
  * verdicts appended — and a complete trace in the database.
  *
- * <p>The tool loop is driven by Spring AI's {@code ToolCallingAdvisor}: as long as the model
- * requests tools, it has them executed through the {@link TracingToolCallingManager} and
- * starts the next round. This service sets the frame — who, what, which tools, which
- * budget — and records it before the first call.
+ * <p>Two steps, so a batch can create many runs first and execute them later:
+ * {@link #prepare} resolves everything and records what the model will see;
+ * {@link #execute} runs a prepared run, re-resolving agent, model and task by the recorded
+ * versions — never by "current", which may have moved on while the run waited.
  */
 @Service
 public class RunService {
@@ -45,16 +46,19 @@ public class RunService {
 
 	private final ChatClientRegistry clients;
 	private final AgentRepository agents;
+	private final ModelRepository models;
 	private final TaskRepository tasks;
 	private final ToolRegistry tools;
 	private final RunRepository runs;
 	private final EvaluationService evaluation;
 	private final RunProperties properties;
 
-	public RunService(ChatClientRegistry clients, AgentRepository agents, TaskRepository tasks, ToolRegistry tools,
-			RunRepository runs, EvaluationService evaluation, RunProperties properties) {
+	public RunService(ChatClientRegistry clients, AgentRepository agents, ModelRepository models,
+			TaskRepository tasks, ToolRegistry tools, RunRepository runs, EvaluationService evaluation,
+			RunProperties properties) {
 		this.clients = clients;
 		this.agents = agents;
+		this.models = models;
 		this.tasks = tasks;
 		this.tools = tools;
 		this.runs = runs;
@@ -63,49 +67,76 @@ public class RunService {
 	}
 
 	/**
-	 * Starts a run and waits for it to finish.
+	 * One run, now, synchronously. Either a task or a free input; only a task run is
+	 * evaluated.
 	 *
-	 * <p>Either a task or a free input. Only a task run is evaluated; the free input is for
-	 * trying things out and records that it was one.
-	 *
-	 * @param agentId  required
-	 * @param taskId   task id, or {@code null} with {@code input}
-	 * @param input    free input, ignored when a task is named
+	 * @param agentVersion explicit version, or {@code null} for the current one
 	 */
-	public Run run(String agentId, String taskId, String input) {
-		if (agentId == null || agentId.isBlank()) {
-			throw new IllegalArgumentException("'agent' is required.");
-		}
+	public Run run(String agentId, Integer agentVersion, String taskId, String input) {
+		Agent agent = resolveAgent(agentId, agentVersion);
 		Task task = taskId == null || taskId.isBlank() ? null : tasks.get(taskId);
 		if (task == null && (input == null || input.isBlank())) {
 			throw new IllegalArgumentException("Either 'task' or 'input' is required.");
 		}
-		String userMessage = task != null ? task.input() : input;
+		Run prepared = prepare(agent, task, input, null, Instant.now());
+		runs.create(prepared);
+		return execute(prepared);
+	}
 
-		Agent agent = agents.get(agentId);
-		Model model = clients.model(agent.modelId());
+	public Agent resolveAgent(String agentId, Integer agentVersion) {
+		if (agentId == null || agentId.isBlank()) {
+			throw new IllegalArgumentException("'agent' is required.");
+		}
+		return agentVersion == null ? agents.get(agentId) : agents.get(agentId, agentVersion);
+	}
+
+	/**
+	 * Resolves model and tools and builds the run record with everything the model will see.
+	 * Nothing is written here; {@code startedAt == null} means queued.
+	 */
+	public Run prepare(Agent agent, Task task, String input, UUID batchId, Instant startedAt) {
+		Model model = models.get(agent.modelId());
 		if (!clients.isConfigured(model)) {
 			throw new AiNotConfiguredException("Model '%s' is not usable: %s".formatted(model.id(), clients.problem(model)));
 		}
+		String userMessage = task != null ? task.input() : input;
+		List<String> offered = tools.callbacks().stream()
+				.map(t -> t.getToolDefinition().name())
+				.filter(agent.tools()::allows)
+				.toList();
+		return new Run(UUID.randomUUID(), batchId, task == null ? null : task.id(),
+				task == null ? null : task.version(), agent.id(), agent.version(), model.id(), model.version(),
+				model.modelId(), model.temperature(), agent.systemPrompt(), userMessage, offered,
+				startedAt == null ? RunStatus.QUEUED : RunStatus.RUNNING, null, null, 0, null, null, null,
+				Instant.now(), startedAt, null, List.of(), List.of());
+	}
 
-		UUID id = UUID.randomUUID();
-		Instant start = Instant.now();
+	/**
+	 * Runs a prepared, already persisted run whose status is RUNNING. Ends in a final status
+	 * in every case; a failed call is recorded as FAILED and then rethrown for the caller.
+	 */
+	public Run execute(Run started) {
+		UUID id = started.id();
+		Instant start = started.startedAt() == null ? Instant.now() : started.startedAt();
+		Task task = started.taskId() == null ? null : tasks.get(started.taskId(), started.taskVersion());
+		Agent agent;
+		Model model;
+		try {
+			agent = agents.get(started.agentId(), started.agentVersion());
+			model = models.get(started.modelId(), started.modelVersion());
+		}
+		catch (RuntimeException ex) {
+			// Archived between queueing and execution — the recipe is gone, nothing to run.
+			return finish(started, RunStatus.FAILED, null, ex.getMessage(), start, null, null, task);
+		}
+
 		long deadline = System.currentTimeMillis() + properties.getMaxDurationMs();
-
 		List<ToolCallback> offered = new ArrayList<>(tools.callbacks().stream()
-				.filter(t -> agent.tools().allows(t.getToolDefinition().name()))
+				.filter(t -> started.tools().contains(t.getToolDefinition().name()))
 				.toList());
-		List<String> offeredNames = offered.stream().map(t -> t.getToolDefinition().name()).toList();
-
-		Run started = new Run(id, task == null ? null : task.id(), task == null ? null : task.version(), agent.id(),
-				agent.version(), model.id(), model.version(), model.modelId(), model.temperature(),
-				agent.systemPrompt(), userMessage, offeredNames, RunStatus.RUNNING, null, null, 0, null, null, null,
-				start, null, List.of(), List.of());
-		runs.start(started);
-		log.info("Run {} started: agent {} v{}, model {} v{}, task {}, {} of {} tool(s)", id, agent.id(),
-				agent.version(), model.id(), model.version(),
-				task == null ? "(ad hoc)" : task.id() + " v" + task.version(), offered.size(),
-				tools.callbacks().size());
+		log.info("Run {} started: agent {} v{}, model {} v{}, task {}, {} tool(s)", id, agent.id(), agent.version(),
+				model.id(), model.version(), task == null ? "(ad hoc)" : task.id() + " v" + task.version(),
+				offered.size());
 
 		Map<String, Object> toolContext = new LinkedHashMap<>();
 		toolContext.put(TracingToolCallingManager.RUN_ID, id);
@@ -116,8 +147,8 @@ public class RunService {
 
 		try {
 			ChatResponse response = clients.client(model).prompt()
-					.system(agent.systemPrompt())
-					.user(userMessage)
+					.system(started.systemPrompt())
+					.user(started.input())
 					.tools(offered)
 					.toolContext(toolContext)
 					.call()
@@ -163,18 +194,13 @@ public class RunService {
 	private Run finish(Run started, RunStatus status, String answer, String error, Instant start, String reportedModel,
 			Integer tokens, Task task) {
 		List<RunStep> trace = runs.trace(started.id());
-		Instant end = Instant.now();
 		Integer total = tokens != null ? tokens : trace.stream()
 				.map(RunStep::tokens)
 				.filter(Objects::nonNull)
 				.reduce(Integer::sum)
 				.orElse(null);
-
-		Run finished = new Run(started.id(), started.taskId(), started.taskVersion(), started.agentId(),
-				started.agentVersion(), started.modelId(), started.modelVersion(),
-				reportedModel == null ? started.modelName() : reportedModel, started.temperature(),
-				started.systemPrompt(), started.input(), started.tools(), status, answer, error, trace.size(), total,
-				end.toEpochMilli() - start.toEpochMilli(), null, start, end, trace, List.of());
+		Run finished = started.withStatus(status, start)
+				.finished(status, answer, error, reportedModel, total, Instant.now(), trace);
 		runs.finish(finished);
 		return evaluation.evaluate(finished, task);
 	}
@@ -183,8 +209,8 @@ public class RunService {
 		return runs.find(id);
 	}
 
-	public List<Run> history(String taskId, String agentId) {
-		return runs.list(properties.getHistoryLimit(), blankToNull(taskId), blankToNull(agentId));
+	public List<Run> history(String taskId, String agentId, UUID batchId) {
+		return runs.list(properties.getHistoryLimit(), blankToNull(taskId), blankToNull(agentId), batchId);
 	}
 
 	private static String blankToNull(String value) {
