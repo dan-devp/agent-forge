@@ -50,3 +50,6 @@ logs/
 tmp/
 *.pid
 /session-1.md
+
+# --- Data (models, agents, tasks, Postgres cluster) --------------------------
+data/

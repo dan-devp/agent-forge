@@ -1,0 +1,193 @@
+package com.devp.forge.run;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+
+import com.devp.forge.agent.Agent;
+import com.devp.forge.agent.AgentRepository;
+import com.devp.forge.ai.ChatClientRegistry;
+import com.devp.forge.ai.ChatClientRegistry.AiNotConfiguredException;
+import com.devp.forge.ai.ChatClientRegistry.ModelCallFailedException;
+import com.devp.forge.config.RunProperties;
+import com.devp.forge.eval.EvaluationService;
+import com.devp.forge.model.Model;
+import com.devp.forge.run.TracingToolCallingManager.BudgetExceededException;
+import com.devp.forge.task.Task;
+import com.devp.forge.task.TaskRepository;
+import com.devp.forge.tools.ToolRegistry;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.model.tool.ToolCallLimitExceededException;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.stereotype.Service;
+
+/**
+ * Executes a run: agent and task in, a loop of model rounds and tool calls, answer out,
+ * verdicts appended — and a complete trace in the database.
+ *
+ * <p>The tool loop is driven by Spring AI's {@code ToolCallingAdvisor}: as long as the model
+ * requests tools, it has them executed through the {@link TracingToolCallingManager} and
+ * starts the next round. This service sets the frame — who, what, which tools, which
+ * budget — and records it before the first call.
+ */
+@Service
+public class RunService {
+
+	private static final Logger log = LoggerFactory.getLogger(RunService.class);
+
+	private final ChatClientRegistry clients;
+	private final AgentRepository agents;
+	private final TaskRepository tasks;
+	private final ToolRegistry tools;
+	private final RunRepository runs;
+	private final EvaluationService evaluation;
+	private final RunProperties properties;
+
+	public RunService(ChatClientRegistry clients, AgentRepository agents, TaskRepository tasks, ToolRegistry tools,
+			RunRepository runs, EvaluationService evaluation, RunProperties properties) {
+		this.clients = clients;
+		this.agents = agents;
+		this.tasks = tasks;
+		this.tools = tools;
+		this.runs = runs;
+		this.evaluation = evaluation;
+		this.properties = properties;
+	}
+
+	/**
+	 * Starts a run and waits for it to finish.
+	 *
+	 * <p>Either a task or a free input. Only a task run is evaluated; the free input is for
+	 * trying things out and records that it was one.
+	 *
+	 * @param agentId  required
+	 * @param taskId   task id, or {@code null} with {@code input}
+	 * @param input    free input, ignored when a task is named
+	 */
+	public Run run(String agentId, String taskId, String input) {
+		if (agentId == null || agentId.isBlank()) {
+			throw new IllegalArgumentException("'agent' is required.");
+		}
+		Task task = taskId == null || taskId.isBlank() ? null : tasks.get(taskId);
+		if (task == null && (input == null || input.isBlank())) {
+			throw new IllegalArgumentException("Either 'task' or 'input' is required.");
+		}
+		String userMessage = task != null ? task.input() : input;
+
+		Agent agent = agents.get(agentId);
+		Model model = clients.model(agent.modelId());
+		if (!clients.isConfigured(model)) {
+			throw new AiNotConfiguredException("Model '%s' is not usable: %s".formatted(model.id(), clients.problem(model)));
+		}
+
+		UUID id = UUID.randomUUID();
+		Instant start = Instant.now();
+		long deadline = System.currentTimeMillis() + properties.getMaxDurationMs();
+
+		List<ToolCallback> offered = new ArrayList<>(tools.callbacks().stream()
+				.filter(t -> agent.tools().allows(t.getToolDefinition().name()))
+				.toList());
+		List<String> offeredNames = offered.stream().map(t -> t.getToolDefinition().name()).toList();
+
+		Run started = new Run(id, task == null ? null : task.id(), task == null ? null : task.version(), agent.id(),
+				agent.version(), model.id(), model.version(), model.modelId(), model.temperature(),
+				agent.systemPrompt(), userMessage, offeredNames, RunStatus.RUNNING, null, null, 0, null, null, null,
+				start, null, List.of(), List.of());
+		runs.start(started);
+		log.info("Run {} started: agent {} v{}, model {} v{}, task {}, {} of {} tool(s)", id, agent.id(),
+				agent.version(), model.id(), model.version(),
+				task == null ? "(ad hoc)" : task.id() + " v" + task.version(), offered.size(),
+				tools.callbacks().size());
+
+		Map<String, Object> toolContext = new LinkedHashMap<>();
+		toolContext.put(TracingToolCallingManager.RUN_ID, id);
+		toolContext.put(TracingToolCallingManager.DEADLINE, deadline);
+		if (task != null && task.maxToolCalls() != null) {
+			toolContext.put(TracingToolCallingManager.MAX_TOOL_CALLS, task.maxToolCalls());
+		}
+
+		try {
+			ChatResponse response = clients.client(model).prompt()
+					.system(agent.systemPrompt())
+					.user(userMessage)
+					.tools(offered)
+					.toolContext(toolContext)
+					.call()
+					.chatResponse();
+
+			if (response == null || response.getResult() == null) {
+				return finish(started, RunStatus.FAILED, null, "Endpoint returned an empty response.", start, null,
+						null, task);
+			}
+
+			String answer = response.getResult().getOutput().getText();
+			Integer tokens = response.getMetadata().getUsage() == null
+					? null
+					: response.getMetadata().getUsage().getTotalTokens();
+			String reported = response.getMetadata().getModel();
+
+			// Final round: the only model round that requests no tools and therefore does not
+			// pass through the ToolCallingManager.
+			runs.addStep(id, new RunStep(runs.nextStepNumber(id), StepType.MODEL, reported, null, answer, tokens,
+					null, null, Instant.now()));
+
+			return finish(started, RunStatus.DONE, answer, null, start,
+					reported == null || reported.isBlank() ? null : reported, tokens, task);
+		}
+		catch (ToolCallLimitExceededException | BudgetExceededException ex) {
+			// Budget is a result, not an error: the trace up to here stays usable.
+			log.info("Run {} ended by budget: {}", id, ex.getMessage());
+			return finish(started, RunStatus.BUDGET_EXCEEDED, null, ex.getMessage(), start, null, null, task);
+		}
+		catch (RuntimeException ex) {
+			log.warn("Run {} failed: {}", id, ex.getMessage());
+			finish(started, RunStatus.FAILED, null, "%s: %s".formatted(ex.getClass().getSimpleName(), ex.getMessage()),
+					start, null, null, task);
+			if (ex instanceof AiNotConfiguredException) {
+				throw ex;
+			}
+			throw new ModelCallFailedException("Run %s against model '%s' (%s) failed: %s".formatted(id, model.id(),
+					clients.effectiveBaseUrl(model), ex.getMessage()), ex);
+		}
+	}
+
+	/** Writes the final state, then lets the evals run. Every final state is evaluated. */
+	private Run finish(Run started, RunStatus status, String answer, String error, Instant start, String reportedModel,
+			Integer tokens, Task task) {
+		List<RunStep> trace = runs.trace(started.id());
+		Instant end = Instant.now();
+		Integer total = tokens != null ? tokens : trace.stream()
+				.map(RunStep::tokens)
+				.filter(Objects::nonNull)
+				.reduce(Integer::sum)
+				.orElse(null);
+
+		Run finished = new Run(started.id(), started.taskId(), started.taskVersion(), started.agentId(),
+				started.agentVersion(), started.modelId(), started.modelVersion(),
+				reportedModel == null ? started.modelName() : reportedModel, started.temperature(),
+				started.systemPrompt(), started.input(), started.tools(), status, answer, error, trace.size(), total,
+				end.toEpochMilli() - start.toEpochMilli(), null, start, end, trace, List.of());
+		runs.finish(finished);
+		return evaluation.evaluate(finished, task);
+	}
+
+	public Optional<Run> find(UUID id) {
+		return runs.find(id);
+	}
+
+	public List<Run> history(String taskId, String agentId) {
+		return runs.list(properties.getHistoryLimit(), blankToNull(taskId), blankToNull(agentId));
+	}
+
+	private static String blankToNull(String value) {
+		return value == null || value.isBlank() ? null : value;
+	}
+}

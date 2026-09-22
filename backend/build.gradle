@@ -32,7 +32,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
-	// SOUL files are Markdown with YAML front matter — used directly, hence explicit.
+	// Entities are Markdown with YAML front matter — used directly, hence explicit.
 	implementation 'org.yaml:snakeyaml'
 
 	// --- Persistence -------------------------------------------------------

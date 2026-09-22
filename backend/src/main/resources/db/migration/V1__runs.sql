@@ -1,31 +1,42 @@
--- Runs, their steps and their scores. The trace is not a debugging by-product but the
--- input of the later learning loop (README, layer 4) — hence complete and append-only:
--- a step or a score is written once and never changed.
+-- Runs, their steps and their verdicts. The trace is the product, not a debugging
+-- by-product — hence complete and append-only: a step or a verdict is written once and
+-- never changed.
+--
+-- The authored entities (models, agents, tasks) live as versioned files under
+-- DATA_DIR/files, not here. A run records their id AND version so the recipe behind a
+-- result stays readable whatever was saved since.
 
-create table agent_run (
+create table run (
     id              uuid primary key,
-    goal            text        not null,
-    -- Which task in which revision triggered the run? Without the version a later
-    -- comparison is worthless: a changed task produces different results unnoticed.
     task_id         text,
     task_version    int,
-    soul_id         text        not null,
-    soul_version    int         not null,
-    provider_id     text        not null,
-    model           text,
+    agent_id        text        not null,
+    agent_version   int         not null,
+    model_id        text        not null,
+    model_version   int         not null,
+    -- Model id at the endpoint, as the response reported it (or as the file said).
+    model_name      text,
+    temperature     numeric(4,3) not null,
+    -- What the model saw, written before the first call: if the run crashes, the
+    -- parameters are still here.
+    system_prompt   text        not null,
+    input           text        not null,
+    tools           text[]      not null,
     status          text        not null,
     answer          text,
     error           text,
     steps           int         not null default 0,
     total_tokens    int,
     duration_ms     bigint,
+    -- null = nothing evaluated (ad-hoc input or task without evals)
+    passed          boolean,
     started_at      timestamptz not null,
     finished_at     timestamptz
 );
 
-create table agent_run_step (
+create table run_step (
     id          bigserial   primary key,
-    run_id      uuid        not null references agent_run (id) on delete cascade,
+    run_id      uuid        not null references run (id) on delete cascade,
     seq         int         not null,
     type        text        not null,
     name        text,
@@ -35,23 +46,26 @@ create table agent_run_step (
     duration_ms bigint,
     error       text,
     created_at  timestamptz not null,
-    constraint agent_run_step_seq_unique unique (run_id, seq)
+    constraint run_step_seq_unique unique (run_id, seq)
 );
 
--- Several graders per run (deterministic, judge, human), each verdict its own row, never
--- overwritten — a later grader must not hide an earlier one, or the graders themselves
--- can no longer be compared.
-create table agent_run_score (
-    id          bigserial    primary key,
-    run_id      uuid         not null references agent_run (id) on delete cascade,
-    grader      text         not null,
-    score       numeric(5,4) not null,
-    passed      boolean      not null,
+-- One row per configured eval. A judge that called a model leaves its cost here too,
+-- because a cost axis that omits the judge lies.
+create table run_eval (
+    id          bigserial   primary key,
+    run_id      uuid        not null references run (id) on delete cascade,
+    idx         int         not null,
+    type        text        not null,
+    passed      boolean     not null,
     rationale   text,
-    created_at  timestamptz  not null
+    model       text,
+    tokens      int,
+    duration_ms bigint,
+    created_at  timestamptz not null
 );
 
-create index agent_run_step_run_idx on agent_run_step (run_id, seq);
-create index agent_run_started_idx on agent_run (started_at desc);
-create index agent_run_task_idx on agent_run (task_id, task_version);
-create index agent_run_score_run_idx on agent_run_score (run_id);
+create index run_step_run_idx on run_step (run_id, seq);
+create index run_eval_run_idx on run_eval (run_id, idx);
+create index run_started_idx on run (started_at desc);
+create index run_task_idx on run (task_id, task_version);
+create index run_agent_idx on run (agent_id, agent_version);

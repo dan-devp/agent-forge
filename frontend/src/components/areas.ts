@@ -1,11 +1,9 @@
 /** The areas of the workspace. Separate from the component so fast refresh keeps working. */
-export type Area = 'training' | 'runs' | 'agents' | 'tasks' | 'strategies' | 'settings'
+export type Area = 'models' | 'agents' | 'tasks' | 'runs'
 
-export const AREAS: { id: Area; label: string; hint: string }[] = [
-  { id: 'training', label: 'Training', hint: 'Experimente und Trainings' },
-  { id: 'runs', label: 'Läufe', hint: 'Einzellauf, Historie, Chat' },
-  { id: 'agents', label: 'Agenten', hint: 'Modell, SOUL, Werkzeuge' },
-  { id: 'tasks', label: 'Aufgaben', hint: 'Auftrag und Erfolgskriterien' },
-  { id: 'strategies', label: 'Strategien', hint: 'Katalog und Profile' },
-  { id: 'settings', label: 'Einstellungen', hint: 'Modelle, Werkzeuge, SOULs' },
+export const AREAS: { id: Area; label: string; hint: string; ready: boolean }[] = [
+  { id: 'models', label: 'Modelle', hint: 'Endpunkt, Modell-Id, Schlüssel', ready: true },
+  { id: 'agents', label: 'Agenten', hint: 'Modell + Systemprompt', ready: false },
+  { id: 'tasks', label: 'Aufgaben', hint: 'Eingabe + Evals', ready: false },
+  { id: 'runs', label: 'Läufe', hint: 'Starten, Trace, Urteile', ready: false },
 ]

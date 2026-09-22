@@ -1,23 +1,22 @@
 services:
   postgres:
-    # pgvector variant instead of plain postgres: step 3 (skill retrieval via
-    # embeddings) needs the extension, and switching the base image later is costlier.
+    # pgvector variant instead of plain postgres: later retrieval over traces will want the
+    # extension, and switching the base image later is costlier.
     image: pgvector/pgvector:pg18
-    container_name: agent-postgres
+    container_name: forge-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-agent}
-      POSTGRES_USER: ${POSTGRES_USER:-agent}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent}
+      POSTGRES_DB: ${POSTGRES_DB:-forge}
+      POSTGRES_USER: ${POSTGRES_USER:-forge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-forge}
     ports:
-      # 5433 as default because developer machines often already run a Postgres
-      # on 5432. The backend container talks to postgres:5432 anyway.
+      # 5433 as default because developer machines often already run a Postgres on 5432.
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
-      # Postgres 18 expects the mount at /var/lib/postgresql, not at the data
-      # subdirectory — otherwise startup aborts with "unused mount/volume".
-      - postgres-data:/var/lib/postgresql
+      # The cluster lives under DATA_DIR/db on the host, next to the files. Postgres 18
+      # expects the mount at /var/lib/postgresql, not at the data subdirectory.
+      - ${DATA_DIR:-./data}/db:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent} -d ${POSTGRES_DB:-agent}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-forge} -d ${POSTGRES_DB:-forge}"]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -26,67 +25,27 @@ services:
   backend:
     build:
       context: ./backend
-    image: agent-backend:dev
-    container_name: agent-backend
+    image: forge-backend:dev
+    container_name: forge-backend
     ports:
       - "8080:8080"
+    # Everything in .env reaches the container — including the API_KEY_* variables the
+    # model files reference. Compose does not pass them through on its own.
+    env_file:
+      - path: .env
+        required: false
     environment:
-      AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-openai}
-
-      # --- Cloud (OpenAI or any OpenAI-compatible gateway) ---
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-not-set}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
-
-      # --- Local (LM Studio, Ollama, vLLM, llama.cpp, LiteLLM) ---
-      # If the server runs on the host, host.docker.internal must be used here.
-      LOCAL_AI_BASE_URL: ${LOCAL_AI_BASE_URL:-http://host.docker.internal:1234/v1}
-      LOCAL_AI_API_KEY: ${LOCAL_AI_API_KEY:-not-needed}
-      LOCAL_AI_MODEL: ${LOCAL_AI_MODEL:-local-model}
-      LOCAL_AI_ENABLED: ${LOCAL_AI_ENABLED:-true}
-
-      # --- Gateway (LiteLLM): one provider per model, URL and key shared ---
-      LITELLM_BASE_URL: ${LITELLM_BASE_URL:-}
-      LITELLM_API_KEY: ${LITELLM_API_KEY:-not-set}
-      LITELLM_ENABLED: ${LITELLM_ENABLED:-true}
-      GATEWAY_MODEL: ${GATEWAY_MODEL:-gpt-4o-mini}
-      QWEN_MODEL: ${QWEN_MODEL:-Qwen/Qwen3.6-27B-FP8}
-
-      # --- SOUL ---
-      # For own SOULs without a rebuild: mount ./souls here (see volumes below)
-      # and set SOUL_LOCATIONS=classpath:souls/,file:/souls/.
-      SOUL_LOCATIONS: ${SOUL_LOCATIONS:-classpath:souls/}
-      SOUL_ACTIVE: ${SOUL_ACTIVE:-forge}
-
-      # --- Strategy profiles ---
-      PROFILE_LOCATIONS: ${PROFILE_LOCATIONS:-classpath:profiles/}
-      PROFILE_DEFAULT: ${PROFILE_DEFAULT:-baseline}
-
-      # --- Database (runs, traces, scores) ---
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-agent}
-      DB_USER: ${POSTGRES_USER:-agent}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-agent}
-
-      # --- Agent budget ---
-      AGENT_MAX_TOOL_CALLS: ${AGENT_MAX_TOOL_CALLS:-20}
-      AGENT_MAX_CALLS_PER_TOOL: ${AGENT_MAX_CALLS_PER_TOOL:-8}
-      AGENT_MAX_DURATION_MS: ${AGENT_MAX_DURATION_MS:-180000}
-      AGENT_MAX_VERIFY_ROUNDS: ${AGENT_MAX_VERIFY_ROUNDS:-3}
-      AGENT_MAX_TRAINING_REPETITIONS: ${AGENT_MAX_TRAINING_REPETITIONS:-50}
-
-      # --- Tools ---
-      TOOLS_BUILTIN_ENABLED: ${TOOLS_BUILTIN_ENABLED:-true}
+      # Inside the container the data directory is always /data; the host side is DATA_DIR.
+      DATA_DIR: /data
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-forge}
+      DB_USER: ${POSTGRES_USER:-forge}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-forge}
+      MCP_MOCK_URL: ${MCP_MOCK_URL:-http://host.docker.internal:3333/mcp}
+      # Verification switches, normally empty (see .env.example).
+      MODEL_BASE_URL_OVERRIDE: ${MODEL_BASE_URL_OVERRIDE:-}
       TOOLS_FIXED_TIME: ${TOOLS_FIXED_TIME:-}
-
-      # --- MCP servers (optional) ---
-      # Example registration against tools/mock-mcp-server.py on the host.
-      # Leave disabled to register no server.
-      APP_TOOLS_MCP_MOCK_ENABLED: ${MCP_MOCK_ENABLED:-false}
-      APP_TOOLS_MCP_MOCK_LABEL: Mock-MCP
-      APP_TOOLS_MCP_MOCK_TRANSPORT: HTTP
-      APP_TOOLS_MCP_MOCK_URL: ${MCP_MOCK_URL:-http://host.docker.internal:3333/mcp}
-    # volumes:
-    #   - ./souls:/souls:ro
+    volumes:
+      - ${DATA_DIR:-./data}/files:/data/files
     depends_on:
       postgres:
         condition: service_healthy
@@ -102,13 +61,10 @@ services:
   frontend:
     build:
       context: ./frontend
-    image: agent-frontend:dev
-    container_name: agent-frontend
+    image: forge-frontend:dev
+    container_name: forge-frontend
     ports:
       - "3000:80"
     depends_on:
       backend:
         condition: service_healthy
-
-volumes:
-  postgres-data:
