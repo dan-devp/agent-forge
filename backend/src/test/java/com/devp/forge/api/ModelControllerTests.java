@@ -44,9 +44,10 @@ class ModelControllerTests {
 
 	private static String body(String name, String apiKeyEnv, boolean local) {
 		return """
-				{"id":"%s","name":"%s","baseUrl":"https://gw.example.com/v1","modelId":"qwen",
-				 "apiKeyEnv":%s,"temperature":0.3,"local":%s}
-				""".formatted(ID, name, apiKeyEnv == null ? "null" : "\"" + apiKeyEnv + "\"", local);
+				{"id":"%s","name":"%s","provider":"%s","baseUrl":"https://gw.example.com/v1","modelId":"qwen",
+				 "apiKeyEnv":%s,"temperature":0.3}
+				""".formatted(ID, name, local ? "local" : "custom",
+				apiKeyEnv == null ? "null" : "\"" + apiKeyEnv + "\"");
 	}
 
 	@Test
@@ -68,6 +69,7 @@ class ModelControllerTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.version").value(2))
 				.andExpect(jsonPath("$.name").value("Qwen 2"))
+				.andExpect(jsonPath("$.local").value(true))
 				.andExpect(jsonPath("$.configured").value(true));
 
 		mvc.perform(get("/api/models/" + ID))
@@ -101,11 +103,37 @@ class ModelControllerTests {
 	@Test
 	void invalidModelIsABadRequestNamingTheField() throws Exception {
 		String noUrl = """
-				{"id":"%s","name":"X","baseUrl":"ftp://nope","modelId":"m","local":true}
+				{"id":"%s","name":"X","provider":"local","baseUrl":"ftp://nope","modelId":"m"}
 				""".formatted(ID);
 		mvc.perform(post("/api/models").contentType(MediaType.APPLICATION_JSON).content(noUrl))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.detail").value(containsString("base-url")));
+	}
+
+	/** A cloud provider fixes the URL and fills it in when omitted; a different URL is refused. */
+	@Test
+	void cloudProviderFixesTheBaseUrl() throws Exception {
+		String openai = """
+				{"id":"%s","name":"GPT","provider":"openai","modelId":"gpt-4o-mini","apiKeyEnv":"API_KEY_OPENAI"}
+				""".formatted(ID);
+		mvc.perform(post("/api/models").contentType(MediaType.APPLICATION_JSON).content(openai))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.provider").value("openai"))
+				.andExpect(jsonPath("$.baseUrl").value("https://api.openai.com/v1"));
+
+		String elsewhere = """
+				{"name":"GPT","provider":"openai","baseUrl":"https://evil.example/v1","modelId":"x","apiKeyEnv":"API_KEY_OPENAI"}
+				""";
+		mvc.perform(put("/api/models/" + ID).contentType(MediaType.APPLICATION_JSON).content(elsewhere))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.detail").value(containsString("must be https://api.openai.com/v1")));
+
+		String noKey = """
+				{"name":"GPT","provider":"openai","modelId":"x"}
+				""";
+		mvc.perform(put("/api/models/" + ID).contentType(MediaType.APPLICATION_JSON).content(noKey))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.detail").value(containsString("api-key-env")));
 	}
 
 	/** The seeded model is referenced by the seeded agents — archiving it must be refused. */

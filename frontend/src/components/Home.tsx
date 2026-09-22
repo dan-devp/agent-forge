@@ -1,0 +1,27 @@
+import { Link } from 'react-router'
+import type { Status } from '../api/client'
+import { AREAS } from './areas'
+
+/** The root: one tile per area. Nothing is selected here, so no terracotta. */
+export function Home({ status }: { status: Status | null }) {
+  return (
+    <div className="home">
+      <div className="home-head">
+        <h1>Trainingslager</h1>
+        <p>Modelle, Agenten und Aufgaben zusammenstellen. Läufe aufzeichnen und bewerten.</p>
+      </div>
+      <div className="tiles">
+        {AREAS.map((a) => (
+          <Link key={a.id} to={a.path} className={`tile ${a.ready ? '' : 'disabled'}`}>
+            <div className="tile-head">
+              <h2>{a.label}</h2>
+              <span className="count">{status ? a.count(status) : '…'}</span>
+            </div>
+            <p className="hint">{a.hint}</p>
+            <div className="foot">{!a.ready && <span className="pill ghost">kommt als Nächstes</span>}</div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}

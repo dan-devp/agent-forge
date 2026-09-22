@@ -4,6 +4,17 @@ export type Status = {
   agents: number
   tasks: number
   tools: number
+  runs: number
+}
+
+export type ProviderKey = 'openai' | 'anthropic' | 'custom' | 'local'
+
+export type ProviderInfo = {
+  key: ProviderKey
+  label: string
+  fixedBaseUrl: string | null
+  defaultKeyEnv: string | null
+  local: boolean
 }
 
 export type ModelView = {
@@ -11,6 +22,7 @@ export type ModelView = {
   version: number
   name: string
   description: string | null
+  provider: ProviderKey
   baseUrl: string
   modelId: string
   apiKeyEnv: string | null
@@ -32,11 +44,11 @@ export type ModelRequest = {
   id?: string
   name: string
   description: string | null
-  baseUrl: string
+  provider: ProviderKey
+  baseUrl: string | null
   modelId: string
   apiKeyEnv: string | null
   temperature: number
-  local: boolean
 }
 
 export type SecretNames = {
@@ -85,4 +97,5 @@ export const api = {
   reloadModels: () => request<ModelView[]>('/api/models/reload', { method: 'POST' }),
 
   secrets: () => request<SecretNames>('/api/secrets'),
+  providers: () => request<ProviderInfo[]>('/api/providers'),
 }

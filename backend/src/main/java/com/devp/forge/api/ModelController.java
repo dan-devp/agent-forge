@@ -7,6 +7,7 @@ import com.devp.forge.agent.AgentRepository;
 import com.devp.forge.ai.ChatClientRegistry;
 import com.devp.forge.model.Model;
 import com.devp.forge.model.ModelRepository;
+import com.devp.forge.model.Provider;
 import com.devp.forge.run.RunRepository;
 import com.devp.forge.secrets.SecretResolver;
 import com.devp.forge.store.StoreExceptions.EntityInUseException;
@@ -115,25 +116,35 @@ public class ModelController {
 
 	private ModelView view(Model m) {
 		boolean keySet = m.apiKeyEnv() != null && secrets.isSet(m.apiKeyEnv());
-		return new ModelView(m.id(), m.version(), m.name(), m.description(), m.baseUrl(), m.modelId(), m.apiKeyEnv(),
-				keySet, m.temperature(), m.local(), clients.isConfigured(m), clients.problem(m));
+		return new ModelView(m.id(), m.version(), m.name(), m.description(), m.provider().key(), m.baseUrl(),
+				m.modelId(), m.apiKeyEnv(), keySet, m.temperature(), m.local(), clients.isConfigured(m),
+				clients.problem(m));
 	}
 
 	/** A model as the UI sees it. {@code keySet} says whether the named variable has a value; the value never leaves the server. */
-	public record ModelView(String id, int version, String name, String description, String baseUrl, String modelId,
-			String apiKeyEnv, boolean keySet, double temperature, boolean local, boolean configured, String problem) {
+	public record ModelView(String id, int version, String name, String description, String provider, String baseUrl,
+			String modelId, String apiKeyEnv, boolean keySet, double temperature, boolean local, boolean configured,
+			String problem) {
 	}
 
 	public record ModelDetail(ModelView model, List<Integer> versions, int runs, List<String> usedByAgents) {
 	}
 
-	public record ModelRequest(String id, String name, String description, String baseUrl, String modelId,
-			String apiKeyEnv, Double temperature, Boolean local) {
+	/** {@code provider}: openai | anthropic | custom | local. For the clouds {@code baseUrl} may be omitted. */
+	public record ModelRequest(String id, String name, String description, String provider, String baseUrl,
+			String modelId, String apiKeyEnv, Double temperature) {
 
 		Model toModel(String id, int version) {
-			return new Model(id, version, name, description, baseUrl, modelId,
-					apiKeyEnv == null || apiKeyEnv.isBlank() ? null : apiKeyEnv, temperature == null ? 0.7 : temperature,
-					local != null && local);
+			Provider p;
+			try {
+				p = Provider.fromKey(provider == null ? "custom" : provider);
+			}
+			catch (IllegalArgumentException ex) {
+				throw new EntityInvalidException("'provider' must be one of openai, anthropic, custom, local");
+			}
+			String url = baseUrl == null || baseUrl.isBlank() ? p.fixedBaseUrl() : baseUrl;
+			return new Model(id, version, name, description, p, url, modelId,
+					apiKeyEnv == null || apiKeyEnv.isBlank() ? null : apiKeyEnv, temperature == null ? 0.7 : temperature);
 		}
 	}
 }

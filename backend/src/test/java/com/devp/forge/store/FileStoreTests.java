@@ -6,6 +6,7 @@ import java.nio.file.Path;
 
 import com.devp.forge.model.Model;
 import com.devp.forge.model.ModelCodec;
+import com.devp.forge.model.Provider;
 import com.devp.forge.store.StoreExceptions.EntityConflictException;
 import com.devp.forge.store.StoreExceptions.EntityInvalidException;
 import com.devp.forge.store.StoreExceptions.UnknownEntityException;
@@ -31,7 +32,7 @@ class FileStoreTests {
 	}
 
 	private static Model draft(String id) {
-		return new Model(id, 0, "Name " + id, null, "http://localhost:1234/v1", "m", null, 0.5, true);
+		return new Model(id, 0, "Name " + id, null, Provider.LOCAL, "http://localhost:1234/v1", "m", null, 0.5);
 	}
 
 	@Test
@@ -49,8 +50,8 @@ class FileStoreTests {
 		store.create(draft("alpha"));
 		String v1 = Files.readString(dir.resolve("models/alpha/v1.md"));
 
-		Model v2 = store.update(new Model("alpha", 0, "Renamed", null, "http://localhost:1234/v1", "m2", null, 0.5,
-				true));
+		Model v2 = store.update(new Model("alpha", 0, "Renamed", null, Provider.LOCAL, "http://localhost:1234/v1",
+				"m2", null, 0.5));
 
 		assertThat(v2.version()).isEqualTo(2);
 		assertThat(v2.name()).isEqualTo("Renamed");
@@ -81,7 +82,7 @@ class FileStoreTests {
 	/** Validation runs through the codec on the way in — the file is never written. */
 	@Test
 	void rejectsInvalidEntitiesBeforeWriting() {
-		Model noName = new Model("alpha", 0, null, null, "http://h/v1", "m", null, 0.5, true);
+		Model noName = new Model("alpha", 0, null, null, Provider.LOCAL, "http://h/v1", "m", null, 0.5);
 		assertThatThrownBy(() -> store.create(noName)).isInstanceOf(EntityInvalidException.class)
 				.hasMessageContaining("name");
 		assertThat(dir.resolve("models/alpha")).doesNotExist();

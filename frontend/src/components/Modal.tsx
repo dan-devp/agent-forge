@@ -16,9 +16,9 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
   return (
     <div className="backdrop" onClick={onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
-        <div className="panel-head">
+        <div className="card-head">
           <h2>{title}</h2>
-          <button className="btn ghost sm" onClick={onClose}>
+          <button className="btn quiet sm" onClick={onClose} style={{ marginLeft: 'auto' }}>
             schließen
           </button>
         </div>

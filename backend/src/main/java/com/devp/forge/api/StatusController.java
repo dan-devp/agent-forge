@@ -3,6 +3,7 @@ package com.devp.forge.api;
 import com.devp.forge.agent.AgentRepository;
 import com.devp.forge.config.DataProperties;
 import com.devp.forge.model.ModelRepository;
+import com.devp.forge.run.RunRepository;
 import com.devp.forge.task.TaskRepository;
 import com.devp.forge.tools.ToolRegistry;
 
@@ -20,22 +21,24 @@ public class StatusController {
 	private final AgentRepository agents;
 	private final TaskRepository tasks;
 	private final ToolRegistry tools;
+	private final RunRepository runs;
 
 	public StatusController(DataProperties data, ModelRepository models, AgentRepository agents,
-			TaskRepository tasks, ToolRegistry tools) {
+			TaskRepository tasks, ToolRegistry tools, RunRepository runs) {
 		this.data = data;
 		this.models = models;
 		this.agents = agents;
 		this.tasks = tasks;
 		this.tools = tools;
+		this.runs = runs;
 	}
 
 	@GetMapping
 	public Status status() {
 		return new Status(data.getDataDir().toAbsolutePath().normalize().toString(), models.list().size(),
-				agents.list().size(), tasks.list().size(), tools.list().size());
+				agents.list().size(), tasks.list().size(), tools.list().size(), runs.count());
 	}
 
-	public record Status(String dataDir, int models, int agents, int tasks, int tools) {
+	public record Status(String dataDir, int models, int agents, int tasks, int tools, int runs) {
 	}
 }

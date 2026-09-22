@@ -10,22 +10,27 @@ import com.devp.forge.store.Versioned;
  *
  * @param baseUrl   complete base URL including the version path, e.g. {@code https://api.openai.com/v1}
  * @param modelId   model id at the endpoint
+ * @param provider  where it lives; fixes the base URL for the well-known clouds
  * @param apiKeyEnv name of the environment variable holding the key, or {@code null} for none
- * @param local     true = usable without a key (local servers ignore it)
  */
 public record Model(
 		String id,
 		int version,
 		String name,
 		String description,
+		Provider provider,
 		String baseUrl,
 		String modelId,
 		String apiKeyEnv,
-		double temperature,
-		boolean local) implements Versioned {
+		double temperature) implements Versioned {
+
+	/** Usable without a key — local servers ignore it. */
+	public boolean local() {
+		return provider.isLocal();
+	}
 
 	/** Needs a key from the environment before it can be called. */
 	public boolean needsKey() {
-		return !local;
+		return !local();
 	}
 }

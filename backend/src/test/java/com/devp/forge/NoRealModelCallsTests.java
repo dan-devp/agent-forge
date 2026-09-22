@@ -4,6 +4,7 @@ import com.devp.forge.ai.ChatClientRegistry;
 import com.devp.forge.config.ModelProperties;
 import com.devp.forge.model.Model;
 import com.devp.forge.model.ModelRepository;
+import com.devp.forge.model.Provider;
 import com.devp.forge.support.PostgresTestcontainer;
 
 import org.junit.jupiter.api.Test;
@@ -55,8 +56,8 @@ class NoRealModelCallsTests {
 
 	@Test
 	void aModelSavedWithARealUrlIsStillRedirected() {
-		Model real = new Model("guard-" + System.nanoTime(), 0, "Guard", null, "https://api.openai.com/v1",
-				"gpt-4o-mini", null, 0.7, true);
+		Model real = new Model("guard-" + System.nanoTime(), 0, "Guard", null, Provider.LOCAL,
+				"https://api.openai.com/v1", "gpt-4o-mini", null, 0.7);
 		Model saved = models.create(real);
 		try {
 			assertThat(registry.effectiveBaseUrl(saved)).isEqualTo(DEAD);

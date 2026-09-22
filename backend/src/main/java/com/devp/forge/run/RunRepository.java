@@ -137,6 +137,10 @@ public class RunRepository {
 				.toList();
 	}
 
+	public int count() {
+		return db.sql("select count(*) from run").query(Integer.class).single();
+	}
+
 	/** Do any runs reference this entity? Used before archiving, to warn rather than to block. */
 	public int countByAgent(String agentId) {
 		return db.sql("select count(*) from run where agent_id = ?").param(agentId).query(Integer.class).single();

@@ -14,13 +14,17 @@ import com.devp.forge.store.StoreExceptions.EntityInvalidException;
  * id: gateway
  * version: 1
  * name: Gateway (LiteLLM)
+ * provider: custom        # openai | anthropic | custom | local
  * base-url: https://litellm.example.com/v1
  * model: gpt-4o-mini
  * api-key-env: API_KEY_LITELLM
  * temperature: 0.7
- * local: false
  * ---
  * </pre>
+ *
+ * <p>For {@code openai} and {@code anthropic} the base URL is fixed; a file that says
+ * otherwise is rejected. Older files without {@code provider} are read as {@code local}
+ * when they say {@code local: true}, else {@code custom}.
  */
 public final class ModelCodec implements EntityCodec<Model> {
 
@@ -31,9 +35,20 @@ public final class ModelCodec implements EntityCodec<Model> {
 
 	@Override
 	public Model decode(MarkdownDocument d) {
-		String baseUrl = FileStore.required(d, "base-url");
+		Provider provider = provider(d);
+		String baseUrl = provider.fixedBaseUrl() != null
+				? d.text("base-url", provider.fixedBaseUrl())
+				: FileStore.required(d, "base-url");
 		if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
 			throw new EntityInvalidException("'base-url' must start with http:// or https://");
+		}
+		if (provider.fixedBaseUrl() != null && !baseUrl.equals(provider.fixedBaseUrl())) {
+			throw new EntityInvalidException("'base-url' for provider %s must be %s".formatted(provider.key(),
+					provider.fixedBaseUrl()));
+		}
+		String apiKeyEnv = d.text("api-key-env");
+		if (!provider.isLocal() && apiKeyEnv == null) {
+			throw new EntityInvalidException("'api-key-env' is required unless provider is local");
 		}
 		Double temperature = d.decimal("temperature");
 		if (temperature != null && (temperature < 0 || temperature > 2)) {
@@ -44,11 +59,25 @@ public final class ModelCodec implements EntityCodec<Model> {
 				d.integer("version", 1),
 				FileStore.required(d, "name"),
 				d.text("description"),
+				provider,
 				baseUrl,
 				FileStore.required(d, "model"),
-				d.text("api-key-env"),
-				temperature == null ? 0.7 : temperature,
-				d.bool("local", false));
+				apiKeyEnv,
+				temperature == null ? 0.7 : temperature);
+	}
+
+	private static Provider provider(MarkdownDocument d) {
+		String key = d.text("provider");
+		if (key == null) {
+			return d.bool("local", false) ? Provider.LOCAL : Provider.CUSTOM;
+		}
+		try {
+			return Provider.fromKey(key);
+		}
+		catch (IllegalArgumentException ex) {
+			throw new EntityInvalidException("'provider' must be one of openai, anthropic, custom, local — was '%s'"
+					.formatted(key));
+		}
 	}
 
 	@Override
@@ -60,13 +89,13 @@ public final class ModelCodec implements EntityCodec<Model> {
 		if (m.description() != null && !m.description().isBlank()) {
 			fm.put("description", m.description());
 		}
+		fm.put("provider", m.provider().key());
 		fm.put("base-url", m.baseUrl());
 		fm.put("model", m.modelId());
 		if (m.apiKeyEnv() != null && !m.apiKeyEnv().isBlank()) {
 			fm.put("api-key-env", m.apiKeyEnv());
 		}
 		fm.put("temperature", m.temperature());
-		fm.put("local", m.local());
 		return fm;
 	}
 
@@ -77,7 +106,7 @@ public final class ModelCodec implements EntityCodec<Model> {
 
 	@Override
 	public Model withVersion(Model m, int version) {
-		return new Model(m.id(), version, m.name(), m.description(), m.baseUrl(), m.modelId(), m.apiKeyEnv(),
-				m.temperature(), m.local());
+		return new Model(m.id(), version, m.name(), m.description(), m.provider(), m.baseUrl(), m.modelId(),
+				m.apiKeyEnv(), m.temperature());
 	}
 }
