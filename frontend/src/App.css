@@ -917,3 +917,158 @@ textarea.prompt {
   color: var(--text);
   font-weight: 600;
 }
+
+/* ---- Matrix: agent versions x tasks ------------------------------------- */
+
+.matrix-wrap {
+  overflow-x: auto;
+}
+
+.matrix {
+  display: grid;
+  gap: 0.6rem;
+  align-items: stretch;
+  min-width: max-content;
+}
+
+.matrix .corner {
+  min-width: 5.5rem;
+}
+
+.matrix .col-head {
+  text-align: center;
+  padding: 0.4rem 0.6rem 0.6rem;
+  min-width: 9.5rem;
+}
+
+.matrix .col-head .id {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 1.05rem;
+  display: block;
+}
+
+.matrix .col-head .name {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.matrix .row-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+}
+
+.matrix .row-head .go {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.6rem;
+}
+
+/* The cell: big fraction, a mark per run. Empty cells are a hollow surface, like the
+   screenshot's waiting rows. */
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 4.6rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 16px;
+  background: var(--surface-2);
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.1s ease;
+  position: relative;
+}
+
+.cell:hover {
+  filter: brightness(0.97);
+}
+
+.cell.pass {
+  background: var(--pass);
+  color: var(--pass-text);
+}
+
+.cell.fail {
+  background: var(--fail);
+  color: var(--fail-text);
+}
+
+.cell.mixed {
+  background: var(--open);
+  color: var(--open-text);
+}
+
+.cell.busy {
+  background: var(--surface-3);
+  color: var(--text-muted);
+}
+
+.cell.selected {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cell .num {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.cell .num small {
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.cell .marks {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  opacity: 0.85;
+  word-break: break-all;
+  text-align: center;
+  max-width: 12rem;
+}
+
+.cell .mixed-versions {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.5rem;
+  font-size: 0.65rem;
+  font-family: var(--mono);
+  opacity: 0.7;
+}
+
+.cell .cell-go {
+  position: absolute;
+  bottom: 0.3rem;
+  right: 0.4rem;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.45rem;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.cell:hover .cell-go {
+  opacity: 1;
+}
+
+.n-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+}
+
+.n-field input {
+  width: 4rem;
+  text-align: center;
+  background: var(--surface-2);
+}
