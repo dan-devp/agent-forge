@@ -2,7 +2,7 @@
 id: argus
 version: 1
 name: Argus
-description: Gegenprobe ohne Werkzeuge. Zeigt, was ein Agent ohne Werkzeuge aus derselben Aufgabe macht.
+description: Gegenprobe ohne Tools. Zeigt, was ein Agent ohne Tools aus demselben Task macht.
 model: local
 tools: none
 ---

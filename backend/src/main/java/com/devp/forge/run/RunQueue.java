@@ -115,7 +115,7 @@ public class RunQueue {
 	}
 
 	/**
-	 * The picture: agent versions as rows, tasks as columns, each cell the runs of that pair.
+	 * The picture: agent versions as rows, tasks as columns, each cell a pair with its run series.
 	 * Rows include every known version of the agent, so a version without runs shows as
 	 * empty rather than missing. Computed from the runs on every call; nothing is stored.
 	 */
@@ -136,15 +136,15 @@ public class RunQueue {
 		rows.stream().map(Run::taskId).filter(t -> !columns.contains(t)).forEach(columns::add);
 
 		List<MatrixRow> matrixRows = byVersion.entrySet().stream().map(e -> {
-			List<Cell> cells = columns.stream().map(taskId -> {
-				List<Run> cellRuns = e.getValue().getOrDefault(taskId, List.of());
-				return new Cell(taskId,
-						cellRuns.stream().map(Run::taskVersion).distinct().sorted().toList(),
-						cellRuns.stream().map(Run::modelVersion).distinct().sorted().toList(),
-						cellRuns.stream().map(r -> new CellRun(r.id(), r.batchId(), r.status(), r.passed(),
+			List<Pair> pairs = columns.stream().map(taskId -> {
+				List<Run> series = e.getValue().getOrDefault(taskId, List.of());
+				return new Pair(taskId,
+						series.stream().map(Run::taskVersion).distinct().sorted().toList(),
+						series.stream().map(Run::modelVersion).distinct().sorted().toList(),
+						series.stream().map(r -> new SeriesRun(r.id(), r.batchId(), r.status(), r.passed(),
 								r.taskVersion(), r.totalTokens(), r.durationMs())).toList());
 			}).toList();
-			return new MatrixRow(e.getKey(), cells);
+			return new MatrixRow(e.getKey(), pairs);
 		}).toList();
 
 		return new Matrix(agentId, current.version(), current.modelId(), columns, matrixRows);
@@ -158,14 +158,17 @@ public class RunQueue {
 			List<MatrixRow> rows) {
 	}
 
-	public record MatrixRow(int agentVersion, List<Cell> cells) {
+	public record MatrixRow(int agentVersion, List<Pair> pairs) {
 	}
 
-	/** {@code taskVersions} and {@code modelVersions} list more than one entry when the cell mixes versions. */
-	public record Cell(String taskId, List<Integer> taskVersions, List<Integer> modelVersions, List<CellRun> runs) {
+	/**
+	 * Agent version x task, the unit that is compared; {@code runs} is its run series.
+	 * {@code taskVersions} and {@code modelVersions} list more than one entry when the series mixes versions.
+	 */
+	public record Pair(String taskId, List<Integer> taskVersions, List<Integer> modelVersions, List<SeriesRun> runs) {
 	}
 
-	public record CellRun(UUID id, UUID batchId, RunStatus status, Boolean passed, Integer taskVersion,
+	public record SeriesRun(UUID id, UUID batchId, RunStatus status, Boolean passed, Integer taskVersion,
 			Integer totalTokens, Long durationMs) {
 	}
 }

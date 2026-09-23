@@ -36,8 +36,8 @@ export function ToolsArea(p: Props) {
     <>
       <section className="card">
         <div className="card-head">
-          <h2>Werkzeuge</h2>
-          <span className="sub">Was ein Agent angeboten bekommen kann. Die Positivliste steht am Agenten.</span>
+          <h2>Tools</h2>
+          <span className="sub">Was ein Agent angeboten bekommen kann. Die Positivliste steht am Agent.</span>
           <div className="actions">
             <button className="btn quiet sm" onClick={reload} disabled={busy} title="MCP-Server neu verbinden">
               neu verbinden
@@ -59,11 +59,11 @@ export function ToolsArea(p: Props) {
                   <p className="desc">{t.description}</p>
                 </article>
               ))}
-              {builtin.length === 0 && <p className="empty">Eingebaute Werkzeuge sind abgeschaltet.</p>}
+              {builtin.length === 0 && <p className="empty">Eingebaute Tools sind abgeschaltet.</p>}
             </div>
             <div className="group-title">Über MCP</div>
             {mcp.length === 0 ? (
-              <p className="empty">Kein MCP-Werkzeug verbunden.</p>
+              <p className="empty">Kein MCP-Tool verbunden.</p>
             ) : (
               <div className="catalog">
                 {mcp.map((t) => (
@@ -107,7 +107,7 @@ export function ToolsArea(p: Props) {
                     <span className="pill">aus</span>
                   ) : s.connected ? (
                     <span className="pill pass">
-                      verbunden · {s.toolCount} Werkzeug{s.toolCount === 1 ? '' : 'e'}
+                      verbunden · {s.toolCount} Tool{s.toolCount === 1 ? '' : 's'}
                     </span>
                   ) : (
                     <span className="pill fail" title={s.error ?? undefined}>

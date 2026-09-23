@@ -193,21 +193,21 @@ export function ModelsArea(p: Props) {
     <>
       <section className="card">
         <div className="card-head">
-          <h2>Modelle</h2>
-          <span className="sub">Endpunkt und Modell-Id, Schlüssel nur als Variablenname</span>
+          <h2>Models</h2>
+          <span className="sub">Endpunkt und Model-Id, Schlüssel nur als Variablenname</span>
           <div className="actions">
             <button className="btn quiet sm" onClick={reload} disabled={busy} title="Dateien neu einlesen">
               neu laden
             </button>
             <button className="btn primary sm" onClick={() => setDraft({ ...EMPTY })} disabled={busy}>
-              neues Modell
+              neues Model
             </button>
           </div>
         </div>
         {models === null ? (
           <p className="empty">lädt …</p>
         ) : models.length === 0 ? (
-          <p className="empty">Noch kein Modell. Lege eines an — Endpunkt, Modell-Id, Schlüsselvariable.</p>
+          <p className="empty">Noch kein Model. Lege eines an — Endpunkt, Model-Id, Schlüsselvariable.</p>
         ) : (
           <div className="rows">
             {models.map((m) => (
@@ -286,7 +286,7 @@ export function ModelsArea(p: Props) {
               <dd className="mono">{displayed.baseUrl}</dd>
             </div>
             <div>
-              <dt>Modell-Id</dt>
+              <dt>Model-Id</dt>
               <dd className="mono">{displayed.modelId}</dd>
             </div>
             <div>
@@ -311,7 +311,7 @@ export function ModelsArea(p: Props) {
               </dd>
             </div>
             <div>
-              <dt>Läufe</dt>
+              <dt>Runs</dt>
               <dd className="mono">{shownDetail.runs}</dd>
             </div>
             {shownDetail.usedByAgents.length > 0 && (
@@ -340,7 +340,7 @@ export function ModelsArea(p: Props) {
       )}
 
       {draft && (
-        <Modal title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neues Modell'} onClose={() => setDraft(null)}>
+        <Modal title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neues Model'} onClose={() => setDraft(null)}>
           <form
             className="form"
             onSubmit={(e) => {
@@ -362,7 +362,7 @@ export function ModelsArea(p: Props) {
                   ))}
                 </select>
                 <span className="hint">
-                  {draft.provider === 'anthropic' && 'Über den OpenAI-kompatiblen Endpunkt von Anthropic. Chat und Werkzeuge gehen, Anthropic-eigene Funktionen nicht.'}
+                  {draft.provider === 'anthropic' && 'Über den OpenAI-kompatiblen Endpunkt von Anthropic. Chat und Tools gehen, Anthropic-eigene Funktionen nicht.'}
                   {draft.provider === 'custom' && 'Gateway (LiteLLM, OpenRouter, …) oder eigener Server mit Schlüssel.'}
                   {draft.provider === 'local' && 'LM Studio, Ollama, vLLM oder der Mock. Aus dem Container heißt der Host host.docker.internal.'}
                 </span>
@@ -395,7 +395,7 @@ export function ModelsArea(p: Props) {
                 </label>
               )}
               <label className="field">
-                <span>Modell-Id am Endpunkt</span>
+                <span>Model-Id am Endpunkt</span>
                 <input
                   value={draft.modelId}
                   onChange={(e) => setDraft({ ...draft, modelId: e.target.value })}
@@ -462,11 +462,11 @@ export function ModelsArea(p: Props) {
       )}
 
       {confirmDelete && shownDetail && (
-        <Modal title="Modell löschen?" onClose={() => setConfirmDelete(false)}>
+        <Modal title="Model löschen?" onClose={() => setConfirmDelete(false)}>
           <p>
             <strong>{shownDetail.model.name}</strong> <span className="mono muted">({shownDetail.model.id})</span> wird
             mit allen {shownDetail.versions.length} Version(en) ins Archiv verschoben. Die Id wird frei.
-            {shownDetail.runs > 0 && ` ${shownDetail.runs} Lauf/Läufe verweisen darauf und behalten Id und Version.`}
+            {shownDetail.runs > 0 && ` ${shownDetail.runs} Run(s) verweisen darauf und behalten Id und Version.`}
           </p>
           <div className="toolbar end">
             <button className="btn quiet" onClick={() => setConfirmDelete(false)} disabled={busy}>

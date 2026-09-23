@@ -71,7 +71,7 @@ export function RunDetail(p: Props) {
       <section className="card">
         <div className="card-head">
           <h2>{run.taskId ? <span className="mono">{run.taskId}</span> : 'Freie Eingabe'}</h2>
-          {run.taskId && run.taskVersion !== null && <span className="pill mono">Aufgabe v{run.taskVersion}</span>}
+          {run.taskId && run.taskVersion !== null && <span className="pill mono">Task v{run.taskVersion}</span>}
           <span className={`pill ${status.tone}`}>{status.text}</span>
           {run.passed !== null && (
             <span className={`pill ${run.passed ? 'pass' : 'fail'}`}>
@@ -96,7 +96,7 @@ export function RunDetail(p: Props) {
             </dd>
           </div>
           <div>
-            <dt>Modell</dt>
+            <dt>Model</dt>
             <dd className="line">
               <Link to={`/models/${run.modelId}`} className="mono">
                 {run.modelId}
@@ -109,7 +109,7 @@ export function RunDetail(p: Props) {
             <dt>Tokens</dt>
             <dd className="mono">
               {run.totalTokens ?? '–'}
-              {judgeTokens > 0 && <span className="faint"> + {judgeTokens} Richter</span>}
+              {judgeTokens > 0 && <span className="faint"> + {judgeTokens} Judge</span>}
             </dd>
           </div>
           <div>
@@ -121,7 +121,7 @@ export function RunDetail(p: Props) {
             <dd className="mono small">{fmtTime(run.startedAt)}</dd>
           </div>
           <div>
-            <dt>Werkzeuge angeboten</dt>
+            <dt>Tools angeboten</dt>
             <dd className="line">
               {run.tools.length === 0 ? <span className="muted">keine</span> : run.tools.map((t) => <span key={t} className="pill mono">{t}</span>)}
             </dd>
@@ -194,7 +194,7 @@ export function RunDetail(p: Props) {
 
       <section className="card">
         <div className="card-head">
-          <h2>Was das Modell sah</h2>
+          <h2>Was das Model sah</h2>
           <div className="actions">
             <button className="btn quiet sm" onClick={() => setShowPrompt(!showPrompt)}>
               {showPrompt ? 'einklappen' : 'anzeigen'}

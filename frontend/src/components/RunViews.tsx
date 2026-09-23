@@ -44,7 +44,7 @@ export function HistoryView(p: { agents: AgentView[]; tasks: Task[]; onError: (m
       <div className="card-head">
         <h2>Historie</h2>
         <select value={agent} onChange={(e) => setAgent(e.target.value)} style={{ width: 'auto' }}>
-          <option value="">alle Agenten</option>
+          <option value="">alle Agents</option>
           {p.agents.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -52,19 +52,19 @@ export function HistoryView(p: { agents: AgentView[]; tasks: Task[]; onError: (m
           ))}
         </select>
         <select value={task} onChange={(e) => setTask(e.target.value)} style={{ width: 'auto' }}>
-          <option value="">alle Aufgaben</option>
+          <option value="">alle Tasks</option>
           {p.tasks.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
             </option>
           ))}
         </select>
-        {runs && <span className="sub mono small">{runs.length} Läufe</span>}
+        {runs && <span className="sub mono small">{runs.length} Runs</span>}
       </div>
       {runs === null ? (
         <p className="empty">lädt …</p>
       ) : runs.length === 0 ? (
-        <p className="empty">Noch kein Lauf.</p>
+        <p className="empty">Noch kein Run.</p>
       ) : (
         <div className="rows">
           {runs.map((r) => {
@@ -130,7 +130,7 @@ export function TryView(p: { agents: AgentView[]; onError: (m: string) => void; 
     <section className="card">
       <div className="card-head">
         <h2>Ausprobieren</h2>
-        <span className="sub">Freie Eingabe, ein Lauf, kein Urteil. Wird trotzdem aufgezeichnet.</span>
+        <span className="sub">Freie Eingabe, ein Run, kein Urteil. Wird trotzdem aufgezeichnet.</span>
       </div>
       <form
         className="form"
@@ -160,7 +160,7 @@ export function TryView(p: { agents: AgentView[]; onError: (m: string) => void; 
             {busy ? 'läuft …' : 'starten'}
           </button>
         </div>
-        {busy && <p className="hint">Der Lauf läuft synchron. Je nach Modell dauert das ein paar Sekunden bis Minuten.</p>}
+        {busy && <p className="hint">Der Run läuft synchron. Je nach Model dauert das ein paar Sekunden bis Minuten.</p>}
       </form>
     </section>
   )

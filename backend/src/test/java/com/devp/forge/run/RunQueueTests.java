@@ -100,9 +100,9 @@ class RunQueueTests {
 				.contains(agents.get("forge").version());
 		RunQueue.MatrixRow current = matrix.rows().stream()
 				.filter(r -> r.agentVersion() == matrix.currentVersion()).findFirst().orElseThrow();
-		RunQueue.Cell noTool = current.cells().stream().filter(c -> c.taskId().equals("no-tool")).findFirst()
+		RunQueue.Pair noTool = current.pairs().stream().filter(c -> c.taskId().equals("no-tool")).findFirst()
 				.orElseThrow();
-		RunQueue.Cell other = current.cells().stream().filter(c -> c.taskId().equals("time-and-division")).findFirst()
+		RunQueue.Pair other = current.pairs().stream().filter(c -> c.taskId().equals("time-and-division")).findFirst()
 				.orElseThrow();
 		assertThat(noTool.runs()).hasSize(2);
 		assertThat(noTool.taskVersions()).containsExactly(tasks.get("no-tool").version());

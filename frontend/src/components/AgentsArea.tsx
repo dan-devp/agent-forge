@@ -57,9 +57,9 @@ function toAccess(d: Draft): ToolAccess {
 }
 
 function accessLabel(t: ToolAccess) {
-  if (t === 'all') return 'alle Werkzeuge'
-  if (t === 'none') return 'keine Werkzeuge'
-  return t.length === 1 ? '1 Werkzeug' : `${t.length} Werkzeuge`
+  if (t === 'all') return 'alle Tools'
+  if (t === 'none') return 'keine Tools'
+  return t.length === 1 ? '1 Tool' : `${t.length} Tools`
 }
 
 /**
@@ -199,8 +199,8 @@ export function AgentsArea(p: Props) {
     <>
       <section className="card">
         <div className="card-head">
-          <h2>Agenten</h2>
-          <span className="sub">Modell, Systemprompt, Werkzeug-Positivliste</span>
+          <h2>Agents</h2>
+          <span className="sub">Model, Systemprompt, Tool-Positivliste</span>
           <div className="actions">
             <button className="btn quiet sm" onClick={reload} disabled={busy} title="Dateien neu einlesen">
               neu laden
@@ -209,7 +209,7 @@ export function AgentsArea(p: Props) {
               className="btn primary sm"
               onClick={() => setDraft({ ...EMPTY, model: models[0]?.id ?? '' })}
               disabled={busy || models.length === 0}
-              title={models.length === 0 ? 'zuerst ein Modell anlegen' : undefined}
+              title={models.length === 0 ? 'zuerst ein Model anlegen' : undefined}
             >
               neuer Agent
             </button>
@@ -218,7 +218,7 @@ export function AgentsArea(p: Props) {
         {agents === null ? (
           <p className="empty">lädt …</p>
         ) : agents.length === 0 ? (
-          <p className="empty">Noch kein Agent. Ein Agent ist ein Modell plus ein Systemprompt.</p>
+          <p className="empty">Noch kein Agent. Ein Agent ist ein Model plus ein Systemprompt.</p>
         ) : (
           <div className="rows">
             {agents.map((a) => (
@@ -244,12 +244,12 @@ export function AgentsArea(p: Props) {
                 <div className="line">
                   {a.missingTools.length > 0 ? (
                     <span className="pill fail" title={a.missingTools.join(', ')}>
-                      unbekanntes Werkzeug
+                      unbekanntes Tool
                     </span>
                   ) : a.modelExists ? (
                     <span className="pill pass">bereit</span>
                   ) : (
-                    <span className="pill fail">Modell fehlt</span>
+                    <span className="pill fail">Model fehlt</span>
                   )}
                 </div>
               </div>
@@ -287,14 +287,14 @@ export function AgentsArea(p: Props) {
 
           <dl className="facts">
             <div>
-              <dt>Modell</dt>
+              <dt>Model</dt>
               <dd className="line">
                 <span className="mono">{displayed.model}</span>
                 {!displayed.modelExists && <span className="pill fail">fehlt</span>}
               </dd>
             </div>
             <div>
-              <dt>Werkzeuge</dt>
+              <dt>Tools</dt>
               <dd className="line">
                 <span>{accessLabel(displayed.tools)}</span>
                 {displayed.effectiveTools.map((t) => (
@@ -303,14 +303,14 @@ export function AgentsArea(p: Props) {
                   </span>
                 ))}
                 {displayed.missingTools.map((t) => (
-                  <span key={t} className="pill mono fail" title="kein registriertes Werkzeug mit diesem Namen">
+                  <span key={t} className="pill mono fail" title="kein registriertes Tool mit diesem Namen">
                     {t}
                   </span>
                 ))}
               </dd>
             </div>
             <div>
-              <dt>Läufe</dt>
+              <dt>Runs</dt>
               <dd className="mono">{shownDetail.runs}</dd>
             </div>
             {displayed.description && (
@@ -363,7 +363,7 @@ export function AgentsArea(p: Props) {
                 <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
               </label>
               <label className="field span-2">
-                <span>Modell</span>
+                <span>Model</span>
                 <select value={draft.model} onChange={(e) => setDraft({ ...draft, model: e.target.value })} required>
                   {models.map((m) => (
                     <option key={m.id} value={m.id}>
@@ -374,7 +374,7 @@ export function AgentsArea(p: Props) {
                 </select>
               </label>
               <div className="field span-2">
-                <span>Werkzeuge</span>
+                <span>Tools</span>
                 <div className="segment">
                   {(['all', 'none', 'list'] as Mode[]).map((m) => (
                     <button
@@ -421,11 +421,11 @@ export function AgentsArea(p: Props) {
                           {n} ?
                         </label>
                       ))}
-                    {tools.length === 0 && <span className="hint">Kein Werkzeug registriert.</span>}
+                    {tools.length === 0 && <span className="hint">Kein Tool registriert.</span>}
                   </div>
                 )}
                 <span className="hint">
-                  Die Liste filtert, was dem Modell angeboten wird. Ein Werkzeug, von dem es nichts weiß, kann es
+                  Die Liste filtert, was dem Model angeboten wird. Ein Tool, von dem es nichts weiß, kann es
                   nicht aufrufen.
                 </span>
               </div>
@@ -465,7 +465,7 @@ export function AgentsArea(p: Props) {
           <p>
             <strong>{shownDetail.agent.name}</strong> <span className="mono muted">({shownDetail.agent.id})</span> wird
             mit allen {shownDetail.versions.length} Version(en) ins Archiv verschoben. Die Id wird frei.
-            {shownDetail.runs > 0 && ` ${shownDetail.runs} Lauf/Läufe verweisen darauf und behalten Id und Version.`}
+            {shownDetail.runs > 0 && ` ${shownDetail.runs} Run(s) verweisen darauf und behalten Id und Version.`}
           </p>
           <div className="toolbar end">
             <button className="btn quiet" onClick={() => setConfirmDelete(false)} disabled={busy}>

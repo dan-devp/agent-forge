@@ -217,21 +217,21 @@ export function TasksArea(p: Props) {
     <>
       <section className="card">
         <div className="card-head">
-          <h2>Aufgaben</h2>
-          <span className="sub">Eingabe wird die Nachricht an den Agenten, Evals entscheiden über bestanden</span>
+          <h2>Tasks</h2>
+          <span className="sub">Eingabe wird die Nachricht an den Agent, Evals entscheiden über bestanden</span>
           <div className="actions">
             <button className="btn quiet sm" onClick={reload} disabled={busy} title="Dateien neu einlesen">
               neu laden
             </button>
             <button className="btn primary sm" onClick={() => setDraft({ ...EMPTY })} disabled={busy}>
-              neue Aufgabe
+              neuer Task
             </button>
           </div>
         </div>
         {tasks === null ? (
           <p className="empty">lädt …</p>
         ) : tasks.length === 0 ? (
-          <p className="empty">Noch keine Aufgabe.</p>
+          <p className="empty">Noch kein Task.</p>
         ) : (
           <div className="rows">
             {tasks.map((t) => (
@@ -260,7 +260,7 @@ export function TasksArea(p: Props) {
                 </div>
                 <div className="line">
                   {t.maxToolCalls !== null && (
-                    <span className="pill" title="Werkzeugbudget">
+                    <span className="pill" title="Tool-Budget">
                       ≤ {t.maxToolCalls} Aufrufe
                     </span>
                   )}
@@ -299,11 +299,11 @@ export function TasksArea(p: Props) {
 
           <dl className="facts">
             <div>
-              <dt>Werkzeugbudget</dt>
+              <dt>Tool-Budget</dt>
               <dd className="mono">{displayed.maxToolCalls === null ? 'Vorgabe' : displayed.maxToolCalls}</dd>
             </div>
             <div>
-              <dt>Läufe</dt>
+              <dt>Runs</dt>
               <dd className="mono">{shownDetail.runs}</dd>
             </div>
             {displayed.description && (
@@ -322,7 +322,7 @@ export function TasksArea(p: Props) {
           <div className="field">
             <span>Evals ({displayed.evals.length})</span>
             {displayed.evals.length === 0 ? (
-              <p className="hint">Ohne Evals wird ein Lauf nicht bewertet.</p>
+              <p className="hint">Ohne Evals wird ein Run nicht bewertet.</p>
             ) : (
               <div className="eval-list">
                 {displayed.evals.map((e, i) => (
@@ -352,7 +352,7 @@ export function TasksArea(p: Props) {
       )}
 
       {draft && (
-        <Modal title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neue Aufgabe'} onClose={() => setDraft(null)}>
+        <Modal title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neuer Task'} onClose={() => setDraft(null)}>
           <form
             className="form"
             onSubmit={(e) => {
@@ -378,7 +378,7 @@ export function TasksArea(p: Props) {
                 <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
               </label>
               <label className="field span-2">
-                <span>Eingabe (Nachricht an den Agenten)</span>
+                <span>Eingabe (Nachricht an den Agent)</span>
                 <textarea
                   className="prompt"
                   value={draft.input}
@@ -388,7 +388,7 @@ export function TasksArea(p: Props) {
                 />
               </label>
               <label className="field">
-                <span>Werkzeugbudget (leer = Vorgabe)</span>
+                <span>Tool-Budget (leer = Vorgabe)</span>
                 <input
                   type="number"
                   min="0"
@@ -490,11 +490,11 @@ export function TasksArea(p: Props) {
       )}
 
       {confirmDelete && shownDetail && (
-        <Modal title="Aufgabe löschen?" onClose={() => setConfirmDelete(false)}>
+        <Modal title="Task löschen?" onClose={() => setConfirmDelete(false)}>
           <p>
             <strong>{shownDetail.task.name}</strong> <span className="mono muted">({shownDetail.task.id})</span> wird mit
             allen {shownDetail.versions.length} Version(en) ins Archiv verschoben. Die Id wird frei.
-            {shownDetail.runs > 0 && ` ${shownDetail.runs} Lauf/Läufe verweisen darauf und behalten Id und Version.`}
+            {shownDetail.runs > 0 && ` ${shownDetail.runs} Run(s) verweisen darauf und behalten Id und Version.`}
           </p>
           <div className="toolbar end">
             <button className="btn quiet" onClick={() => setConfirmDelete(false)} disabled={busy}>
@@ -560,7 +560,7 @@ function ParamField({
         <label className={cls} title={spec.description}>
           {label}
           <select value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} required={spec.required}>
-            <option value="">— Modell wählen —</option>
+            <option value="">— Model wählen —</option>
             {models.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name} · {m.modelId}
@@ -579,7 +579,7 @@ function ParamField({
             onChange={(e) => onChange(e.target.value)}
             required={spec.required}
             className="mono"
-            placeholder="Werkzeugname oder *"
+            placeholder="Tool-Name oder *"
           />
           <datalist id={`tools-${spec.name}`}>
             {tools.map((t) => (

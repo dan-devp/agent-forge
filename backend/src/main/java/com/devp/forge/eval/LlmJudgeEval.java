@@ -46,18 +46,18 @@ public class LlmJudgeEval implements Eval {
 
 	@Override
 	public String label() {
-		return "Urteil durch Modell";
+		return "Urteil durch Judge-Model";
 	}
 
 	@Override
 	public String description() {
-		return "Ein Modell prueft die Antwort gegen ein frei formuliertes Kriterium. Kostet einen Modellaufruf.";
+		return "Ein Model prueft die Antwort gegen ein frei formuliertes Kriterium. Kostet einen Model-Aufruf.";
 	}
 
 	@Override
 	public List<EvalParam> params() {
 		return List.of(
-				EvalParam.required("model", "Richter-Modell", Type.MODEL, "Welches Modell urteilt."),
+				EvalParam.required("model", "Judge-Model", Type.MODEL, "Welches Model urteilt."),
 				EvalParam.required("criterion", "Kriterium", Type.TEXT,
 						"Was die Antwort leisten muss, in einem oder zwei Saetzen."));
 	}
@@ -72,7 +72,7 @@ public class LlmJudgeEval implements Eval {
 			model = clients.model(config.string("model"));
 		}
 		catch (RuntimeException ex) {
-			return EvalResult.fail("Richter-Modell nicht verfuegbar: " + ex.getMessage());
+			return EvalResult.fail("Judge-Model nicht verfuegbar: " + ex.getMessage());
 		}
 
 		String user = """
@@ -92,7 +92,7 @@ public class LlmJudgeEval implements Eval {
 		}
 		catch (RuntimeException ex) {
 			log.warn("Judge '{}' failed: {}", model.id(), ex.getMessage());
-			return new EvalResult(false, "Richter-Aufruf fehlgeschlagen: " + ex.getMessage(), model.modelId(), null,
+			return new EvalResult(false, "Judge-Aufruf fehlgeschlagen: " + ex.getMessage(), model.modelId(), null,
 					System.currentTimeMillis() - start);
 		}
 		long duration = System.currentTimeMillis() - start;

@@ -6,9 +6,9 @@ type Props = { onError: (message: string) => void }
 /** Grouping is display only: the server knows types, the reader wants neighbourhoods. */
 const GROUPS: { title: string; types: string[] }[] = [
   { title: 'Antworttext', types: ['contains', 'not-contains', 'equals', 'regex', 'not-regex', 'length'] },
-  { title: 'Werkzeuge im Trace', types: ['tool-called', 'tool-not-called', 'max-tool-calls'] },
+  { title: 'Tools im Trace', types: ['tool-called', 'tool-not-called', 'max-tool-calls'] },
   { title: 'JSON', types: ['json-valid', 'json-path'] },
-  { title: 'Modellgestützt', types: ['llm-judge'] },
+  { title: 'Mit Judge-Model', types: ['llm-judge'] },
 ]
 
 const PARAM_TYPE: Record<EvalParam['type'], string> = {
@@ -16,8 +16,8 @@ const PARAM_TYPE: Record<EvalParam['type'], string> = {
   TEXT: 'Text, mehrzeilig',
   NUMBER: 'Zahl',
   BOOLEAN: 'ja/nein',
-  MODEL: 'Modell',
-  TOOL: 'Werkzeug',
+  MODEL: 'Model',
+  TOOL: 'Tool',
 }
 
 /**
@@ -44,7 +44,7 @@ export function EvalsArea(p: Props) {
     <section className="card">
       <div className="card-head">
         <h2>Evals</h2>
-        <span className="sub">Jede Prüfung sagt bestanden oder nicht. Konfiguriert wird sie in der Aufgabe.</span>
+        <span className="sub">Jedes Eval sagt bestanden oder nicht. Konfiguriert wird es im Task.</span>
         <div className="actions">
           <span className="pill ghost">vom System</span>
         </div>
@@ -66,7 +66,7 @@ export function EvalsArea(p: Props) {
               </div>
             ))}
           <p className="hint">
-            Läufe ohne Antwort (Budget, Fehler) scheitern an allen Text-Prüfungen, auch an den verneinten: wer nichts
+            Runs ohne Antwort (Budget, Fehler) scheitern an allen Text-Evals, auch an den verneinten: wer nichts
             geliefert hat, hat nichts richtig gemacht.
           </p>
         </>

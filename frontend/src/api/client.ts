@@ -266,7 +266,7 @@ export type Run = {
   evals: RunEval[]
 }
 
-export type CellRun = {
+export type SeriesRun = {
   id: string
   batchId: string | null
   status: RunStatus
@@ -276,8 +276,9 @@ export type CellRun = {
   durationMs: number | null
 }
 
-export type Cell = { taskId: string; taskVersions: number[]; modelVersions: number[]; runs: CellRun[] }
-export type MatrixRow = { agentVersion: number; cells: Cell[] }
+/** Agent version x task; runs is its run series. */
+export type Pair = { taskId: string; taskVersions: number[]; modelVersions: number[]; runs: SeriesRun[] }
+export type MatrixRow = { agentVersion: number; pairs: Pair[] }
 export type Matrix = { agentId: string; currentVersion: number; modelId: string; tasks: string[]; rows: MatrixRow[] }
 
 export type Batch = {

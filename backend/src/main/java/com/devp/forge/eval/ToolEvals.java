@@ -25,17 +25,17 @@ public final class ToolEvals {
 
 		@Override
 		public String label() {
-			return "Werkzeug wurde aufgerufen";
+			return "Tool wurde aufgerufen";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn das Werkzeug im Lauf mindestens einmal aufgerufen wurde.";
+			return "Besteht, wenn das Tool im Run mindestens einmal aufgerufen wurde.";
 		}
 
 		@Override
 		public List<EvalParam> params() {
-			return List.of(EvalParam.required("tool", "Werkzeug", Type.TOOL, "Name des Werkzeugs, z. B. currentTime"));
+			return List.of(EvalParam.required("tool", "Tool", Type.TOOL, "Name des Tools, z. B. currentTime"));
 		}
 
 		@Override
@@ -57,17 +57,17 @@ public final class ToolEvals {
 
 		@Override
 		public String label() {
-			return "Werkzeug wurde nicht aufgerufen";
+			return "Tool wurde nicht aufgerufen";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn das Werkzeug nie aufgerufen wurde. '*' = gar kein Werkzeug.";
+			return "Besteht, wenn das Tool nie aufgerufen wurde. '*' = gar kein Tool.";
 		}
 
 		@Override
 		public List<EvalParam> params() {
-			return List.of(EvalParam.required("tool", "Werkzeug", Type.TOOL, "Name des Werkzeugs oder * fuer alle"));
+			return List.of(EvalParam.required("tool", "Tool", Type.TOOL, "Name des Tools oder * fuer alle"));
 		}
 
 		@Override
@@ -75,8 +75,8 @@ public final class ToolEvals {
 			String tool = config.string("tool");
 			if ("*".equals(tool)) {
 				return subject.calledTools().isEmpty()
-						? EvalResult.pass("Kein Werkzeug aufgerufen")
-						: EvalResult.fail("Werkzeuge aufgerufen: " + describe(subject));
+						? EvalResult.pass("Kein Tool aufgerufen")
+						: EvalResult.fail("Tools aufgerufen: " + describe(subject));
 			}
 			return subject.calledTools().contains(tool)
 					? EvalResult.fail(tool + " wurde aufgerufen")

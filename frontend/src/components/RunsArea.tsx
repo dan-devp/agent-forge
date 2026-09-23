@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { agentsApi, runsApi, tasksApi, type AgentView, type Cell, type CellRun, type Matrix, type Task } from '../api/client'
+import { agentsApi, runsApi, tasksApi, type AgentView, type Matrix, type Pair, type SeriesRun, type Task } from '../api/client'
 import { HistoryView, TryView } from './RunViews'
 
 type Props = {
@@ -10,20 +10,20 @@ type Props = {
 
 const POLL_MS = 2000
 
-function isOpen(r: CellRun) {
+function isOpen(r: SeriesRun) {
   return r.status === 'QUEUED' || r.status === 'RUNNING'
 }
 
-function mark(r: CellRun) {
+function mark(r: SeriesRun) {
   if (isOpen(r)) return '·'
   if (r.status === 'CANCELLED') return '–'
   return r.passed ? '✓' : '✗'
 }
 
-/** Cell colour: all passed sage, none rosé, some sand; anything still open makes it busy. */
-function tone(cell: Cell) {
-  const done = cell.runs.filter((r) => !isOpen(r) && r.status !== 'CANCELLED')
-  if (cell.runs.some(isOpen)) return 'busy'
+/** Cell colour for a pair's run series: all passed sage, none rosé, some sand; anything still open makes it busy. */
+function tone(pair: Pair) {
+  const done = pair.runs.filter((r) => !isOpen(r) && r.status !== 'CANCELLED')
+  if (pair.runs.some(isOpen)) return 'busy'
   if (done.length === 0) return ''
   const passed = done.filter((r) => r.passed).length
   if (passed === done.length) return 'pass'
@@ -33,7 +33,7 @@ function tone(cell: Cell) {
 
 /**
  * The picture of the training camp: one row per agent version, one column per task,
- * each cell the runs of that pair. Change the prompt, save, get a new row, run it,
+ * each cell a pair with its run series. Change the prompt, save, get a new row, run it,
  * compare with the row above.
  */
 export function RunsArea(p: Props) {
@@ -73,7 +73,7 @@ export function RunsArea(p: Props) {
         .then((m) => {
           if (stale) return
           setMatrix(m)
-          const open = m.rows.some((r) => r.cells.some((c) => c.runs.some(isOpen)))
+          const open = m.rows.some((r) => r.pairs.some((c) => c.runs.some(isOpen)))
           if (open) timer.current = window.setTimeout(load, POLL_MS)
         })
         .catch((e: Error) => {
@@ -93,7 +93,7 @@ export function RunsArea(p: Props) {
       .matrix(agentId)
       .then((m) => {
         setMatrix(m)
-        const open = m.rows.some((r) => r.cells.some((c) => c.runs.some(isOpen)))
+        const open = m.rows.some((r) => r.pairs.some((c) => c.runs.some(isOpen)))
         if (open) timer.current = window.setTimeout(refresh, POLL_MS)
       })
       .catch(fail)
@@ -117,17 +117,17 @@ export function RunsArea(p: Props) {
       await runsApi.batch({ agent: agentId, agentVersion: version, repetitions: n })
     })
 
-  const runCell = (version: number, task: string) =>
+  const runPair = (version: number, task: string) =>
     perform(async () => {
       await runsApi.batch({ agent: agentId, agentVersion: version, tasks: [task], repetitions: n })
     })
 
   const openBatches = matrix
-    ? [...new Set(matrix.rows.flatMap((r) => r.cells.flatMap((c) => c.runs.filter(isOpen).map((x) => x.batchId))))].filter(
+    ? [...new Set(matrix.rows.flatMap((r) => r.pairs.flatMap((c) => c.runs.filter(isOpen).map((x) => x.batchId))))].filter(
         (b): b is string => b !== null,
       )
     : []
-  const openCount = matrix ? matrix.rows.reduce((s, r) => s + r.cells.reduce((t, c) => t + c.runs.filter(isOpen).length, 0), 0) : 0
+  const openCount = matrix ? matrix.rows.reduce((s, r) => s + r.pairs.reduce((t, c) => t + c.runs.filter(isOpen).length, 0), 0) : 0
 
   const cancelAll = () =>
     perform(async () => {
@@ -136,9 +136,9 @@ export function RunsArea(p: Props) {
 
   const agent = agents.find((a) => a.id === agentId)
   const taskName = (id: string) => tasks.find((t) => t.id === id)?.name ?? ''
-  const selectedCell =
+  const selectedPair =
     selected && matrix
-      ? matrix.rows.find((r) => r.agentVersion === selected.version)?.cells.find((c) => c.taskId === selected.task) ?? null
+      ? matrix.rows.find((r) => r.agentVersion === selected.version)?.pairs.find((c) => c.taskId === selected.task) ?? null
       : null
 
   const switcher = (
@@ -173,7 +173,7 @@ export function RunsArea(p: Props) {
       {switcher}
       <section className="card">
         <div className="card-head">
-          <h2>Läufe</h2>
+          <h2>Runs</h2>
           <select value={agentId} onChange={(e) => setParams({ agent: e.target.value, view })} style={{ width: 'auto' }}>
             {agents.map((a) => (
               <option key={a.id} value={a.id}>
@@ -185,7 +185,7 @@ export function RunsArea(p: Props) {
             <>
               <span className="pill mono accent">v{matrix.currentVersion}</span>
               <span className="sub mono small">
-                {matrix.tasks.length} Aufgaben · {matrix.modelId}
+                {matrix.tasks.length} Tasks · {matrix.modelId}
               </span>
             </>
           )}
@@ -208,7 +208,7 @@ export function RunsArea(p: Props) {
         {!matrix ? (
           <p className="empty">{agents.length === 0 ? 'Noch kein Agent.' : 'lädt …'}</p>
         ) : matrix.tasks.length === 0 ? (
-          <p className="empty">Noch keine Aufgabe. Ohne Spalten keine Matrix.</p>
+          <p className="empty">Noch kein Task. Ohne Spalten keine Matrix.</p>
         ) : (
           <div className="matrix-wrap">
             <div className="matrix" style={{ gridTemplateColumns: `auto repeat(${matrix.tasks.length}, minmax(9.5rem, 1fr))` }}>
@@ -231,7 +231,7 @@ export function RunsArea(p: Props) {
                   selected={selected}
                   busy={busy}
                   onRunRow={() => runRow(row.agentVersion)}
-                  onRunCell={(t) => runCell(row.agentVersion, t)}
+                  onRunPair={(t) => runPair(row.agentVersion, t)}
                   onSelect={(t) =>
                     setSelected(selected?.version === row.agentVersion && selected.task === t ? null : { version: row.agentVersion, task: t })
                   }
@@ -241,21 +241,21 @@ export function RunsArea(p: Props) {
           </div>
         )}
         <p className="hint">
-          Zelle = Läufe dieser Agent-Version auf dieser Aufgabe: bestanden/gesamt, ein Zeichen je Lauf. „laufen lassen" startet die
-          ganze Zeile mit n Wiederholungen je Aufgabe, nacheinander. {agent && `Prompt ändern und speichern ergibt eine neue Zeile.`}
+          Zelle = ein Pair (Agent-Version × Task) mit seiner Run Series: bestanden/gesamt, ein Zeichen je Run. „laufen lassen" startet
+          die ganze Zeile mit n Wiederholungen je Task, nacheinander. {agent && `Prompt ändern und speichern ergibt eine neue Zeile.`}
         </p>
       </section>
 
-      {selected && selectedCell && (
+      {selected && selectedPair && (
         <section className="card">
           <div className="card-head">
             <h2>
               <span className="mono">{selected.task}</span> · v{selected.version}
             </h2>
             <span className="sub">
-              {selectedCell.runs.length} Lauf/Läufe
-              {selectedCell.taskVersions.length > 1 && ` · Aufgaben-Versionen ${selectedCell.taskVersions.join(', ')}`}
-              {selectedCell.modelVersions.length > 1 && ` · Modell-Versionen ${selectedCell.modelVersions.join(', ')}`}
+              Run Series · {selectedPair.runs.length} Run(s)
+              {selectedPair.taskVersions.length > 1 && ` · Task-Versionen ${selectedPair.taskVersions.join(', ')}`}
+              {selectedPair.modelVersions.length > 1 && ` · Model-Versionen ${selectedPair.modelVersions.join(', ')}`}
             </span>
             <div className="actions">
               <button className="btn quiet sm" onClick={() => setSelected(null)}>
@@ -263,11 +263,11 @@ export function RunsArea(p: Props) {
               </button>
             </div>
           </div>
-          {selectedCell.runs.length === 0 ? (
-            <p className="empty">Noch kein Lauf. Zelle anklicken und „nur diese" wählen, oder die Zeile laufen lassen.</p>
+          {selectedPair.runs.length === 0 ? (
+            <p className="empty">Noch kein Run. Zelle anklicken und „nur diese" wählen, oder die Zeile laufen lassen.</p>
           ) : (
             <div className="rows">
-              {selectedCell.runs.map((r, i) => (
+              {selectedPair.runs.map((r, i) => (
                 <div key={r.id} className="row" onClick={() => navigate(`/runs/${r.id}`)} role="button" tabIndex={0}>
                   <div className="line">
                     <span className="mono muted">{i + 1}</span>
@@ -275,7 +275,7 @@ export function RunsArea(p: Props) {
                     <span className="mono small faint">{r.id.slice(0, 8)}</span>
                   </div>
                   <div className="line small muted">
-                    {r.taskVersion !== null && <span className="pill mono">Aufgabe v{r.taskVersion}</span>}
+                    {r.taskVersion !== null && <span className="pill mono">Task v{r.taskVersion}</span>}
                     {r.batchId && <span className="mono faint">batch {r.batchId.slice(0, 8)}</span>}
                   </div>
                   <div className="line mono small">
@@ -299,7 +299,7 @@ function RowView(p: {
   selected: { version: number; task: string } | null
   busy: boolean
   onRunRow: () => void
-  onRunCell: (task: string) => void
+  onRunPair: (task: string) => void
   onSelect: (task: string) => void
 }) {
   return (
@@ -308,29 +308,29 @@ function RowView(p: {
         <Link to={`/agents/${p.agentId}`} className={`pill mono lg ${p.current ? 'accent' : ''}`} title={p.current ? 'aktuelle Version' : 'ältere Version'}>
           v{p.row.agentVersion}
         </Link>
-        <button className="btn sm go" onClick={p.onRunRow} disabled={p.busy} title="alle Aufgaben, n Wiederholungen">
+        <button className="btn sm go" onClick={p.onRunRow} disabled={p.busy} title="alle Tasks, n Wiederholungen">
           laufen lassen
         </button>
       </div>
-      {p.row.cells.map((cell) => {
-        const runs = cell.runs.filter((r) => r.status !== 'CANCELLED')
+      {p.row.pairs.map((pair) => {
+        const runs = pair.runs.filter((r) => r.status !== 'CANCELLED')
         const done = runs.filter((r) => !isOpen(r))
         const passed = done.filter((r) => r.passed).length
-        const isSel = p.selected?.version === p.row.agentVersion && p.selected.task === cell.taskId
+        const isSel = p.selected?.version === p.row.agentVersion && p.selected.task === pair.taskId
         return (
           <div
-            key={cell.taskId}
-            className={`cell ${tone(cell)} ${isSel ? 'selected' : ''}`}
-            onClick={() => p.onSelect(cell.taskId)}
+            key={pair.taskId}
+            className={`cell ${tone(pair)} ${isSel ? 'selected' : ''}`}
+            onClick={() => p.onSelect(pair.taskId)}
             role="button"
             tabIndex={0}
-            title={runs.length === 0 ? 'noch kein Lauf' : `${passed} von ${done.length} bestanden`}
+            title={runs.length === 0 ? 'noch kein Run' : `${passed} von ${done.length} bestanden`}
           >
-            {(cell.taskVersions.length > 1 || cell.modelVersions.length > 1) && (
-              <span className="mixed-versions" title="gemischte Versionen in dieser Zelle">
-                {cell.taskVersions.length > 1 && `t${cell.taskVersions.join('/')}`}
-                {cell.taskVersions.length > 1 && cell.modelVersions.length > 1 && ' '}
-                {cell.modelVersions.length > 1 && `m${cell.modelVersions.join('/')}`}
+            {(pair.taskVersions.length > 1 || pair.modelVersions.length > 1) && (
+              <span className="mixed-versions" title="gemischte Versionen in dieser Run Series">
+                {pair.taskVersions.length > 1 && `t${pair.taskVersions.join('/')}`}
+                {pair.taskVersions.length > 1 && pair.modelVersions.length > 1 && ' '}
+                {pair.modelVersions.length > 1 && `m${pair.modelVersions.join('/')}`}
               </span>
             )}
             {runs.length === 0 ? (
@@ -348,10 +348,10 @@ function RowView(p: {
               className="btn sm cell-go"
               onClick={(e) => {
                 e.stopPropagation()
-                p.onRunCell(cell.taskId)
+                p.onRunPair(pair.taskId)
               }}
               disabled={p.busy}
-              title="nur diese Aufgabe, n Wiederholungen"
+              title="nur dieser Task, n Wiederholungen"
             >
               nur diese
             </button>
@@ -362,7 +362,7 @@ function RowView(p: {
   )
 }
 
-function StatusPill({ r }: { r: CellRun }) {
+function StatusPill({ r }: { r: SeriesRun }) {
   if (r.status === 'QUEUED') return <span className="pill">wartet</span>
   if (r.status === 'RUNNING') return <span className="pill open">läuft</span>
   if (r.status === 'CANCELLED') return <span className="pill">abgebrochen</span>

@@ -149,12 +149,12 @@ public final class StructureEvals {
 
 		@Override
 		public String label() {
-			return "Hoechstens N Werkzeugaufrufe";
+			return "Hoechstens N Tool-Aufrufe";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn der Lauf nicht mehr als N Werkzeugaufrufe gemacht hat. Unabhaengig vom Budget der Aufgabe.";
+			return "Besteht, wenn der Run nicht mehr als N Tool-Aufrufe gemacht hat. Unabhaengig vom Budget des Tasks.";
 		}
 
 		@Override
@@ -170,8 +170,8 @@ public final class StructureEvals {
 			}
 			int calls = subject.calledTools().size();
 			return calls <= max
-					? EvalResult.pass("%d Werkzeugaufruf(e), erlaubt %d".formatted(calls, max))
-					: EvalResult.fail("%d Werkzeugaufrufe, erlaubt %d (%s)".formatted(calls, max,
+					? EvalResult.pass("%d Tool-Aufruf(e), erlaubt %d".formatted(calls, max))
+					: EvalResult.fail("%d Tool-Aufrufe, erlaubt %d (%s)".formatted(calls, max,
 							String.join(", ", subject.calledTools())));
 		}
 	}

@@ -1,8 +1,8 @@
 ---
 id: no-tool
 version: 1
-name: Ohne Werkzeug
-description: Reine Textaufgabe. Prueft, dass der Agent kein Werkzeug anfasst, wenn keines noetig ist.
+name: Ohne Tool
+description: Reiner Text-Task. Prueft, dass der Agent kein Tool anfasst, wenn keines noetig ist.
 evals:
   - type: tool-not-called
     tool: '*'

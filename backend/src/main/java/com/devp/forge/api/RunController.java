@@ -72,7 +72,7 @@ public class RunController {
 		return service.history(task, agent, null);
 	}
 
-	/** Agent versions x tasks, each cell the runs of that pair. */
+	/** Agent versions x tasks, each cell a pair with its run series. */
 	@GetMapping("/matrix")
 	public Matrix matrix(@RequestParam String agent) {
 		return queue.matrix(agent);

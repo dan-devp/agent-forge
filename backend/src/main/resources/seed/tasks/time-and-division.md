@@ -2,7 +2,7 @@
 id: time-and-division
 version: 1
 name: Zeit und Rechnung
-description: Zwei eingebaute Werkzeuge in einer Runde. Prueft, ob der Agent Werkzeuge nutzt, statt zu raten.
+description: Zwei eingebaute Tools in einer Runde. Prueft, ob der Agent Tools nutzt, statt zu raten.
 max-tool-calls: 4
 evals:
   - type: tool-called

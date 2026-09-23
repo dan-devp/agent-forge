@@ -2,7 +2,7 @@
 id: forge
 version: 1
 name: Forge
-description: Standard-Agent des Prototyps. Praezise, belegorientiert, nutzt Werkzeuge statt zu raten.
+description: Standard-Agent des Prototyps. Praezise, belegorientiert, nutzt Tools statt zu raten.
 model: local
 tools: all
 ---
