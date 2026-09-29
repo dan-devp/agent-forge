@@ -5,7 +5,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -105,16 +108,35 @@ public class RunRepository {
 	public List<RunEval> evals(UUID runId) {
 		return db.sql("select * from run_eval where run_id = ? order by idx")
 				.param(runId)
-				.query((rs, rowNum) -> new RunEval(
-						rs.getInt("idx"),
-						rs.getString("type"),
-						rs.getBoolean("passed"),
-						rs.getString("rationale"),
-						rs.getString("model"),
-						(Integer) rs.getObject("tokens"),
-						(Long) rs.getObject("duration_ms"),
-						rs.getTimestamp("created_at").toInstant()))
+				.query((rs, rowNum) -> mapEval(rs))
 				.list();
+	}
+
+	/** Verdicts of every task run of one agent, by run: one query for the whole matrix, not one per run. */
+	public Map<UUID, List<RunEval>> evalsByAgent(String agentId) {
+		Map<UUID, List<RunEval>> byRun = new HashMap<>();
+		db.sql("""
+				select e.* from run_eval e join run r on r.id = e.run_id
+				 where r.agent_id = ? and r.task_id is not null
+				 order by e.run_id, e.idx
+				""")
+				.param(agentId)
+				.query((ResultSet rs) -> {
+					byRun.computeIfAbsent(rs.getObject("run_id", UUID.class), k -> new ArrayList<>()).add(mapEval(rs));
+				});
+		return byRun;
+	}
+
+	private static RunEval mapEval(ResultSet rs) throws SQLException {
+		return new RunEval(
+				rs.getInt("idx"),
+				rs.getString("type"),
+				rs.getBoolean("passed"),
+				rs.getString("rationale"),
+				rs.getString("model"),
+				(Integer) rs.getObject("tokens"),
+				(Long) rs.getObject("duration_ms"),
+				rs.getTimestamp("created_at").toInstant());
 	}
 
 	/** Next free step number. The trace is the only source — no counter in memory. */

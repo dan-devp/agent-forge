@@ -122,6 +122,7 @@ public class RunQueue {
 	public Matrix matrix(String agentId) {
 		Agent current = agents.get(agentId);
 		List<Run> rows = runs.matrixRows(agentId);
+		Map<UUID, List<RunEval>> verdicts = runs.evalsByAgent(agentId);
 
 		TreeMap<Integer, Map<String, List<Run>>> byVersion = new TreeMap<>();
 		agents.versions(agentId).forEach(a -> byVersion.put(a.version(), new LinkedHashMap<>()));
@@ -141,8 +142,7 @@ public class RunQueue {
 				return new Pair(taskId,
 						series.stream().map(Run::taskVersion).distinct().sorted().toList(),
 						series.stream().map(Run::modelVersion).distinct().sorted().toList(),
-						series.stream().map(r -> new SeriesRun(r.id(), r.batchId(), r.status(), r.passed(),
-								r.taskVersion(), r.totalTokens(), r.durationMs())).toList());
+						series.stream().map(r -> SeriesRun.of(r, verdicts.getOrDefault(r.id(), List.of()))).toList());
 			}).toList();
 			return new MatrixRow(e.getKey(), pairs);
 		}).toList();
@@ -168,7 +168,34 @@ public class RunQueue {
 	public record Pair(String taskId, List<Integer> taskVersions, List<Integer> modelVersions, List<SeriesRun> runs) {
 	}
 
+	/**
+	 * One run of a series, enough to see why it failed without opening it: when, the start of
+	 * the answer (or the error), and every verdict. {@code at} is the start, or the queueing time
+	 * while the run still waits.
+	 */
 	public record SeriesRun(UUID id, UUID batchId, RunStatus status, Boolean passed, Integer taskVersion,
-			Integer totalTokens, Long durationMs) {
+			Integer totalTokens, Long durationMs, Instant at, String preview, List<Verdict> verdicts) {
+
+		static SeriesRun of(Run r, List<RunEval> evals) {
+			return new SeriesRun(r.id(), r.batchId(), r.status(), r.passed(), r.taskVersion(), r.totalTokens(),
+					r.durationMs(), r.startedAt() != null ? r.startedAt() : r.queuedAt(),
+					clip(r.answer() != null ? r.answer() : r.error(), PREVIEW),
+					evals.stream().map(e -> new Verdict(e.index(), e.type(), e.passed(), clip(e.rationale(), RATIONALE)))
+							.toList());
+		}
+	}
+
+	/** A verdict as the matrix shows it; the judge's cost stays on the run detail. */
+	public record Verdict(int index, String type, boolean passed, String rationale) {
+	}
+
+	// The matrix carries every run of an agent; full answers and judge rationales belong to the detail.
+	private static final int PREVIEW = 160;
+	private static final int RATIONALE = 240;
+
+	private static String clip(String text, int max) {
+		if (text == null) return null;
+		String flat = text.replaceAll("\\s+", " ").strip();
+		return flat.length() <= max ? flat : flat.substring(0, max - 1) + "\u2026";
 	}
 }

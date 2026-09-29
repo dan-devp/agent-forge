@@ -274,7 +274,14 @@ export type SeriesRun = {
   taskVersion: number | null
   totalTokens: number | null
   durationMs: number | null
+  /** start, or queueing time while it waits */
+  at: string | null
+  /** start of the answer, or the error */
+  preview: string | null
+  verdicts: Verdict[]
 }
+
+export type Verdict = { index: number; type: string; passed: boolean; rationale: string | null }
 
 /** Agent version x task; runs is its run series. */
 export type Pair = { taskId: string; taskVersions: number[]; modelVersions: number[]; runs: SeriesRun[] }

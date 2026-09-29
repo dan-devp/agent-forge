@@ -1060,6 +1060,89 @@ textarea.prompt {
   opacity: 1;
 }
 
+/* The run series under the matrix: per eval first (why), then the runs (which). */
+.tallies {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.2rem;
+}
+
+.tally {
+  display: grid;
+  grid-template-columns: 4.2rem minmax(10rem, 16rem) minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: baseline;
+  padding: 0.55rem 0.9rem;
+  background: var(--surface-2);
+  border-radius: 12px;
+}
+
+.tally .pill {
+  justify-self: start;
+}
+
+.tally .what .mono {
+  white-space: nowrap;
+}
+
+.tally .why {
+  overflow-wrap: anywhere;
+}
+
+.series {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.series-head,
+.series-row {
+  display: grid;
+  grid-template-columns: 2rem 8.5rem 8.5rem minmax(6rem, 12rem) minmax(0, 1fr) 3.5rem 3rem;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.45rem 0.9rem;
+}
+
+.series-row {
+  background: var(--surface-2);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.series-row:hover {
+  background: var(--surface-3);
+}
+
+.series .num {
+  text-align: right;
+}
+
+.series .preview {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.series .preview.failed {
+  color: var(--fail-text);
+}
+
+@media (max-width: 900px) {
+  .tally,
+  .series-head,
+  .series-row {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+
+  .series-head {
+    display: none;
+  }
+}
+
 .n-field {
   display: inline-flex;
   align-items: center;

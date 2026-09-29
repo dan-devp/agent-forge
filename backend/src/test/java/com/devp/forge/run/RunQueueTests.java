@@ -1,7 +1,9 @@
 package com.devp.forge.run;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 
 import com.devp.forge.agent.AgentRepository;
@@ -107,5 +109,24 @@ class RunQueueTests {
 		assertThat(noTool.runs()).hasSize(2);
 		assertThat(noTool.taskVersions()).containsExactly(tasks.get("no-tool").version());
 		assertThat(other.runs()).isEmpty();
+	}
+
+	@Test
+	void seriesRunsCarryTheirVerdictsSoTheMatrixTellsWhy() {
+		Batch batch = queue.enqueue("forge", null, List.of("no-tool"), 1);
+		UUID runId = batch.runIds().getFirst();
+		String longRationale = "x ".repeat(400);
+		runs.addEval(runId, new RunEval(1, "tool-not-called", false, longRationale, null, null, null, Instant.now()));
+		runs.addEval(runId, new RunEval(2, "contains", true, "gefunden", null, null, null, Instant.now()));
+
+		RunQueue.SeriesRun run = queue.matrix("forge").rows().stream()
+				.flatMap(r -> r.pairs().stream())
+				.flatMap(p -> p.runs().stream())
+				.filter(r -> r.id().equals(runId)).findFirst().orElseThrow();
+
+		assertThat(run.at()).isNotNull();
+		assertThat(run.verdicts()).extracting(RunQueue.Verdict::type).containsExactly("tool-not-called", "contains");
+		assertThat(run.verdicts()).extracting(RunQueue.Verdict::passed).containsExactly(false, true);
+		assertThat(run.verdicts().getFirst().rationale()).hasSizeLessThanOrEqualTo(240).endsWith("…");
 	}
 }
