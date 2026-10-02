@@ -57,7 +57,10 @@ function cleanParams(config: EvalConfig, type: EvalType | undefined): Record<str
   for (const [k, v] of Object.entries(config.params)) {
     if (v === '' || v === null || v === undefined) continue
     const spec = type?.params.find((p) => p.name === k)
-    if (spec?.type === 'NUMBER' && typeof v === 'string') {
+    if (spec?.type === 'LIST') {
+      const items = (Array.isArray(v) ? v.map(String) : String(v).split('\n')).map((x) => x.trim()).filter(Boolean)
+      if (items.length > 0) out[k] = items
+    } else if (spec?.type === 'NUMBER' && typeof v === 'string') {
       const n = Number(v)
       out[k] = Number.isNaN(n) ? v : n
     } else {
@@ -332,7 +335,7 @@ export function TasksArea(p: Props) {
                     <span className="muted small">{typeOf(e.type)?.label}</span>
                     {Object.entries(e.params).map(([k, v]) => (
                       <span key={k} className="kv">
-                        {k}=<b>{String(v)}</b>
+                        {k}=<b>{Array.isArray(v) ? v.join(' | ') : String(v)}</b>
                       </span>
                     ))}
                   </div>
@@ -530,7 +533,7 @@ function ParamField({
       {spec.required && <span className="faint"> *</span>}
     </span>
   )
-  const wide = spec.type === 'TEXT'
+  const wide = spec.type === 'TEXT' || spec.type === 'LIST'
   const cls = `field ${wide ? 'span-2' : ''}`
 
   switch (spec.type) {
@@ -548,6 +551,20 @@ function ParamField({
           <textarea rows={3} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} required={spec.required} />
         </label>
       )
+    case 'LIST':
+      return (
+        <label className={cls} title={spec.description}>
+          {label}
+          <textarea
+            rows={4}
+            value={Array.isArray(value) ? value.join('\n') : String(value ?? '')}
+            onChange={(e) => onChange(e.target.value)}
+            required={spec.required}
+            placeholder="eine Frage je Zeile"
+          />
+          <span className="hint">{spec.description}</span>
+        </label>
+      )
     case 'NUMBER':
       return (
         <label className={cls} title={spec.description}>
@@ -556,16 +573,21 @@ function ParamField({
         </label>
       )
     case 'MODEL':
+    case 'JUDGE_MODEL':
+      // MODEL takes chat models only; a judge that answers typed questions may be either kind.
       return (
         <label className={cls} title={spec.description}>
           {label}
           <select value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} required={spec.required}>
             <option value="">— Model wählen —</option>
-            {models.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name} · {m.modelId}
-              </option>
-            ))}
+            {models
+              .filter((m) => spec.type === 'JUDGE_MODEL' || m.kind === 'chat' || m.id === value)
+              .map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} · {m.modelId}
+                  {m.kind === 'decision' ? ' · Decision' : ''}
+                </option>
+              ))}
           </select>
         </label>
       )

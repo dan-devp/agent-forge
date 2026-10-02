@@ -6,6 +6,7 @@ import java.util.Locale;
 import com.devp.forge.ai.ChatClientRegistry;
 import com.devp.forge.eval.EvalParam.Type;
 import com.devp.forge.model.Model;
+import com.devp.forge.model.ModelKind;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +74,10 @@ public class LlmJudgeEval implements Eval {
 		}
 		catch (RuntimeException ex) {
 			return EvalResult.fail("Judge-Model nicht verfuegbar: " + ex.getMessage());
+		}
+		if (model.kind() != ModelKind.CHAT) {
+			return EvalResult.fail("'" + model.id() + "' ist ein Decision-Model und schreibt keinen Text - "
+					+ "dafuer gibt es judge-questions");
 		}
 
 		String user = """

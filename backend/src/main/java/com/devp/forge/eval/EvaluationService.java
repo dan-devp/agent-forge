@@ -51,18 +51,20 @@ public class EvaluationService {
 		int index = 0;
 		for (EvalConfig config : task.evals()) {
 			index++;
-			EvalResult result;
+			List<EvalResult> results;
 			try {
-				result = registry.get(config.type()).evaluate(config, subject);
+				results = registry.get(config.type()).evaluateAll(config, subject);
 			}
 			catch (RuntimeException ex) {
 				log.warn("Eval #{} ({}) of run {} failed: {}", index, config.type(), run.id(), ex.getMessage());
-				result = EvalResult.fail("Eval fehlgeschlagen: " + ex.getMessage());
+				results = List.of(EvalResult.fail("Eval fehlgeschlagen: " + ex.getMessage()));
 			}
-			RunEval verdict = new RunEval(index, config.type(), result.passed(), result.rationale(), result.model(),
-					result.tokens(), result.durationMs(), Instant.now());
-			runs.addEval(run.id(), verdict);
-			verdicts.add(verdict);
+			for (EvalResult result : results) {
+				RunEval verdict = new RunEval(index, config.type(), result.subject(), result.passed(), result.rationale(),
+						result.model(), result.tokens(), result.durationMs(), Instant.now());
+				runs.addEval(run.id(), verdict);
+				verdicts.add(verdict);
+			}
 		}
 
 		Run evaluated = run.withEvals(verdicts);

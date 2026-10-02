@@ -150,13 +150,17 @@ export function RunDetail(p: Props) {
             </span>
           </div>
           <div className="eval-list">
-            {run.evals.map((e) => (
-              <div key={e.index} className="eval-row">
+            {run.evals.map((e, i) => (
+              <div key={i} className="eval-row">
                 <span className="mono muted">{e.index}</span>
                 <span className={`pill ${e.passed ? 'pass' : 'fail'}`}>{e.passed ? '✓' : '✗'}</span>
                 <span className="pill mono">{e.type}</span>
-                <span style={{ flex: 1 }}>{e.rationale}</span>
-                {e.model && (
+                <span style={{ flex: 1 }}>
+                  {e.subject && <b>{e.subject} </b>}
+                  {e.rationale}
+                </span>
+                {/* An eval with several verdicts books its one call on the first. */}
+                {e.model && (e.tokens !== null || e.durationMs !== null) && (
                   <span className="kv">
                     {e.model} · {e.tokens ?? '?'} tok · {fmtMs(e.durationMs)}
                   </span>

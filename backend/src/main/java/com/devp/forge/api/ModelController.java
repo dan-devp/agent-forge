@@ -117,20 +117,23 @@ public class ModelController {
 	private ModelView view(Model m) {
 		boolean keySet = m.apiKeyEnv() != null && secrets.isSet(m.apiKeyEnv());
 		return new ModelView(m.id(), m.version(), m.name(), m.description(), m.provider().key(), m.baseUrl(),
-				m.modelId(), m.apiKeyEnv(), keySet, m.temperature(), m.local(), clients.isConfigured(m),
+				m.modelId(), m.apiKeyEnv(), keySet, m.temperature(), m.local(), m.kind().key(), clients.isConfigured(m),
 				clients.problem(m));
 	}
 
-	/** A model as the UI sees it. {@code keySet} says whether the named variable has a value; the value never leaves the server. */
+	/**
+	 * A model as the UI sees it. {@code keySet} says whether the named variable has a value; the value never leaves
+	 * the server. {@code kind}: chat | decision.
+	 */
 	public record ModelView(String id, int version, String name, String description, String provider, String baseUrl,
-			String modelId, String apiKeyEnv, boolean keySet, double temperature, boolean local, boolean configured,
+			String modelId, String apiKeyEnv, boolean keySet, double temperature, boolean local, String kind, boolean configured,
 			String problem) {
 	}
 
 	public record ModelDetail(ModelView model, List<Integer> versions, int runs, List<String> usedByAgents) {
 	}
 
-	/** {@code provider}: openai | anthropic | custom | local. For the clouds {@code baseUrl} may be omitted. */
+	/** {@code provider}: openai | anthropic | custom | local | typesafe. Where the URL is fixed, {@code baseUrl} may be omitted. */
 	public record ModelRequest(String id, String name, String description, String provider, String baseUrl,
 			String modelId, String apiKeyEnv, Double temperature) {
 

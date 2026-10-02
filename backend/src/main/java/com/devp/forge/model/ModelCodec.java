@@ -1,5 +1,6 @@
 package com.devp.forge.model;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -14,7 +15,7 @@ import com.devp.forge.store.StoreExceptions.EntityInvalidException;
  * id: gateway
  * version: 1
  * name: Gateway (LiteLLM)
- * provider: custom        # openai | anthropic | custom | local
+ * provider: custom        # openai | anthropic | custom | local | typesafe
  * base-url: https://litellm.example.com/v1
  * model: gpt-4o-mini
  * api-key-env: API_KEY_LITELLM
@@ -75,8 +76,8 @@ public final class ModelCodec implements EntityCodec<Model> {
 			return Provider.fromKey(key);
 		}
 		catch (IllegalArgumentException ex) {
-			throw new EntityInvalidException("'provider' must be one of openai, anthropic, custom, local — was '%s'"
-					.formatted(key));
+			throw new EntityInvalidException("'provider' must be one of %s — was '%s'".formatted(
+					Arrays.stream(Provider.values()).map(Provider::key).toList(), key));
 		}
 	}
 

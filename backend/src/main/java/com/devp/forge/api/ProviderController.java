@@ -17,7 +17,8 @@ public class ProviderController {
 	@GetMapping
 	public List<ProviderInfo> list() {
 		return Arrays.stream(Provider.values())
-				.map(p -> new ProviderInfo(p.key(), label(p), p.fixedBaseUrl(), p.defaultKeyEnv(), p.isLocal()))
+				.map(p -> new ProviderInfo(p.key(), label(p), p.fixedBaseUrl(), p.defaultKeyEnv(), p.isLocal(),
+						p.kind().key()))
 				.toList();
 	}
 
@@ -27,9 +28,12 @@ public class ProviderController {
 			case ANTHROPIC -> "Anthropic";
 			case CUSTOM -> "Intern / Gateway";
 			case LOCAL -> "Lokal";
+			case TYPESAFE -> "TypeSafe (Decision)";
 		};
 	}
 
-	public record ProviderInfo(String key, String label, String fixedBaseUrl, String defaultKeyEnv, boolean local) {
+	/** {@code kind}: chat | decision — decision models only judge, they cannot drive an agent. */
+	public record ProviderInfo(String key, String label, String fixedBaseUrl, String defaultKeyEnv, boolean local,
+			String kind) {
 	}
 }

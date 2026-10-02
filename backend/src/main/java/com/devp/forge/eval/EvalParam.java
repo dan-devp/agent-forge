@@ -19,8 +19,12 @@ public record EvalParam(String name, String label, Type type, boolean required, 
 		TEXT,
 		NUMBER,
 		BOOLEAN,
-		/** Id of a {@link com.devp.forge.model.Model}. */
+		/** Id of a chat {@link com.devp.forge.model.Model}. */
 		MODEL,
+		/** Id of any {@link com.devp.forge.model.Model} that can judge: chat or decision. */
+		JUDGE_MODEL,
+		/** Several lines, one entry each; a YAML list in the file. */
+		LIST,
 		/** Name of a registered tool. */
 		TOOL
 	}

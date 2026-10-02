@@ -23,4 +23,13 @@ public interface Eval {
 	List<EvalParam> params();
 
 	EvalResult evaluate(EvalConfig config, EvalSubject subject);
+
+	/**
+	 * All verdicts of this eval, one per part it checks. Most evals check one thing; a judge
+	 * asked a list of questions answers each one, and each answer counts on its own. A
+	 * verdict with a {@code subject} names its part.
+	 */
+	default List<EvalResult> evaluateAll(EvalConfig config, EvalSubject subject) {
+		return List.of(evaluate(config, subject));
+	}
 }

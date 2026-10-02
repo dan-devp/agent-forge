@@ -56,7 +56,8 @@ public class EvalRegistry {
 		}
 		for (EvalParam param : eval.params()) {
 			Object value = config.params().get(param.name());
-			boolean blank = value == null || String.valueOf(value).isBlank();
+			boolean blank = value == null || String.valueOf(value).isBlank()
+					|| (param.type() == EvalParam.Type.LIST && config.strings(param.name()).isEmpty());
 			if (param.required() && blank) {
 				throw new EntityInvalidException(
 						"eval #%d (%s): '%s' is required".formatted(index, eval.type(), param.name()));

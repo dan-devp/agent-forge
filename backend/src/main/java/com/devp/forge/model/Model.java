@@ -29,6 +29,10 @@ public record Model(
 		return provider.isLocal();
 	}
 
+	public ModelKind kind() {
+		return provider.kind();
+	}
+
 	/** Needs a key from the environment before it can be called. */
 	public boolean needsKey() {
 		return !local();

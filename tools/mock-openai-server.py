@@ -12,6 +12,12 @@ Tool loop: when the request offers tools and no tool result is in the history ye
 mock requests every offered tool once (with plausible arguments for the built-ins). Once
 tool results are present it answers with them, so a task like time-and-division passes.
 Without tools it answers with a fixed sentence.
+
+Judges: a chat request whose user message has a '# Fragen' section gets one line per
+question ('1: JA - ...'). POST /v1/systemone plays a TypeSafe decision model (Jev) and
+answers every Noul question with a truth value. Both say yes when a word of five or
+more letters from the question appears in the judged answer, else no - crude, but
+deterministic, and it gives a verification both outcomes.
 """
 import json
 import re
@@ -40,6 +46,29 @@ def answer_from_tools(messages):
     return " ".join(parts)
 
 
+def says_yes(question, answer):
+    words = [w for w in re.findall(r"\w+", question.lower()) if len(w) >= 5]
+    return any(w in answer.lower() for w in words)
+
+
+def judge_lines(user):
+    answer = user.split("# Antwort des Agenten", 1)[-1].split("# Fragen", 1)[0]
+    questions = re.findall(r"(?m)^\s*(\d+)\.\s*(.+)$", user.split("# Fragen", 1)[1])
+    return "\n".join("%s: %s - Mock-Judge" % (n, "JA" if says_yes(q, answer) else "NEIN")
+                     for n, q in questions)
+
+
+def system_one(req):
+    state = req.get("state")
+    answer = state.get("antwort", "") if isinstance(state, dict) else str(state)
+    answers = {}
+    for key, q in (req.get("questions") or {}).items():
+        text = q.get("instructions") if isinstance(q, dict) else q
+        answers[key] = {"type": "noul", "noul": 0.9 if says_yes(str(text), str(answer)) else 0.2}
+    return {"model": req.get("model") or "jev-mock", "answers": answers,
+            "usage": {"input_tokens": 40, "output_tokens": len(answers)}}
+
+
 class Handler(BaseHTTPRequestHandler):
     def _json(self, code, payload):
         body = json.dumps(payload).encode()
@@ -49,6 +78,19 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _body(self):
+        # The TypeSafe SDK (JDK HttpClient) streams its body chunked, without Content-Length.
+        if "chunked" in (self.headers.get("Transfer-Encoding") or "").lower():
+            data = b""
+            while True:
+                size = int(self.rfile.readline().strip().split(b";")[0], 16)
+                if size == 0:
+                    self.rfile.readline()
+                    return data
+                data += self.rfile.read(size)
+                self.rfile.readline()
+        return self.rfile.read(int(self.headers.get("Content-Length", 0)))
+
     def do_GET(self):
         if self.path.rstrip("/").endswith("/models"):
             self._json(200, {"object": "list", "data": [
@@ -57,8 +99,14 @@ class Handler(BaseHTTPRequestHandler):
             self._json(404, {"error": {"message": "not found"}})
 
     def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
-        req = json.loads(self.rfile.read(length) or b"{}")
+        req = json.loads(self._body() or b"{}")
+        if self.path.rstrip("/").endswith("/systemone"):
+            reply = system_one(req)
+            print("REQ path=%s model=%s questions=%s answers=%s" % (
+                self.path, req.get("model"), len(req.get("questions") or {}),
+                {k: v["noul"] for k, v in reply["answers"].items()}), flush=True)
+            self._json(200, reply)
+            return
         messages = req.get("messages", [])
         tools = req.get("tools") or []
         has_results = any(m.get("role") == "tool" for m in messages)
@@ -78,7 +126,12 @@ class Handler(BaseHTTPRequestHandler):
             message = {"role": "assistant", "content": None, "tool_calls": calls}
             finish = "tool_calls"
         else:
-            message = {"role": "assistant", "content": answer_from_tools(messages)}
+            user = next((m.get("content") or "" for m in reversed(messages) if m.get("role") == "user"), "")
+            if isinstance(user, str) and "# Fragen" in user:
+                content = judge_lines(user)
+            else:
+                content = answer_from_tools(messages)
+            message = {"role": "assistant", "content": content}
             finish = "stop"
 
         self._json(200, {

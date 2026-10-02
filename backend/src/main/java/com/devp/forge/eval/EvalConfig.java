@@ -2,6 +2,7 @@ package com.devp.forge.eval;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,6 +26,24 @@ public record EvalConfig(String type, Map<String, Object> params) {
 	public String string(String name, String fallback) {
 		String value = string(name);
 		return value == null || value.isBlank() ? fallback : value;
+	}
+
+	/** A list parameter as non-blank strings; a single value counts as a list of one. */
+	public List<String> strings(String name) {
+		Object value = params.get(name);
+		if (value == null) {
+			return List.of();
+		}
+		List<?> items = value instanceof List<?> list ? list : List.of(value);
+		return items.stream().map(String::valueOf).map(String::strip).filter(s -> !s.isEmpty()).toList();
+	}
+
+	public double number(String name, double fallback) {
+		Object value = params.get(name);
+		if (value == null || String.valueOf(value).isBlank()) {
+			return fallback;
+		}
+		return value instanceof Number n ? n.doubleValue() : Double.parseDouble(String.valueOf(value));
 	}
 
 	public boolean bool(String name, boolean fallback) {

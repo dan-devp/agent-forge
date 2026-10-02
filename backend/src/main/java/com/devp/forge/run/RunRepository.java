@@ -93,10 +93,10 @@ public class RunRepository {
 	/** Verdicts are appended one by one; the aggregate lands on the run afterwards. */
 	public void addEval(UUID runId, RunEval eval) {
 		db.sql("""
-				insert into run_eval (run_id, idx, type, passed, rationale, model, tokens, duration_ms, created_at)
-				values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				insert into run_eval (run_id, idx, type, subject, passed, rationale, model, tokens, duration_ms, created_at)
+				values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""")
-				.params(runId, eval.index(), eval.type(), eval.passed(), eval.rationale(), eval.model(),
+				.params(runId, eval.index(), eval.type(), eval.subject(), eval.passed(), eval.rationale(), eval.model(),
 						eval.tokens(), eval.durationMs(), ts(eval.createdAt()))
 				.update();
 	}
@@ -106,7 +106,7 @@ public class RunRepository {
 	}
 
 	public List<RunEval> evals(UUID runId) {
-		return db.sql("select * from run_eval where run_id = ? order by idx")
+		return db.sql("select * from run_eval where run_id = ? order by idx, id")
 				.param(runId)
 				.query((rs, rowNum) -> mapEval(rs))
 				.list();
@@ -118,7 +118,7 @@ public class RunRepository {
 		db.sql("""
 				select e.* from run_eval e join run r on r.id = e.run_id
 				 where r.agent_id = ? and r.task_id is not null
-				 order by e.run_id, e.idx
+				 order by e.run_id, e.idx, e.id
 				""")
 				.param(agentId)
 				.query((ResultSet rs) -> {
@@ -131,6 +131,7 @@ public class RunRepository {
 		return new RunEval(
 				rs.getInt("idx"),
 				rs.getString("type"),
+				rs.getString("subject"),
 				rs.getBoolean("passed"),
 				rs.getString("rationale"),
 				rs.getString("model"),

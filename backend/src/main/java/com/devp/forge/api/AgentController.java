@@ -5,6 +5,7 @@ import java.util.List;
 import com.devp.forge.agent.Agent;
 import com.devp.forge.agent.AgentRepository;
 import com.devp.forge.agent.ToolAccess;
+import com.devp.forge.model.ModelKind;
 import com.devp.forge.model.ModelRepository;
 import com.devp.forge.run.RunRepository;
 import com.devp.forge.store.StoreExceptions.EntityInvalidException;
@@ -96,6 +97,10 @@ public class AgentController {
 		}
 		if (!models.exists(modelId)) {
 			throw new EntityInvalidException("model '%s' does not exist".formatted(modelId));
+		}
+		if (models.get(modelId).kind() != ModelKind.CHAT) {
+			throw new EntityInvalidException(
+					"model '%s' is a decision model: it answers typed questions and cannot drive an agent".formatted(modelId));
 		}
 	}
 

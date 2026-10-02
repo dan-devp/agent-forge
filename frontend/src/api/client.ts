@@ -8,7 +8,10 @@ export type Status = {
   evals: number
 }
 
-export type ProviderKey = 'openai' | 'anthropic' | 'custom' | 'local'
+export type ProviderKey = 'openai' | 'anthropic' | 'custom' | 'local' | 'typesafe'
+
+/** chat: writes text, drives agents. decision: answers typed questions, only judges. */
+export type ModelKind = 'chat' | 'decision'
 
 export type ProviderInfo = {
   key: ProviderKey
@@ -16,6 +19,7 @@ export type ProviderInfo = {
   fixedBaseUrl: string | null
   defaultKeyEnv: string | null
   local: boolean
+  kind: ModelKind
 }
 
 export type ModelView = {
@@ -30,6 +34,7 @@ export type ModelView = {
   keySet: boolean
   temperature: number
   local: boolean
+  kind: ModelKind
   configured: boolean
   problem: string | null
 }
@@ -153,7 +158,8 @@ export const agentsApi = {
   tools: () => request<ToolList>('/api/tools'),
 }
 
-export type EvalParamType = 'STRING' | 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'MODEL' | 'TOOL'
+/** MODEL: chat models only. JUDGE_MODEL: any model that can judge. LIST: one entry per line. */
+export type EvalParamType = 'STRING' | 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'MODEL' | 'JUDGE_MODEL' | 'LIST' | 'TOOL'
 
 export type EvalParam = {
   name: string
@@ -230,6 +236,8 @@ export type RunStep = {
 export type RunEval = {
   index: number
   type: string
+  /** the part this verdict is about, e.g. a judge's question */
+  subject: string | null
   passed: boolean
   rationale: string | null
   model: string | null
@@ -281,7 +289,7 @@ export type SeriesRun = {
   verdicts: Verdict[]
 }
 
-export type Verdict = { index: number; type: string; passed: boolean; rationale: string | null }
+export type Verdict = { index: number; type: string; subject: string | null; passed: boolean; rationale: string | null }
 
 /** Agent version x task; runs is its run series. */
 export type Pair = { taskId: string; taskVersions: number[]; modelVersions: number[]; runs: SeriesRun[] }

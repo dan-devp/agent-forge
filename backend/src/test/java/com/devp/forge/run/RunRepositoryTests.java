@@ -64,8 +64,8 @@ class RunRepositoryTests {
 				"requests tools: currentTime({})", 40, null, null, Instant.now()));
 		repository.addStep(id, new RunStep(repository.nextStepNumber(id), StepType.TOOL, "currentTime", "{}",
 				"2026-09-17 10:00:00", null, 12L, null, Instant.now()));
-		repository.addEval(id, new RunEval(1, "tool-called", true, "ok", null, null, null, Instant.now()));
-		repository.addEval(id, new RunEval(2, "llm-judge", false, "zu knapp", "judge-1", 120, 800L, Instant.now()));
+		repository.addEval(id, new RunEval(1, "tool-called", null, true, "ok", null, null, null, Instant.now()));
+		repository.addEval(id, new RunEval(2, "llm-judge", null, false, "zu knapp", "judge-1", 120, 800L, Instant.now()));
 		repository.setPassed(id, false);
 
 		Run read = repository.find(id).orElseThrow();

@@ -365,7 +365,10 @@ export function AgentsArea(p: Props) {
               <label className="field span-2">
                 <span>Model</span>
                 <select value={draft.model} onChange={(e) => setDraft({ ...draft, model: e.target.value })} required>
-                  {models.map((m) => (
+                  {/* Decision models only judge; they cannot drive an agent. */}
+                  {models
+                    .filter((m) => m.kind === 'chat' || m.id === draft.model)
+                    .map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name} · {m.modelId}
                       {m.configured ? '' : ' (nicht nutzbar)'}

@@ -17,8 +17,10 @@ import com.devp.forge.ai.ChatClientRegistry.ModelCallFailedException;
 import com.devp.forge.config.RunProperties;
 import com.devp.forge.eval.EvaluationService;
 import com.devp.forge.model.Model;
+import com.devp.forge.model.ModelKind;
 import com.devp.forge.model.ModelRepository;
 import com.devp.forge.run.TracingToolCallingManager.BudgetExceededException;
+import com.devp.forge.store.StoreExceptions.EntityInvalidException;
 import com.devp.forge.task.Task;
 import com.devp.forge.task.TaskRepository;
 import com.devp.forge.tools.ToolRegistry;
@@ -96,6 +98,11 @@ public class RunService {
 	 */
 	public Run prepare(Agent agent, Task task, String input, UUID batchId, Instant startedAt) {
 		Model model = models.get(agent.modelId());
+		// A hand-edited agent file may still point at one; the save path already refuses it.
+		if (model.kind() != ModelKind.CHAT) {
+			throw new EntityInvalidException("model '%s' is a decision model and cannot drive agent '%s'"
+					.formatted(model.id(), agent.id()));
+		}
 		if (!clients.isConfigured(model)) {
 			throw new AiNotConfiguredException("Model '%s' is not usable: %s".formatted(model.id(), clients.problem(model)));
 		}

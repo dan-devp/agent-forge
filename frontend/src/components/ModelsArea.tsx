@@ -228,6 +228,7 @@ export function ModelsArea(p: Props) {
                 </div>
                 <div className="line">
                   <span className="pill">{providerLabel(m.provider, providers)}</span>
+                  {m.kind === 'decision' && <span className="pill info">Decision</span>}
                   <span className="mono">{m.modelId}</span>
                   {!isCloud(m.provider) && <span className="faint small">{m.baseUrl}</span>}
                 </div>
@@ -365,6 +366,8 @@ export function ModelsArea(p: Props) {
                   {draft.provider === 'anthropic' && 'Über den OpenAI-kompatiblen Endpunkt von Anthropic. Chat und Tools gehen, Anthropic-eigene Funktionen nicht.'}
                   {draft.provider === 'custom' && 'Gateway (LiteLLM, OpenRouter, …) oder eigener Server mit Schlüssel.'}
                   {draft.provider === 'local' && 'LM Studio, Ollama, vLLM oder der Mock. Aus dem Container heißt der Host host.docker.internal.'}
+                  {draft.provider === 'typesafe' &&
+                    'Decision-Model (Jev): beantwortet Ja/Nein-Fragen mit einem Wert zwischen 0 und 1, schreibt keinen Text. Nur als Judge in judge-questions, nicht für Agents. Model-Id z. B. jev-latest.'}
                 </span>
               </label>
               <label className="field">
@@ -403,6 +406,7 @@ export function ModelsArea(p: Props) {
                   className="mono"
                 />
               </label>
+              {draft.provider !== 'typesafe' && (
               <label className="field">
                 <span>Temperatur</span>
                 <input
@@ -414,6 +418,7 @@ export function ModelsArea(p: Props) {
                   onChange={(e) => setDraft({ ...draft, temperature: Number(e.target.value) })}
                 />
               </label>
+              )}
               {draft.provider !== 'local' && (
                 <label className="field span-2">
                   <span>Schlüssel aus Umgebungsvariable</span>
@@ -488,7 +493,7 @@ function StatusPill({ m }: { m: ModelView }) {
 }
 
 function isCloud(key: ProviderKey) {
-  return key === 'openai' || key === 'anthropic'
+  return key === 'openai' || key === 'anthropic' || key === 'typesafe'
 }
 
 function providerLabel(key: ProviderKey, providers: ProviderInfo[]) {

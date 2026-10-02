@@ -51,6 +51,9 @@ dependencies {
 	// implementation 'org.springframework.ai:spring-ai-starter-model-anthropic'   // cloud
 	// implementation 'org.springframework.ai:spring-ai-starter-model-azure-openai'
 	implementation 'org.springframework.ai:spring-ai-starter-mcp-client'           // Tools via MCP
+	// Decision models (TypeSafe Jev): typed yes/no answers instead of text. The plain SDK,
+	// not the starter — clients are built per model file, like the chat clients.
+	implementation 'org.springaicommunity:typesafe-java-sdk:0.2.0'
 	// -----------------------------------------------------------------------
 
 	compileOnly 'org.projectlombok:lombok'

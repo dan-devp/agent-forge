@@ -66,4 +66,18 @@ class NoRealModelCallsTests {
 			models.archive(saved.id());
 		}
 	}
+
+	@Test
+	void aDecisionModelIsRedirectedToo() {
+		Model jev = new Model("guard-jev-" + System.nanoTime(), 0, "Jev", null, Provider.TYPESAFE,
+				Provider.TYPESAFE.fixedBaseUrl(), "jev-latest", "API_KEY_TYPESAFE", 0.7);
+		Model saved = models.create(jev);
+		try {
+			// The decision registry takes the same effective URL and only cuts the version path.
+			assertThat(registry.effectiveBaseUrl(saved)).isEqualTo(DEAD);
+		}
+		finally {
+			models.archive(saved.id());
+		}
+	}
 }

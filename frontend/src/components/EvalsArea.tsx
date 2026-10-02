@@ -8,7 +8,7 @@ const GROUPS: { title: string; types: string[] }[] = [
   { title: 'Antworttext', types: ['contains', 'not-contains', 'equals', 'regex', 'not-regex', 'length'] },
   { title: 'Tools im Trace', types: ['tool-called', 'tool-not-called', 'max-tool-calls'] },
   { title: 'JSON', types: ['json-valid', 'json-path'] },
-  { title: 'Mit Judge-Model', types: ['llm-judge'] },
+  { title: 'Mit Judge-Model', types: ['llm-judge', 'judge-questions'] },
 ]
 
 const PARAM_TYPE: Record<EvalParam['type'], string> = {
@@ -16,7 +16,9 @@ const PARAM_TYPE: Record<EvalParam['type'], string> = {
   TEXT: 'Text, mehrzeilig',
   NUMBER: 'Zahl',
   BOOLEAN: 'ja/nein',
-  MODEL: 'Model',
+  MODEL: 'Chat-Model',
+  JUDGE_MODEL: 'Chat- oder Decision-Model',
+  LIST: 'Liste, eine Zeile je Eintrag',
   TOOL: 'Tool',
 }
 

@@ -180,13 +180,14 @@ public class RunQueue {
 			return new SeriesRun(r.id(), r.batchId(), r.status(), r.passed(), r.taskVersion(), r.totalTokens(),
 					r.durationMs(), r.startedAt() != null ? r.startedAt() : r.queuedAt(),
 					clip(r.answer() != null ? r.answer() : r.error(), PREVIEW),
-					evals.stream().map(e -> new Verdict(e.index(), e.type(), e.passed(), clip(e.rationale(), RATIONALE)))
+					evals.stream().map(e -> new Verdict(e.index(), e.type(), e.subject(), e.passed(),
+							clip(e.rationale(), RATIONALE)))
 							.toList());
 		}
 	}
 
 	/** A verdict as the matrix shows it; the judge's cost stays on the run detail. */
-	public record Verdict(int index, String type, boolean passed, String rationale) {
+	public record Verdict(int index, String type, String subject, boolean passed, String rationale) {
 	}
 
 	// The matrix carries every run of an agent; full answers and judge rationales belong to the detail.

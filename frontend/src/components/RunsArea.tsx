@@ -391,15 +391,34 @@ function StatusPill({ r }: { r: SeriesRun }) {
   return <span className={`pill ${r.passed ? 'pass' : 'fail'}`}>{r.passed ? 'bestanden' : 'nicht bestanden'}</span>
 }
 
-type Tally = { index: number; type: string; passed: number; total: number; reason: string | null; reasonCount: number }
+type Tally = {
+  index: number
+  type: string
+  subject: string | null
+  passed: number
+  total: number
+  reason: string | null
+  reasonCount: number
+}
 
 /** Per eval over the series: how often it held, and the failure reason seen most often. */
 function tally(runs: SeriesRun[]): Tally[] {
-  const byEval = new Map<string, { index: number; type: string; passed: number; total: number; reasons: Map<string, number> }>()
+  const byEval = new Map<
+    string,
+    { index: number; type: string; subject: string | null; passed: number; total: number; reasons: Map<string, number> }
+  >()
   for (const r of runs) {
     for (const v of r.verdicts) {
-      const key = `${v.index}:${v.type}`
-      const t = byEval.get(key) ?? { index: v.index, type: v.type, passed: 0, total: 0, reasons: new Map<string, number>() }
+      // A judge's questions share the eval's index; each one is tallied on its own.
+      const key = `${v.index}:${v.type}:${v.subject ?? ''}`
+      const t = byEval.get(key) ?? {
+        index: v.index,
+        type: v.type,
+        subject: v.subject,
+        passed: 0,
+        total: 0,
+        reasons: new Map<string, number>(),
+      }
       t.total++
       if (v.passed) t.passed++
       else if (v.rationale) t.reasons.set(v.rationale, (t.reasons.get(v.rationale) ?? 0) + 1)
@@ -410,8 +429,20 @@ function tally(runs: SeriesRun[]): Tally[] {
     .sort((a, b) => a.index - b.index)
     .map((t) => {
       const top = [...t.reasons].sort((a, b) => b[1] - a[1])[0]
-      return { index: t.index, type: t.type, passed: t.passed, total: t.total, reason: top?.[0] ?? null, reasonCount: top?.[1] ?? 0 }
+      return {
+        index: t.index,
+        type: t.type,
+        subject: t.subject,
+        passed: t.passed,
+        total: t.total,
+        reason: top?.[0] ?? null,
+        reasonCount: top?.[1] ?? 0,
+      }
     })
+}
+
+function shorten(text: string, max: number) {
+  return text.length <= max ? text : text.slice(0, max - 1) + '…'
 }
 
 function avg(values: (number | null)[]) {
@@ -462,12 +493,15 @@ function SeriesCard(p: { pair: Pair; version: number; evalTypes: EvalType[]; onO
           {tallies.length > 0 && (
             <div className="tallies">
               {tallies.map((t) => (
-                <div key={`${t.index}:${t.type}`} className="tally">
+                <div key={`${t.index}:${t.type}:${t.subject ?? ''}`} className="tally">
                   <span className={`pill mono ${t.passed === t.total ? 'pass' : t.passed === 0 ? 'fail' : 'open'}`}>
                     {t.passed}/{t.total}
                   </span>
                   <span className="what">
-                    {label(t.type)} <span className="mono faint small">{t.type}</span>
+                    {t.subject ?? label(t.type)}{' '}
+                    <span className="mono faint small">
+                      #{t.index} {t.type}
+                    </span>
                   </span>
                   <span className="why small muted">
                     {t.reason && (
@@ -502,9 +536,9 @@ function SeriesCard(p: { pair: Pair; version: number; evalTypes: EvalType[]; onO
                     <StatusPill r={r} />
                   </span>
                   <span className="line">
-                    {failed.map((v) => (
-                      <span key={v.index} className="pill mono fail" title={v.rationale ?? ''}>
-                        {v.type}
+                    {failed.map((v, k) => (
+                      <span key={k} className="pill mono fail" title={[v.subject, v.rationale].filter(Boolean).join(' — ')}>
+                        {v.subject ? shorten(v.subject, 28) : v.type}
                       </span>
                     ))}
                   </span>
