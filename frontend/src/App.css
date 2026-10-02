@@ -1943,19 +1943,97 @@ a.task-name:hover {
 .task-tallies {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.3rem;
+}
+
+/* A measured task is a row that opens: its runs in this step, with what they missed. */
+.task-tally-group {
+  border-radius: 12px;
+}
+
+.task-tally-group.open {
+  background: var(--surface);
+  padding-bottom: 0.5rem;
 }
 
 .task-tally {
   display: grid;
-  grid-template-columns: 0.7rem minmax(9rem, auto) auto 1fr;
+  /* Fixed name width, so the counts line up from row to row. */
+  grid-template-columns: 0.7rem 15rem 4rem 3.5rem 1fr;
   gap: 0.6rem;
   align-items: center;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.task-tally:hover {
+  background: var(--surface);
+}
+
+.task-tally-name {
+  font-weight: 600;
 }
 
 .task-tally .num {
   justify-self: start;
 }
+
+.task-tally-toggle {
+  justify-self: end;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.task-runs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem 0 1.9rem;
+}
+
+.task-run {
+  display: grid;
+  grid-template-columns: 1.2rem 8rem minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.45rem 0.7rem;
+  background: var(--surface-2);
+  border-radius: 10px;
+}
+
+.task-run:hover {
+  background: var(--surface-3);
+}
+
+.task-run-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.task-run-missed {
+  font-size: var(--fs-sm);
+  color: var(--fail-text);
+}
+
+.task-run-answer {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 
 .dot {
   width: 0.6rem;
@@ -1984,32 +2062,6 @@ a.task-name:hover {
 
 .drawers .btn.on {
   background: var(--surface);
-}
-
-.failed-runs {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.failed-run {
-  display: grid;
-  grid-template-columns: minmax(9rem, auto) auto minmax(0, 1fr);
-  gap: 0.6rem;
-  align-items: baseline;
-  padding: 0.45rem 0.8rem;
-  background: var(--surface);
-  border-radius: 10px;
-}
-
-.failed-run:hover {
-  background: var(--surface-3);
-}
-
-.failed-run .preview {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .coach-io {

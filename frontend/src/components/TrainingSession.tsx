@@ -1,13 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router'
 import {
   agentsApi,
+  catalogApi,
   runsApi,
+  tasksApi,
   trainingsApi,
+  type EvalType,
   type Run,
   type Score,
   type Session,
   type SessionStatus,
+  type Task,
   type TrainingStep,
 } from '../api/client'
 import { decisionSentence, diffLines, isOpen, journey } from './training'
@@ -82,8 +86,16 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
   const [session, setSession] = useState<Session | null>(null)
   const [tick, setTick] = useState(0)
   const [busy, setBusy] = useState(false)
+  // Names for what the steps measure: a task reads as its name, a check as its label.
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [evalTypes, setEvalTypes] = useState<EvalType[]>([])
   const timer = useRef<number | null>(null)
   const wasOpen = useRef(false)
+
+  useEffect(() => {
+    tasksApi.list().then(setTasks).catch(() => setTasks([]))
+    catalogApi.evals().then(setEvalTypes).catch(() => setEvalTypes([]))
+  }, [])
 
   const load = (id: string) =>
     trainingsApi
@@ -138,6 +150,11 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
   const selected =
     s.steps.find((st) => String(st.seq) === asked) ?? waiting ?? s.steps.at(-1) ?? null
   const select = (seq: number) => setParams({ step: String(seq) }, { replace: true })
+  // The opened task is part of the address, so the way back from a run lands on it again.
+  const openTask = params.get('task')
+  const toggleTask = (task: string) =>
+    selected &&
+    setParams(openTask === task ? { step: String(selected.seq) } : { step: String(selected.seq), task }, { replace: true })
   const proposals = Math.max(0, s.steps.length - 1)
 
   return (
@@ -209,6 +226,10 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
             session={s}
             tick={tick}
             busy={busy}
+            tasks={tasks}
+            evalTypes={evalTypes}
+            openTask={openTask}
+            onToggleTask={toggleTask}
             onDecide={(accept) => perform(() => trainingsApi.decide(s.id, selected.seq, accept))}
             onError={p.onError}
           />
@@ -328,7 +349,7 @@ function tallyByTask(session: Session, runs: Run[]): TaskTally[] {
   })
 }
 
-type Drawer = 'diff' | 'failed' | 'coach' | null
+type Drawer = 'diff' | 'coach' | null
 
 /** One step in a fixed order: ① proposal, ② measurement, ③ decision. Raw material behind buttons. */
 function StepPanel(p: {
@@ -336,6 +357,10 @@ function StepPanel(p: {
   session: Session
   tick: number
   busy: boolean
+  tasks: Task[]
+  evalTypes: EvalType[]
+  openTask: string | null
+  onToggleTask: (task: string) => void
   onDecide: (accept: boolean) => void
   onError: (m: string) => void
 }) {
@@ -364,7 +389,6 @@ function StepPanel(p: {
 
   const batchRuns = runs && runs.batch === st.batchId ? runs.list : null
   const tallies = batchRuns ? tallyByTask(s, batchRuns) : null
-  const failed = batchRuns ? batchRuns.filter((r) => r.status !== 'CANCELLED' && r.passed === false) : []
   const waiting = s.status === 'WAITING' && st.decision === 'PENDING' && st.score !== null
   const hasDiff = st.baseVersion !== null && st.agentVersion !== null
   const sentence = decisionSentence(st, s.steps)
@@ -439,17 +463,31 @@ function StepPanel(p: {
             </p>
           ) : (
             <div className="task-tallies">
-              {tallies.map((t) => (
-                <div key={t.taskId} className="task-tally">
-                  <span className={`dot ${t.open > 0 ? 'open' : t.total === 0 ? '' : t.passed === t.total ? 'pass' : 'fail'}`} />
-                  <Ref kind="task" id={t.taskId} />
-                  {t.holdout && <span className="small faint">Holdout</span>}
-                  <span className="mono num">
-                    {t.passed}/{t.total}
-                    {t.open > 0 && <span className="faint"> +{t.open} offen</span>}
-                  </span>
-                </div>
-              ))}
+              {tallies.map((t) => {
+                const open = p.openTask === t.taskId
+                return (
+                  <div key={t.taskId} className={`task-tally-group ${open ? 'open' : ''}`}>
+                    <button type="button" className="task-tally" onClick={() => p.onToggleTask(t.taskId)} aria-expanded={open}>
+                      <span className={`dot ${t.open > 0 ? 'open' : t.total === 0 ? '' : t.passed === t.total ? 'pass' : 'fail'}`} />
+                      <span className="task-tally-name">{p.tasks.find((x) => x.id === t.taskId)?.name ?? t.taskId}</span>
+                      <span className="small faint">{t.holdout ? 'Holdout' : ''}</span>
+                      <span className="mono num">
+                        {t.passed}/{t.total}
+                        {t.open > 0 && <span className="faint"> +{t.open} offen</span>}
+                      </span>
+                      <span className="task-tally-toggle">{open ? 'zuklappen' : 'Runs ansehen'}</span>
+                    </button>
+                    {open && batchRuns && (
+                      <TaskRuns
+                        taskId={t.taskId}
+                        runs={batchRuns.filter((r) => r.taskId === t.taskId && r.status !== 'CANCELLED')}
+                        evalTypes={p.evalTypes}
+                        onError={p.onError}
+                      />
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -493,11 +531,6 @@ function StepPanel(p: {
             Prompt-Diff
           </button>
         )}
-        {failed.length > 0 && (
-          <button className={`btn quiet sm ${drawer === 'failed' ? 'on' : ''}`} onClick={() => open('failed')}>
-            Gescheiterte Runs ({failed.length})
-          </button>
-        )}
         {(st.coachInput || st.coachOutput) && (
           <button className={`btn quiet sm ${drawer === 'coach' ? 'on' : ''}`} onClick={() => open('coach')}>
             Was der Coach sah
@@ -506,17 +539,6 @@ function StepPanel(p: {
       </div>
 
       {drawer === 'diff' && diff && <PromptDiff before={diff.before} after={diff.after} from={st.baseVersion} to={st.agentVersion} />}
-      {drawer === 'failed' && (
-        <div className="failed-runs">
-          {failed.map((r) => (
-            <Link key={r.id} to={`/runs/${r.id}`} className="failed-run">
-              <Ref kind="task" id={r.taskId ?? '?'} link={false} />
-              {s.holdout.includes(r.taskId ?? '') && <span className="small faint">Holdout</span>}
-              <span className="small muted preview">{r.answer ?? r.error ?? r.status}</span>
-            </Link>
-          ))}
-        </div>
-      )}
       {drawer === 'coach' && (
         <div className="coach-io">
           {st.coachInput && (
@@ -533,6 +555,65 @@ function StepPanel(p: {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * The runs of one task in one step, loaded with their verdicts when opened: what each run
+ * answered and which checks it missed. A run opens its detail, which leads back here.
+ */
+function TaskRuns(p: { taskId: string; runs: Run[]; evalTypes: EvalType[]; onError: (m: string) => void }) {
+  const location = useLocation()
+  const [details, setDetails] = useState<Record<string, Run>>({})
+  const ids = p.runs.map((r) => r.id).join(',')
+
+  useEffect(() => {
+    if (!ids) return
+    let stale = false
+    Promise.all(ids.split(',').map((id) => runsApi.get(id)))
+      .then((list) => {
+        if (!stale) setDetails(Object.fromEntries(list.map((r) => [r.id, r])))
+      })
+      .catch((e: Error) => p.onError(e.message))
+    return () => {
+      stale = true
+    }
+  }, [ids]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const label = (type: string) => p.evalTypes.find((t) => t.type === type)?.label ?? type
+  const back = { from: location.pathname + location.search, label: 'zurück zur Session' }
+
+  return (
+    <div className="task-runs">
+      {p.runs.length === 0 && <p className="small muted">Kein Run in diesem Schritt.</p>}
+      {p.runs.map((r, i) => {
+        const d = details[r.id]
+        const missed = d ? d.evals.filter((e) => !e.passed) : []
+        return (
+          <Link key={r.id} to={`/runs/${r.id}`} state={back} className="task-run">
+            <span className="mono muted">{i + 1}</span>
+            <span>
+              {r.status === 'DONE' ? (
+                <span className={`pill sm ${r.passed ? 'pass' : 'fail'}`}>{r.passed ? 'bestanden' : 'nicht bestanden'}</span>
+              ) : (
+                <span className="pill sm fail">{r.status === 'BUDGET_EXCEEDED' ? 'Budget' : r.status === 'FAILED' ? 'Fehler' : r.status}</span>
+              )}
+            </span>
+            <span className="task-run-body">
+              {missed.map((e, k) => (
+                <span key={k} className="task-run-missed">
+                  ✗ {e.subject ? `${e.subject} ${e.rationale ?? ''}` : e.rationale ?? label(e.type)}
+                </span>
+              ))}
+              <span className="task-run-answer">{(r.answer ?? r.error ?? '').trim() || 'keine Antwort'}</span>
+            </span>
+          </Link>
+        )
+      })}
+      <Link to={`/tasks/${encodeURIComponent(p.taskId)}`} className="link small">
+        Task-Definition ansehen
+      </Link>
     </div>
   )
 }

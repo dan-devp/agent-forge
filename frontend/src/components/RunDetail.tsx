@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
 import { catalogApi, runsApi, type EvalType, type Run, type RunStep } from '../api/client'
 import { Fold } from './forms'
 import { Ref } from './Ref'
@@ -54,6 +54,8 @@ function verdict(run: Run): { tone: string; title: string; detail: string | null
  */
 export function RunDetail(p: Props) {
   const { id } = useParams()
+  // Opened from a session step, the run knows the way back there.
+  const back = useLocation().state as { from?: string; label?: string } | null
   const [run, setRun] = useState<Run | null>(null)
   const [types, setTypes] = useState<EvalType[]>([])
 
@@ -103,6 +105,13 @@ export function RunDetail(p: Props) {
 
   return (
     <>
+      {back?.from && (
+        <nav className="back">
+          <Link to={back.from} className="link">
+            ← {back.label ?? 'zurück'}
+          </Link>
+        </nav>
+      )}
       <section className="card kind t-run">
         <div className="card-head">
           <h2>Run</h2>
