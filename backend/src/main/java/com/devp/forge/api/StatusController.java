@@ -7,6 +7,7 @@ import com.devp.forge.model.ModelRepository;
 import com.devp.forge.run.RunRepository;
 import com.devp.forge.task.TaskRepository;
 import com.devp.forge.tools.ToolRegistry;
+import com.devp.forge.training.TrainingRepository;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,9 +25,11 @@ public class StatusController {
 	private final ToolRegistry tools;
 	private final RunRepository runs;
 	private final EvalRegistry evals;
+	private final TrainingRepository trainings;
 
 	public StatusController(DataProperties data, ModelRepository models, AgentRepository agents,
-			TaskRepository tasks, ToolRegistry tools, RunRepository runs, EvalRegistry evals) {
+			TaskRepository tasks, ToolRegistry tools, RunRepository runs, EvalRegistry evals,
+			TrainingRepository trainings) {
 		this.data = data;
 		this.models = models;
 		this.agents = agents;
@@ -34,14 +37,16 @@ public class StatusController {
 		this.tools = tools;
 		this.runs = runs;
 		this.evals = evals;
+		this.trainings = trainings;
 	}
 
 	@GetMapping
 	public Status status() {
 		return new Status(data.getDataDir().toAbsolutePath().normalize().toString(), models.list().size(),
-				agents.list().size(), tasks.list().size(), tools.list().size(), runs.count(), evals.list().size());
+				agents.list().size(), tasks.list().size(), tools.list().size(), runs.count(), evals.list().size(), trainings.list().size());
 	}
 
-	public record Status(String dataDir, int models, int agents, int tasks, int tools, int runs, int evals) {
+	public record Status(String dataDir, int models, int agents, int tasks, int tools, int runs, int evals,
+			int trainings) {
 	}
 }

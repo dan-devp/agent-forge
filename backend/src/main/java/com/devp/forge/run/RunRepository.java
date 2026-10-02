@@ -201,6 +201,18 @@ public class RunRepository {
 				.toList();
 	}
 
+	/** What a batch cost: the runs' tokens plus every judge's. */
+	public int tokensOfBatch(UUID batchId) {
+		return db.sql("""
+				select coalesce((select sum(total_tokens) from run where batch_id = ?), 0)
+				     + coalesce((select sum(e.tokens) from run_eval e join run r on r.id = e.run_id
+				                  where r.batch_id = ?), 0)
+				""")
+				.params(batchId, batchId)
+				.query(Integer.class)
+				.single();
+	}
+
 	public int count() {
 		return db.sql("select count(*) from run").query(Integer.class).single();
 	}

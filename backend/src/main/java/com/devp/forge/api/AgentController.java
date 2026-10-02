@@ -8,8 +8,10 @@ import com.devp.forge.agent.ToolAccess;
 import com.devp.forge.model.ModelKind;
 import com.devp.forge.model.ModelRepository;
 import com.devp.forge.run.RunRepository;
+import com.devp.forge.store.StoreExceptions.EntityInUseException;
 import com.devp.forge.store.StoreExceptions.EntityInvalidException;
 import com.devp.forge.tools.ToolRegistry;
+import com.devp.forge.training.TrainingRepository;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -32,12 +34,15 @@ public class AgentController {
 	private final ModelRepository models;
 	private final ToolRegistry tools;
 	private final RunRepository runs;
+	private final TrainingRepository trainings;
 
-	public AgentController(AgentRepository agents, ModelRepository models, ToolRegistry tools, RunRepository runs) {
+	public AgentController(AgentRepository agents, ModelRepository models, ToolRegistry tools, RunRepository runs,
+			TrainingRepository trainings) {
 		this.agents = agents;
 		this.models = models;
 		this.tools = tools;
 		this.runs = runs;
+		this.trainings = trainings;
 	}
 
 	@GetMapping
@@ -81,6 +86,15 @@ public class AgentController {
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void archive(@PathVariable String id) {
+		agents.get(id);
+		List<String> using = trainings.list().stream()
+				.filter(t -> t.agentId().equals(id) || t.coachId().equals(id))
+				.map(t -> t.id())
+				.toList();
+		if (!using.isEmpty()) {
+			throw new EntityInUseException(
+					"Agent '%s' is trained or coaches in training(s) %s - change them first.".formatted(id, using));
+		}
 		agents.archive(id);
 	}
 

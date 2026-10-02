@@ -8,7 +8,7 @@ export function Home({ status }: { status: Status | null }) {
     <div className="home">
       <div className="home-head">
         <h1>Trainingslager</h1>
-        <p>Models, Agents und Tasks zusammenstellen. Runs aufzeichnen und bewerten.</p>
+        <p>Models, Agents und Tasks zusammenstellen. Runs aufzeichnen und bewerten. Einen Coach den Agent trainieren lassen.</p>
       </div>
       <div className="tiles">
         {AREAS.map((a) => (

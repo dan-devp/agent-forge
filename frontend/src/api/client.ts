@@ -6,6 +6,7 @@ export type Status = {
   tools: number
   runs: number
   evals: number
+  trainings: number
 }
 
 export type ProviderKey = 'openai' | 'anthropic' | 'custom' | 'local' | 'typesafe'
@@ -318,7 +319,115 @@ export const runsApi = {
     request<Run>('/api/runs', { method: 'POST', body: JSON.stringify(body) }),
   batch: (body: { agent: string; agentVersion?: number; tasks?: string[]; repetitions: number }) =>
     request<Batch>('/api/runs/batch', { method: 'POST', body: JSON.stringify(body) }),
+  batchRuns: (id: string) => request<Run[]>(`/api/runs/batch/${id}`),
   cancelBatch: (id: string) => request<{ cancelled: number }>(`/api/runs/batch/${id}/cancel`, { method: 'POST' }),
   cancel: (id: string) => request<{ cancelled: boolean }>(`/api/runs/${id}/cancel`, { method: 'POST' }),
   matrix: (agent: string) => request<Matrix>(`/api/runs/matrix?agent=${encodeURIComponent(agent)}`),
+}
+
+export type Approval = 'GATE' | 'MANUAL'
+
+export type Training = {
+  id: string
+  version: number
+  name: string
+  description: string | null
+  agentId: string
+  coachId: string
+  train: string[]
+  holdout: string[]
+  repetitions: number
+  maxSteps: number
+  maxTokens: number | null
+  approval: Approval
+  /** what the coach should aim for, read by the coach */
+  goal: string | null
+}
+
+export type SessionStatus = 'RUNNING' | 'WAITING' | 'DONE' | 'STOPPED' | 'BUDGET_EXCEEDED' | 'FAILED'
+export type Decision = 'PENDING' | 'ACCEPTED' | 'REJECTED'
+
+export type Score = { trainPassed: number; trainTotal: number; holdoutPassed: number; holdoutTotal: number }
+
+/** Step 0 is the baseline; every later step is one coach proposal, measured and decided. */
+export type TrainingStep = {
+  seq: number
+  baseVersion: number | null
+  agentVersion: number | null
+  batchId: string | null
+  score: Score | null
+  runTokens: number | null
+  coachInput: string | null
+  coachOutput: string | null
+  rationale: string | null
+  coachModel: string | null
+  coachTokens: number | null
+  coachDurationMs: number | null
+  gate: Decision | null
+  decision: Decision
+  decidedBy: string | null
+  reason: string | null
+  createdAt: string
+  finishedAt: string | null
+}
+
+export type Session = {
+  id: string
+  trainingId: string
+  trainingVersion: number
+  agentId: string
+  coachId: string
+  coachVersion: number
+  approval: Approval
+  repetitions: number
+  maxSteps: number
+  maxTokens: number | null
+  train: string[]
+  holdout: string[]
+  status: SessionStatus
+  startVersion: number
+  bestVersion: number | null
+  finalVersion: number | null
+  totalTokens: number
+  error: string | null
+  note: string | null
+  startedAt: string
+  finishedAt: string | null
+  steps: TrainingStep[]
+}
+
+export type TrainingView = { training: Training; lastSession: Session | null }
+export type TrainingDetail = { training: Training; versions: number[]; sessions: Session[] }
+
+export type TrainingRequest = {
+  id?: string
+  name: string
+  description: string | null
+  agent: string
+  coach: string
+  train: string[]
+  holdout: string[]
+  repetitions: number
+  maxSteps: number
+  maxTokens: number | null
+  approval: 'gate' | 'manual'
+  goal: string | null
+}
+
+export const trainingsApi = {
+  list: () => request<TrainingView[]>('/api/trainings'),
+  get: (id: string) => request<TrainingDetail>(`/api/trainings/${encodeURIComponent(id)}`),
+  version: (id: string, version: number) => request<Training>(`/api/trainings/${encodeURIComponent(id)}/versions/${version}`),
+  source: (id: string, version: number) =>
+    request<string>(`/api/trainings/${encodeURIComponent(id)}/versions/${version}/source`),
+  create: (body: TrainingRequest) => request<Training>('/api/trainings', { method: 'POST', body: JSON.stringify(body) }),
+  update: (id: string, body: TrainingRequest) =>
+    request<Training>(`/api/trainings/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) }),
+  remove: (id: string) => request<void>(`/api/trainings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  reload: () => request<TrainingView[]>('/api/trainings/reload', { method: 'POST' }),
+  start: (id: string) => request<Session>(`/api/trainings/${encodeURIComponent(id)}/sessions`, { method: 'POST' }),
+  session: (id: string) => request<Session>(`/api/sessions/${id}`),
+  stop: (id: string) => request<{ stopping: boolean }>(`/api/sessions/${id}/stop`, { method: 'POST' }),
+  decide: (id: string, seq: number, accept: boolean) =>
+    request<TrainingStep>(`/api/sessions/${id}/steps/${seq}/decision`, { method: 'POST', body: JSON.stringify({ accept }) }),
 }

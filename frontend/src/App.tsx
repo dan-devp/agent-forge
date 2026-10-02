@@ -11,6 +11,8 @@ import { TasksArea } from './components/TasksArea'
 import { RunsArea } from './components/RunsArea'
 import { RunDetail } from './components/RunDetail'
 import { ToolsArea } from './components/ToolsArea'
+import { TrainingsArea } from './components/TrainingsArea'
+import { SessionPage } from './components/TrainingSession'
 import './App.css'
 
 function Topbar({ status }: { status: Status | null }) {
@@ -63,6 +65,9 @@ function App() {
             <Route path="/agents/:id" element={<AgentsArea onError={setError} onChanged={refreshStatus} />} />
             <Route path="/tasks" element={<TasksArea onError={setError} onChanged={refreshStatus} />} />
             <Route path="/tasks/:id" element={<TasksArea onError={setError} onChanged={refreshStatus} />} />
+            <Route path="/trainings" element={<TrainingsArea onError={setError} onChanged={refreshStatus} />} />
+            <Route path="/trainings/:id" element={<TrainingsArea onError={setError} onChanged={refreshStatus} />} />
+            <Route path="/trainings/:id/sessions/:sid" element={<SessionPage onError={setError} onChanged={refreshStatus} />} />
             <Route path="/runs" element={<RunsArea onError={setError} onChanged={refreshStatus} />} />
             <Route path="/runs/:id" element={<RunDetail onError={setError} />} />
             <Route path="/evals" element={<EvalsArea onError={setError} />} />

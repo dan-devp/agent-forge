@@ -7,6 +7,7 @@ import com.devp.forge.store.StoreExceptions.EntityConflictException;
 import com.devp.forge.store.StoreExceptions.EntityInUseException;
 import com.devp.forge.store.StoreExceptions.EntityInvalidException;
 import com.devp.forge.store.StoreExceptions.UnknownEntityException;
+import com.devp.forge.training.TrainingEngine.UnknownSessionException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -24,6 +25,11 @@ public class ApiExceptionHandler {
 
 	@ExceptionHandler(UnknownRunException.class)
 	public ProblemDetail handleUnknownRun(UnknownRunException ex) {
+		return problem(HttpStatus.NOT_FOUND, "Not found", ex);
+	}
+
+	@ExceptionHandler(UnknownSessionException.class)
+	public ProblemDetail handleUnknownSession(UnknownSessionException ex) {
 		return problem(HttpStatus.NOT_FOUND, "Not found", ex);
 	}
 

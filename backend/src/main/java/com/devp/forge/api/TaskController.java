@@ -5,9 +5,11 @@ import java.util.Map;
 
 import com.devp.forge.eval.EvalConfig;
 import com.devp.forge.run.RunRepository;
+import com.devp.forge.store.StoreExceptions.EntityInUseException;
 import com.devp.forge.store.StoreExceptions.EntityInvalidException;
 import com.devp.forge.task.Task;
 import com.devp.forge.task.TaskRepository;
+import com.devp.forge.training.TrainingRepository;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -28,10 +30,12 @@ public class TaskController {
 
 	private final TaskRepository tasks;
 	private final RunRepository runs;
+	private final TrainingRepository trainings;
 
-	public TaskController(TaskRepository tasks, RunRepository runs) {
+	public TaskController(TaskRepository tasks, RunRepository runs, TrainingRepository trainings) {
 		this.tasks = tasks;
 		this.runs = runs;
+		this.trainings = trainings;
 	}
 
 	@GetMapping
@@ -72,6 +76,15 @@ public class TaskController {
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void archive(@PathVariable String id) {
+		tasks.get(id);
+		List<String> using = trainings.list().stream()
+				.filter(t -> t.allTasks().contains(id))
+				.map(t -> t.id())
+				.toList();
+		if (!using.isEmpty()) {
+			throw new EntityInUseException(
+					"Task '%s' is part of training(s) %s - change them first.".formatted(id, using));
+		}
 		tasks.archive(id);
 	}
 

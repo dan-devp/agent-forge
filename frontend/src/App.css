@@ -7,10 +7,16 @@
 }
 
 .topbar {
+  /* Stays on top while the page scrolls; the sand ground hides what passes underneath. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--topbar-h);
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  padding: 1rem 2rem;
+  padding: 0 2rem;
+  background: var(--bg);
 }
 
 .brand {
@@ -166,8 +172,19 @@
   flex-direction: column;
   gap: 0.35rem;
   align-self: start;
+  /* Right under the fixed header; scrolls on its own if the window is too short. */
   position: sticky;
-  top: 1rem;
+  top: calc(var(--topbar-h) + 0.5rem);
+  max-height: calc(100vh - var(--topbar-h) - 1rem);
+  overflow-y: auto;
+}
+
+@media (max-width: 900px) {
+  /* One column: a sticky menu would sit on top of the content. */
+  .sidebar {
+    position: static;
+    max-height: none;
+  }
 }
 
 .nav-item {
@@ -662,7 +679,8 @@ textarea {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  z-index: 10;
+  /* Above the sticky header: a dialog covers everything. */
+  z-index: 30;
 }
 
 .modal {
@@ -1251,4 +1269,424 @@ textarea.prompt {
 .view-switch a.on {
   background: var(--accent);
   color: var(--accent-text);
+}
+
+/* ---- Trainings ------------------------------------------------------------
+ * Three levels, one question each: which trainings (list), what one does (recipe +
+ * sessions), what happened (session page). Colour only for outcomes; numbers are mono text.
+ */
+
+.training-row {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+}
+
+.session-row {
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+}
+
+.spark {
+  flex: none;
+}
+
+.spark path {
+  fill: none;
+  stroke: var(--pass-text);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.spark circle {
+  fill: var(--pass-text);
+}
+
+.spark.empty {
+  display: inline-block;
+  width: 72px;
+}
+
+.recipe {
+  line-height: 1.8;
+}
+
+.recipe .strong {
+  font-weight: 700;
+}
+
+.recipe a:hover {
+  text-decoration: underline;
+}
+
+.goal {
+  max-width: 72ch;
+}
+
+.back {
+  margin-bottom: -0.25rem;
+}
+
+/* Session page: the result as a sentence, status and actions on the right. */
+.headline {
+  display: flex;
+  gap: 1.2rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.headline-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.headline h2 {
+  font-size: 1.6rem;
+}
+
+.headline .holdout-part {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.headline-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+/* The curve is the navigation: the selected column is the one terracotta thing. */
+.curve {
+  margin: 0;
+  background: var(--surface-2);
+  border-radius: 16px;
+  padding: 0.8rem 1rem 0.6rem;
+}
+
+.curve svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.curve .col-selected {
+  fill: var(--accent-soft);
+}
+
+.curve .col-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.curve .col-hit:hover {
+  fill: rgba(30, 29, 26, 0.04);
+}
+
+.curve .grid {
+  stroke: var(--surface-3);
+  stroke-width: 1;
+}
+
+.curve .axis {
+  font-size: 11px;
+  fill: var(--text-muted);
+  font-family: var(--sans);
+}
+
+.curve .axis.mono {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--text);
+}
+
+.curve .outcome.pass {
+  fill: var(--pass-text);
+  font-weight: 600;
+}
+
+.curve .outcome.fail {
+  fill: var(--fail-text);
+  font-weight: 600;
+}
+
+.curve .outcome.accent {
+  fill: var(--accent);
+  font-weight: 700;
+}
+
+.curve .best-line {
+  fill: none;
+  stroke: var(--pass);
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+.curve .holdout-line {
+  fill: none;
+  stroke: var(--info);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+
+.curve .holdout-dot {
+  fill: var(--info);
+}
+
+.curve .train-dot {
+  stroke-width: 2.5;
+}
+
+.curve .train-dot.accepted {
+  fill: var(--text);
+  stroke: var(--text);
+}
+
+.curve .train-dot.rejected {
+  fill: var(--surface-2);
+  stroke: var(--fail-text);
+}
+
+.curve .train-dot.pending {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.legend {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  vertical-align: -0.1rem;
+  margin-right: 0.15rem;
+}
+
+.legend.best {
+  height: 0.3rem;
+  vertical-align: 0.15rem;
+  background: var(--pass);
+  border-radius: 2px;
+}
+
+.legend.dot {
+  border-radius: 50%;
+  background: var(--text);
+}
+
+.legend.hollow {
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--fail-text);
+}
+
+.legend.square {
+  background: var(--info);
+}
+
+/* One step, always in the same order: proposal, measurement, decision. */
+.step-panel {
+  background: var(--surface-2);
+  border-radius: 16px;
+  padding: 1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.step-panel.waiting {
+  background: var(--accent-soft);
+}
+
+.step-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.step-panel-head h3 {
+  font-size: 1.3rem;
+}
+
+.step-panel-head .spacer {
+  flex: 1;
+}
+
+.phase {
+  display: grid;
+  grid-template-columns: 1.6rem 7.5rem minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: baseline;
+}
+
+.phase-no {
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.phase-name {
+  font-weight: 700;
+}
+
+.phase-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.phase .rationale {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 0.97rem;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+@media (max-width: 700px) {
+  .phase {
+    grid-template-columns: 1.6rem 1fr;
+  }
+
+  .phase-body {
+    grid-column: 1 / -1;
+  }
+}
+
+.task-tallies {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.task-tally {
+  display: grid;
+  grid-template-columns: 0.7rem minmax(9rem, auto) auto 1fr;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.task-tally .num {
+  justify-self: start;
+}
+
+.dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--pill);
+}
+
+.dot.pass {
+  background: var(--pass-text);
+}
+
+.dot.fail {
+  background: var(--fail);
+}
+
+.dot.open {
+  background: var(--open);
+}
+
+.drawers {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.drawers .btn.on {
+  background: var(--surface);
+}
+
+.failed-runs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.failed-run {
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) auto minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.45rem 0.8rem;
+  background: var(--surface);
+  border-radius: 10px;
+}
+
+.failed-run:hover {
+  background: var(--surface-3);
+}
+
+.failed-run .preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coach-io {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.coach-io .source {
+  max-height: 24rem;
+  overflow: auto;
+}
+
+.diff {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 0.6rem 0;
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  overflow-x: auto;
+}
+
+.diff-head {
+  padding: 0 0.9rem 0.35rem;
+}
+
+.diff-line {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr;
+  padding: 0.05rem 0.9rem 0.05rem 0.4rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diff-line.same {
+  color: var(--text-muted);
+}
+
+.diff-line.add {
+  background: var(--pass);
+  color: var(--pass-text);
+}
+
+.diff-line.del {
+  background: var(--fail);
+  color: var(--fail-text);
+  text-decoration: line-through;
+  text-decoration-color: rgba(58, 26, 16, 0.4);
+}
+
+.diff-line .sign {
+  text-align: center;
+  font-weight: 700;
+}
+
+.task-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.task-role {
+  display: grid;
+  grid-template-columns: minmax(8rem, auto) 1fr auto;
+  gap: 0.8rem;
+  align-items: center;
+  padding: 0.35rem 0.4rem 0.35rem 0.8rem;
+  background: var(--surface-2);
+  border-radius: 12px;
 }

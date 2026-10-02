@@ -23,4 +23,21 @@ public class AsyncConfig {
 		executor.initialize();
 		return executor;
 	}
+
+	/**
+	 * A training session mostly waits — for its batch on the run executor, or for a human.
+	 * It gets its own thread so it never blocks the runs it waits for. One at a time: two
+	 * sessions would share the run queue and slow each other's measurements.
+	 */
+	@Bean(name = "trainingExecutor")
+	public ThreadPoolTaskExecutor trainingExecutor() {
+		ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+		executor.setCorePoolSize(1);
+		executor.setMaxPoolSize(1);
+		executor.setQueueCapacity(0);
+		executor.setThreadNamePrefix("training-");
+		executor.setWaitForTasksToCompleteOnShutdown(false);
+		executor.initialize();
+		return executor;
+	}
 }
