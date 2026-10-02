@@ -67,7 +67,7 @@ public final class ToolEvals {
 
 		@Override
 		public List<EvalParam> params() {
-			return List.of(EvalParam.required("tool", "Tool", Type.TOOL, "Name des Tools oder * fuer alle"));
+			return List.of(EvalParam.required("tool", "Tool", Type.TOOL, "Name des Tools oder * f\u00fcr alle"));
 		}
 
 		@Override

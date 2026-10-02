@@ -12,9 +12,11 @@ import {
   type TrainingRequest,
   type TrainingView,
 } from '../api/client'
+import { Advanced, GuideStep, NameField } from './forms'
 import { Modal } from './Modal'
 import { SessionStatusPill, Sparkline } from './TrainingSession'
-import { isOpen, journey } from './training'
+import { isOpen, journey, trainingCost } from './training'
+import { Ref } from './Ref'
 
 type Props = {
   onError: (message: string) => void
@@ -26,6 +28,7 @@ type Role = '' | 'train' | 'holdout'
 type Draft = {
   id: string
   name: string
+  idTouched: boolean
   description: string
   agent: string
   coach: string
@@ -42,6 +45,7 @@ function emptyDraft(agents: AgentView[]): Draft {
   return {
     id: '',
     name: '',
+    idTouched: false,
     description: '',
     agent: agents.find((a) => a.id !== coach?.id)?.id ?? '',
     coach: coach?.id ?? '',
@@ -61,6 +65,7 @@ function toDraft(t: Training): Draft {
   return {
     id: t.id,
     name: t.name,
+    idTouched: true,
     description: t.description ?? '',
     agent: t.agentId,
     coach: t.coachId,
@@ -81,51 +86,76 @@ function ratio(score: { trainPassed: number; trainTotal: number }) {
   return `${score.trainPassed}/${score.trainTotal}`
 }
 
-/** "0/6 → 6/6": where the last session started and where it got, train only. */
+/** "Train 0/6 → 6/6": where a session started and where it got, train only. */
 function Progress({ session }: { session: Session }) {
   const { baseline, best } = journey(session)
   if (!baseline) return null
   return (
-    <span className="mono">
+    <span className="mono" title="bestandene Train-Runs: Ausgangslage → beste Version">
+      <span className="muted">Train </span>
       {ratio(baseline)}
       {best && best !== baseline && <> → {ratio(best)}</>}
     </span>
   )
 }
 
-/** The recipe as one sentence: who learns from whom, on what, within which limits. */
+/** How much a session may cost, said before it starts. */
+function CostLine({ t }: { t: { train: string[]; holdout: string[]; repetitions: number; maxSteps: number } }) {
+  const c = trainingCost(t)
+  if (c.perMeasure === 0) return <span className="cost">Noch kein Task gewählt — ohne Train-Task kann nichts gemessen werden.</span>
+  return (
+    <span className="cost" title={`${c.perMeasure} Runs je Messung × (Ausgangslage + ${t.maxSteps} Vorschläge); hört auf, wenn nichts mehr zu lernen ist`}>
+      kostet bis zu <strong>{c.runs} Runs</strong> und <strong>{c.coachCalls} Coach-Aufruf{c.coachCalls === 1 ? '' : 'e'}</strong>
+    </span>
+  )
+}
+
+function approvalText(a: 'GATE' | 'MANUAL' | 'gate' | 'manual') {
+  return a === 'MANUAL' || a === 'manual' ? 'du entscheidest von Hand' : 'das Gate entscheidet'
+}
+
+/** The recipe as labelled sentences: who learns from whom, on what, against what, how much. */
 function Recipe({ t }: { t: Training }) {
   return (
-    <p className="recipe">
-      <span className="mono strong">{t.agentId}</span> lernt bei <span className="mono strong">{t.coachId}</span> · Train{' '}
-      {t.train.map((id, i) => (
-        <span key={id}>
-          {i > 0 && ', '}
-          <Link to={`/tasks/${id}`} className="mono">
-            {id}
-          </Link>
-        </span>
-      ))}
+    <dl className="recipe">
+      <div>
+        <dt>Wer</dt>
+        <dd>
+          <Ref kind="agent" id={t.agentId} /> lernt, <Ref kind="agent" id={t.coachId} /> schreibt als Coach die Vorschläge.
+        </dd>
+      </div>
+      <div>
+        <dt>Gemessen an</dt>
+        <dd>
+          <span className="line">
+            {t.train.map((id) => (
+              <Ref key={id} kind="task" id={id} />
+            ))}
+            <span className="muted small">Train: der Coach sieht, woran diese Tasks scheitern.</span>
+          </span>
+        </dd>
+      </div>
       {t.holdout.length > 0 && (
-        <>
-          {' '}
-          · Holdout{' '}
-          {t.holdout.map((id, i) => (
-            <span key={id}>
-              {i > 0 && ', '}
-              <Link to={`/tasks/${id}`} className="mono">
-                {id}
-              </Link>
+        <div>
+          <dt>Kontrolle</dt>
+          <dd>
+            <span className="line">
+              {t.holdout.map((id) => (
+                <Ref key={id} kind="task" id={id} />
+              ))}
+              <span className="muted small">Holdout: wird mitgemessen, der Coach sieht ihn nie.</span>
             </span>
-          ))}
-        </>
+          </dd>
+        </div>
       )}
-      <span className="muted">
-        {' '}
-        · n={t.repetitions} · ≤ {t.maxSteps} Schritte · {t.maxTokens === null ? 'ohne Token-Grenze' : `≤ ${t.maxTokens.toLocaleString('de-DE')} tok`} ·{' '}
-        {t.approval === 'MANUAL' ? 'Freigabe von Hand' : 'Gate entscheidet'}
-      </span>
-    </p>
+      <div>
+        <dt>Umfang</dt>
+        <dd>
+          Je Task {t.repetitions} Run{t.repetitions === 1 ? '' : 's'}, höchstens {t.maxSteps} Vorschl{t.maxSteps === 1 ? 'ag' : 'äge'},{' '}
+          {t.maxTokens === null ? 'ohne Token-Grenze' : `höchstens ${t.maxTokens.toLocaleString('de-DE')} Tokens`}; {approvalText(t.approval)}.
+        </dd>
+      </div>
+    </dl>
   )
 }
 
@@ -213,8 +243,9 @@ export function TrainingsArea(p: Props) {
         coach: draft.coach,
         train: ids('train'),
         holdout: ids('holdout'),
-        repetitions: Number(draft.repetitions),
-        maxSteps: Number(draft.maxSteps),
+        // Folded fields carry no `required`: an emptied one falls back to its default.
+        repetitions: Number(draft.repetitions) || 3,
+        maxSteps: Number(draft.maxSteps) || 3,
         maxTokens: draft.maxTokens === '' ? null : Number(draft.maxTokens),
         approval: draft.approval,
         goal: draft.goal || null,
@@ -262,7 +293,7 @@ export function TrainingsArea(p: Props) {
 
   return (
     <>
-      <section className="card">
+      <section className="card kind t-training">
         <div className="card-head">
           <h2>Trainings</h2>
           <span className="sub">Ein Coach schreibt aus gescheiterten Runs die nächste Agent-Version, das Gate misst, ob sie besser ist</span>
@@ -292,8 +323,8 @@ export function TrainingsArea(p: Props) {
               >
                 <div>
                   <div className="title">{tr.name}</div>
-                  <div className="small muted">
-                    <span className="mono">{tr.agentId}</span> lernt bei <span className="mono">{tr.coachId}</span>
+                  <div className="line small muted">
+                    <Ref kind="agent" id={tr.agentId} /> lernt bei <Ref kind="agent" id={tr.coachId} />
                   </div>
                 </div>
                 <div className="line">
@@ -314,7 +345,7 @@ export function TrainingsArea(p: Props) {
       </section>
 
       {shown && t && (
-        <section className="card">
+        <section className="card kind t-training">
           <div className="card-head">
             <h2>{t.name}</h2>
             <span className="sub mono small">
@@ -327,29 +358,37 @@ export function TrainingsArea(p: Props) {
               <button className="btn sm" onClick={() => setDraft(toDraft(t))} disabled={busy}>
                 bearbeiten
               </button>
-              <button
-                className="btn primary"
-                onClick={start}
-                disabled={busy || running}
-                title={running ? 'es läuft schon eine Session - eine zur Zeit' : 'Ausgangslage messen, dann Schritt für Schritt verbessern'}
-              >
-                trainieren
-              </button>
             </div>
           </div>
 
+          {t.description && <p className="muted">{t.description}</p>}
           <Recipe t={t} />
           {t.goal && (
-            <p className="goal">
-              <span className="muted small">Ziel für den Coach · </span>
-              {t.goal}
-            </p>
+            <dl className="recipe">
+              <div>
+                <dt>Ziel</dt>
+                <dd className="goal">{t.goal}</dd>
+              </div>
+            </dl>
           )}
+
+          <div className="run-action">
+            <button
+              className="btn primary"
+              onClick={start}
+              disabled={busy || running || t.train.length === 0}
+              title={running ? 'es läuft schon eine Session - eine zur Zeit' : 'Ausgangslage messen, dann Schritt für Schritt verbessern'}
+            >
+              trainieren
+            </button>
+            <CostLine t={t} />
+            {running && <span className="pill open">eine Session läuft schon</span>}
+          </div>
 
           <div className="field">
             <span>Sessions</span>
             {shown.sessions.length === 0 ? (
-              <p className="hint">Noch keine. „trainieren" misst zuerst die Ausgangslage, dann schreibt der Coach Version um Version.</p>
+              <p className="hint">Noch keine. „trainieren“ misst zuerst die Ausgangslage, dann schreibt der Coach Version um Version.</p>
             ) : (
               <div className="rows">
                 {shown.sessions.map((s) => (
@@ -373,112 +412,82 @@ export function TrainingsArea(p: Props) {
       )}
 
       {draft && (
-        <Modal title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neues Training'} onClose={() => { setDraft(null); setSource(null) }}>
+        <Modal kind="training" title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neues Training'} onClose={() => { setDraft(null); setSource(null) }}>
           <form
-            className="form"
+            className="form guided"
             onSubmit={(e) => {
               e.preventDefault()
               save()
             }}
           >
-            <div className="form-grid">
-              <label className="field">
-                <span>Id</span>
-                <input
-                  value={draft.id}
-                  onChange={(e) => setDraft({ ...draft, id: e.target.value })}
-                  disabled={isExisting}
-                  placeholder="kleinbuchstaben-und-bindestriche"
-                  pattern="[a-z0-9][a-z0-9-]*"
-                  required
-                  className="mono"
-                />
-              </label>
-              <label className="field">
-                <span>Name</span>
-                <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
-              </label>
-              <label className="field">
-                <span>Agent (lernt)</span>
-                <select value={draft.agent} onChange={(e) => setDraft({ ...draft, agent: e.target.value })} required>
-                  <option value="">— Agent wählen —</option>
-                  {agents.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} · {a.id} v{a.version}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Coach (schreibt die Vorschläge)</span>
-                <select value={draft.coach} onChange={(e) => setDraft({ ...draft, coach: e.target.value })} required>
-                  <option value="">— Agent wählen —</option>
-                  {agents
-                    .filter((a) => a.id !== draft.agent)
-                    .map((a) => (
+            <GuideStep no="①" title="Wer lernt, wer coacht?">
+              <NameField
+                naming={draft}
+                existing={!!isExisting}
+                placeholder="Rookie lernt Tools"
+                onChange={(n) => setDraft({ ...draft, ...n })}
+              />
+              <div className="form-grid">
+                <label className="field">
+                  <span>Agent, der lernt</span>
+                  <select value={draft.agent} onChange={(e) => setDraft({ ...draft, agent: e.target.value })} required>
+                    <option value="">— Agent wählen —</option>
+                    {agents.map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.name} · {a.id} · {a.model}
+                        {a.name} · {a.id} v{a.version}
                       </option>
                     ))}
-                </select>
-              </label>
-
-              <div className="field span-2">
-                <span>Tasks</span>
-                <div className="task-roles">
-                  {tasks.map((task) => {
-                    const role = draft.roles[task.id] ?? ''
-                    return (
-                      <div key={task.id} className="task-role">
-                        <span className="mono">{task.id}</span>
-                        <span className="muted small">{task.name}</span>
-                        <span className="segment">
-                          {(['', 'train', 'holdout'] as Role[]).map((r) => (
-                            <button
-                              key={r || 'none'}
-                              type="button"
-                              className={role === r ? 'on' : ''}
-                              onClick={() => setDraft({ ...draft, roles: { ...draft.roles, [task.id]: r } })}
-                            >
-                              {r === '' ? '—' : r === 'train' ? 'Train' : 'Holdout'}
-                            </button>
-                          ))}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-                <span className="hint">
-                  Train: der Coach sieht die gescheiterten Runs. Holdout: wird mitgemessen, der Coach sieht ihn nie — fällt er, war die Verbesserung
-                  auswendig gelernt.
-                </span>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Coach, der umschreibt</span>
+                  <select value={draft.coach} onChange={(e) => setDraft({ ...draft, coach: e.target.value })} required>
+                    <option value="">— Agent wählen —</option>
+                    {agents
+                      .filter((a) => a.id !== draft.agent)
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name} · {a.id} · {a.model}
+                        </option>
+                      ))}
+                  </select>
+                </label>
               </div>
+            </GuideStep>
 
-              <label className="field">
-                <span>Wiederholungen n je Task</span>
-                <input type="number" min={1} max={20} value={draft.repetitions} onChange={(e) => setDraft({ ...draft, repetitions: e.target.value })} required />
-              </label>
-              <label className="field">
-                <span>Schritte höchstens</span>
-                <input type="number" min={1} max={20} value={draft.maxSteps} onChange={(e) => setDraft({ ...draft, maxSteps: e.target.value })} required />
-              </label>
-              <label className="field">
-                <span>Token-Budget (leer = keins)</span>
-                <input type="number" min={1} value={draft.maxTokens} onChange={(e) => setDraft({ ...draft, maxTokens: e.target.value })} />
-              </label>
-              <div className="field">
-                <span>Freigabe</span>
-                <span className="segment">
-                  <button type="button" className={draft.approval === 'gate' ? 'on' : ''} onClick={() => setDraft({ ...draft, approval: 'gate' })}>
-                    Gate entscheidet
-                  </button>
-                  <button type="button" className={draft.approval === 'manual' ? 'on' : ''} onClick={() => setDraft({ ...draft, approval: 'manual' })}>
-                    von Hand
-                  </button>
-                </span>
+            <GuideStep
+              no="②"
+              title="Woran wird gemessen?"
+              hint="Train: der Coach sieht die gescheiterten Runs dieser Tasks. Holdout: wird mitgemessen, der Coach sieht ihn nie — fällt er, war die Verbesserung auswendig gelernt."
+            >
+              <div className="task-roles">
+                {tasks.map((task) => {
+                  const role = draft.roles[task.id] ?? ''
+                  return (
+                    <div key={task.id} className="task-role">
+                      <Ref kind="task" id={task.id} link={false} />
+                      <span className="muted small">{task.name}</span>
+                      <span className="segment">
+                        {(['', 'train', 'holdout'] as Role[]).map((r) => (
+                          <button
+                            key={r || 'none'}
+                            type="button"
+                            className={role === r ? (r === '' ? 'on neutral' : 'on') : ''}
+                            onClick={() => setDraft({ ...draft, roles: { ...draft.roles, [task.id]: r } })}
+                          >
+                            {r === '' ? 'nicht dabei' : r === 'train' ? 'Train' : 'Holdout'}
+                          </button>
+                        ))}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
-              <label className="field span-2">
-                <span>Ziel (liest der Coach, optional)</span>
+            </GuideStep>
+
+            <GuideStep no="③" title={<>Wohin soll es gehen? <span className="muted small">optional</span></>}>
+              <label className="field">
+                <span>Ziel, liest der Coach</span>
                 <textarea
                   rows={3}
                   value={draft.goal}
@@ -486,20 +495,64 @@ export function TrainingsArea(p: Props) {
                   placeholder="Der Agent soll Tools nutzen, wo sie die Antwort sicher machen."
                 />
               </label>
-              <label className="field span-2">
-                <span>Beschreibung</span>
-                <input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
-              </label>
-            </div>
-            {isExisting && (
-              <>
-                <button type="button" className="link" onClick={toggleSource}>
-                  {source !== null ? 'Datei ausblenden' : 'Datei der aktuellen Version anzeigen'}
-                </button>
-                {source !== null && <pre className="source mono">{source}</pre>}
-              </>
-            )}
+            </GuideStep>
+
+            <Advanced
+              summary={`je Task ${draft.repetitions || 3}× · höchstens ${draft.maxSteps || 3} Vorschläge · ${
+                draft.maxTokens ? `${Number(draft.maxTokens).toLocaleString('de-DE')} Tokens` : 'ohne Token-Grenze'
+              } · ${approvalText(draft.approval)}`}
+            >
+              <div className="form-grid">
+                <label className="field">
+                  <span>Runs je Task und Messung</span>
+                  <input type="number" min={1} max={20} value={draft.repetitions} onChange={(e) => setDraft({ ...draft, repetitions: e.target.value })} />
+                  <span className="hint">Mehr Runs, weniger Zufall — und mehr Kosten.</span>
+                </label>
+                <label className="field">
+                  <span>Vorschläge höchstens</span>
+                  <input type="number" min={1} max={20} value={draft.maxSteps} onChange={(e) => setDraft({ ...draft, maxSteps: e.target.value })} />
+                  <span className="hint">So oft schreibt der Coach den Prompt höchstens um.</span>
+                </label>
+                <label className="field">
+                  <span>Token-Budget (leer = keins)</span>
+                  <input type="number" min={1} value={draft.maxTokens} onChange={(e) => setDraft({ ...draft, maxTokens: e.target.value })} />
+                </label>
+                <div className="field">
+                  <span>Wer entscheidet</span>
+                  <span className="segment">
+                    <button type="button" className={draft.approval === 'gate' ? 'on' : ''} onClick={() => setDraft({ ...draft, approval: 'gate' })}>
+                      das Gate
+                    </button>
+                    <button type="button" className={draft.approval === 'manual' ? 'on' : ''} onClick={() => setDraft({ ...draft, approval: 'manual' })}>
+                      ich, von Hand
+                    </button>
+                  </span>
+                </div>
+                <label className="field span-2">
+                  <span>Beschreibung, für Menschen</span>
+                  <input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+                </label>
+              </div>
+              {isExisting && (
+                <>
+                  <button type="button" className="link" onClick={toggleSource}>
+                    {source !== null ? 'Datei ausblenden' : 'Datei der aktuellen Version anzeigen'}
+                  </button>
+                  {source !== null && <pre className="source mono">{source}</pre>}
+                </>
+              )}
+            </Advanced>
+
             <div className="toolbar end">
+              <CostLine
+                t={{
+                  train: tasks.filter((x) => draft.roles[x.id] === 'train').map((x) => x.id),
+                  holdout: tasks.filter((x) => draft.roles[x.id] === 'holdout').map((x) => x.id),
+                  repetitions: Number(draft.repetitions) || 3,
+                  maxSteps: Number(draft.maxSteps) || 3,
+                }}
+              />
+              <span className="spacer" />
               <button type="button" className="btn quiet" onClick={() => setDraft(null)} disabled={busy}>
                 abbrechen
               </button>
@@ -512,7 +565,7 @@ export function TrainingsArea(p: Props) {
       )}
 
       {confirmDelete && shown && (
-        <Modal title="Training löschen?" onClose={() => setConfirmDelete(false)}>
+        <Modal kind="training" title="Training löschen?" onClose={() => setConfirmDelete(false)}>
           <p>
             <strong>{shown.training.name}</strong> <span className="mono muted">({shown.training.id})</span> wird mit allen{' '}
             {shown.versions.length} Version(en) ins Archiv verschoben. Die {shown.sessions.length} Session(s) bleiben in der Datenbank, die

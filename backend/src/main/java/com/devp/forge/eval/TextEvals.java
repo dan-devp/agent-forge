@@ -22,7 +22,7 @@ public final class TextEvals {
 	private TextEvals() {
 	}
 
-	private static final EvalParam CASE = EvalParam.optional("ignore-case", "Gross-/Kleinschreibung ignorieren",
+	private static final EvalParam CASE = EvalParam.optional("ignore-case", "Gro\u00df-/Kleinschreibung ignorieren",
 			Type.BOOLEAN, true, "Vergleich ohne Beachtung der Schreibung.");
 
 	private static boolean contains(EvalConfig config, EvalSubject subject) {
@@ -59,7 +59,7 @@ public final class TextEvals {
 
 		@Override
 		public String label() {
-			return "Antwort enthaelt Text";
+			return "Antwort enth\u00e4lt Text";
 		}
 
 		@Override
@@ -79,8 +79,8 @@ public final class TextEvals {
 			}
 			String text = config.string("text");
 			return contains(config, subject)
-					? EvalResult.pass("Antwort enthaelt \"" + text + "\"")
-					: EvalResult.fail("Antwort enthaelt \"" + text + "\" nicht");
+					? EvalResult.pass("Antwort enth\u00e4lt \"" + text + "\"")
+					: EvalResult.fail("Antwort enth\u00e4lt \"" + text + "\" nicht");
 		}
 	}
 
@@ -93,7 +93,7 @@ public final class TextEvals {
 
 		@Override
 		public String label() {
-			return "Antwort enthaelt Text nicht";
+			return "Antwort enth\u00e4lt Text nicht";
 		}
 
 		@Override
@@ -113,8 +113,8 @@ public final class TextEvals {
 			}
 			String text = config.string("text");
 			return contains(config, subject)
-					? EvalResult.fail("Antwort enthaelt \"" + text + "\"")
-					: EvalResult.pass("Antwort enthaelt \"" + text + "\" nicht");
+					? EvalResult.fail("Antwort enth\u00e4lt \"" + text + "\"")
+					: EvalResult.pass("Antwort enth\u00e4lt \"" + text + "\" nicht");
 		}
 	}
 
@@ -132,12 +132,12 @@ public final class TextEvals {
 
 		@Override
 		public String description() {
-			return "Besteht, wenn der regulaere Ausdruck irgendwo in der Antwort trifft (Java-Syntax).";
+			return "Besteht, wenn der regul\u00e4re Ausdruck irgendwo in der Antwort trifft (Java-Syntax).";
 		}
 
 		@Override
 		public List<EvalParam> params() {
-			return List.of(EvalParam.required("pattern", "Regulaerer Ausdruck", Type.STRING,
+			return List.of(EvalParam.required("pattern", "Regul\u00e4rer Ausdruck", Type.STRING,
 					"Java-Regex, z. B. \\b14\\b"), EvalParam.optional("ignore-case", CASE.label(), Type.BOOLEAN, false,
 					CASE.description()));
 		}
@@ -169,12 +169,12 @@ public final class TextEvals {
 
 		@Override
 		public String description() {
-			return "Besteht, wenn der regulaere Ausdruck nirgends in der Antwort trifft.";
+			return "Besteht, wenn der regul\u00e4re Ausdruck nirgends in der Antwort trifft.";
 		}
 
 		@Override
 		public List<EvalParam> params() {
-			return List.of(EvalParam.required("pattern", "Regulaerer Ausdruck", Type.STRING, "Java-Regex"),
+			return List.of(EvalParam.required("pattern", "Regul\u00e4rer Ausdruck", Type.STRING, "Java-Regex"),
 					EvalParam.optional("ignore-case", CASE.label(), Type.BOOLEAN, false, CASE.description()));
 		}
 

@@ -24,7 +24,7 @@
   align-items: center;
   gap: 0.6rem;
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: var(--fs-md);
   letter-spacing: -0.01em;
 }
 
@@ -51,17 +51,8 @@
   font-weight: 600;
 }
 
-.topbar .spacer {
-  flex: 1;
-}
 
-.topbar .meta {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-/* ---- Home: tiles -------------------------------------------------------- */
+/* ---- Home: the way through the camp ------------------------------------- */
 
 .home {
   padding: 1.5rem 2rem 3rem;
@@ -74,79 +65,144 @@
 }
 
 .home-head h1 {
-  font-size: 2.4rem;
+  font-size: var(--fs-display);
 }
 
 .home-head p {
   color: var(--text-muted);
   margin-top: 0.25rem;
+  font-size: var(--fs-lg);
 }
 
-.tiles {
+/* Five steps side by side; a done step carries a tick, the next one a terracotta ring. */
+.way {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.9rem;
 }
 
 @media (max-width: 1000px) {
-  .tiles {
+  .way {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 640px) {
-  .tiles {
+  .way {
     grid-template-columns: 1fr;
   }
 }
 
-.tile {
+.way-step {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  padding: 1.6rem 1.8rem;
+  gap: 0.55rem;
+  padding: 1.2rem 1.3rem;
   background: var(--surface);
   border-radius: var(--r-card);
-  min-height: 170px;
   transition: background 0.12s ease, transform 0.12s ease;
 }
 
-.tile:hover {
-  background: #fbfaf6;
+.way-step:hover {
+  background: var(--surface-hi);
   transform: translateY(-1px);
 }
 
-.tile.disabled {
-  opacity: 0.55;
-  pointer-events: none;
+.way-step.next {
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
-.tile-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-
-.tile h2 {
-  font-size: 1.45rem;
-}
-
-.tile .count {
+.way-no {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-family: var(--mono);
-  font-size: 2.4rem;
   font-weight: 700;
-  line-height: 1;
-}
-
-.tile .hint {
+  background: var(--surface-3);
   color: var(--text-muted);
 }
 
-.tile .foot {
+.way-step.done .way-no {
+  background: var(--pass);
+  color: var(--pass-text);
+}
+
+.way-step.next .way-no {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.way-title {
+  font-weight: 700;
+  font-size: var(--fs-lg);
+}
+
+.way-hint {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.way-count {
   margin-top: auto;
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.way-step.done .way-count {
+  color: var(--pass-text);
+}
+
+.next-step {
   display: flex;
-  gap: 0.4rem;
+  align-items: center;
+  gap: 0.8rem;
   flex-wrap: wrap;
+  font-size: var(--fs-lg);
+}
+
+.lookup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lookup-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .lookup-tiles {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lookup-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.9rem 1.2rem;
+  background: var(--surface-2);
+  border-radius: 16px;
+  transition: background 0.12s ease;
+}
+
+.lookup-tile:hover {
+  background: var(--surface);
+}
+
+.lookup-tile .way-title {
+  font-size: var(--fs-md);
 }
 
 /* ---- Area: sidebar + content ------------------------------------------- */
@@ -220,12 +276,31 @@
 .nav-item .count {
   font-family: var(--mono);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   opacity: 0.8;
 }
 
-.sidebar .gap {
-  height: 0.75rem;
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.nav-group + .nav-group {
+  margin-top: 0.9rem;
+}
+
+.nav-group-label {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  padding: 0 1rem 0.2rem;
+}
+
+.lookup > .nav-group-label {
+  padding: 0;
 }
 
 .content {
@@ -254,7 +329,7 @@
 }
 
 .card-head h2 {
-  font-size: 1.5rem;
+  font-size: var(--fs-xl);
 }
 
 .card-head .sub {
@@ -267,7 +342,7 @@
   gap: 0.5rem;
 }
 
-/* A list is a stack of rows, each a soft inner surface; the selected one is white. */
+/* A list is a stack of rows, each a soft inner surface; the selected one is lighter and ringed. */
 .rows {
   display: flex;
   flex-direction: column;
@@ -290,15 +365,18 @@
   background: var(--surface-3);
 }
 
-.row.selected {
-  background: var(--accent-soft);
+/* Selection is a ring, not a tint: a tinted row would look like a status. */
+.row.selected,
+.row.selected:hover {
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .row .title {
   font-weight: 600;
 }
 
-.row .line {
+.line {
   display: flex;
   gap: 0.5rem;
   align-items: center;
@@ -325,7 +403,7 @@
 }
 
 .facts dt {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -338,7 +416,7 @@
 }
 
 .facts dd.mono {
-  font-size: 1rem;
+  font-size: var(--fs-md);
 }
 
 .source {
@@ -349,7 +427,7 @@
   white-space: pre-wrap;
   overflow: auto;
   max-height: 24rem;
-  font-size: 0.88rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -368,7 +446,7 @@
   border-radius: var(--r-pill);
   background: var(--pill);
   color: var(--pill-text);
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -408,7 +486,7 @@
 }
 
 .pill.lg {
-  font-size: 1rem;
+  font-size: var(--fs-md);
   padding: 0.3rem 0.95rem;
 }
 
@@ -460,19 +538,19 @@
 .stat .num {
   font-family: var(--mono);
   font-weight: 700;
-  font-size: 1.6rem;
+  font-size: var(--fs-xl);
   line-height: 1;
 }
 
 .stat .num small {
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
   font-weight: 500;
   opacity: 0.7;
 }
 
 .stat .marks {
   font-family: var(--mono);
-  font-size: 0.8rem;
+  font-size: var(--fs-xs);
   letter-spacing: 0.1em;
   opacity: 0.85;
 }
@@ -522,7 +600,7 @@
 
 .btn.sm {
   padding: 0.35rem 0.8rem;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .btn.danger:hover:not(:disabled) {
@@ -571,7 +649,7 @@
 }
 
 .field > span:first-child {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -625,14 +703,14 @@ textarea {
 }
 
 .field.check > span {
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
   color: var(--text);
   text-transform: none;
   letter-spacing: 0;
 }
 
 .hint {
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -641,7 +719,7 @@ textarea {
   border-radius: var(--r-field);
   background: var(--fail);
   color: var(--fail-text);
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 
 .banner {
@@ -667,6 +745,10 @@ textarea {
 
 .toolbar.end {
   justify-content: flex-end;
+}
+
+.toolbar .spacer {
+  flex: 1;
 }
 
 /* ---- Modal -------------------------------------------------------------- */
@@ -707,7 +789,7 @@ textarea {
 }
 
 .small {
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .spinner {
@@ -719,7 +801,7 @@ textarea {
 /* The system prompt as prose: readable width, preserved line breaks. */
 .prose {
   font-family: var(--sans);
-  font-size: 1rem;
+  font-size: var(--fs-md);
   margin: 0;
   padding: 1rem 1.2rem;
   background: var(--surface-2);
@@ -745,7 +827,7 @@ textarea {
   background: var(--pill);
   color: var(--pill-text);
   font-family: var(--mono);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   user-select: none;
 }
@@ -782,6 +864,12 @@ textarea {
   color: var(--accent-text);
 }
 
+/* "Not part of it" is a choice too, but not one that should shout. */
+.segment button.on.neutral {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
 textarea.prompt {
   min-height: 14rem;
   font-family: var(--sans);
@@ -789,16 +877,8 @@ textarea.prompt {
 
 /* ---- Catalogues (read-only areas) --------------------------------------- */
 
-.tile.readonly .count {
-  color: var(--text-muted);
-}
-
-.tiles .tile.readonly {
-  background: var(--surface-2);
-}
-
 .group-title {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
@@ -828,18 +908,26 @@ textarea.prompt {
 }
 
 .entry-head h3 {
-  font-size: 1.05rem;
+  font-size: var(--fs-md);
 }
 
 .entry .desc {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: var(--fs-sm);
 }
 
 .params {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.params-fold > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
 }
 
 .param {
@@ -849,7 +937,7 @@ textarea.prompt {
   padding: 0.45rem 0.7rem;
   background: var(--surface);
   border-radius: 10px;
-  font-size: 0.88rem;
+  font-size: var(--fs-sm);
 }
 
 .param .name {
@@ -910,7 +998,7 @@ textarea.prompt {
 }
 
 .eval-item .desc {
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -927,7 +1015,7 @@ textarea.prompt {
 
 .eval-row .kv {
   font-family: var(--mono);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -936,75 +1024,226 @@ textarea.prompt {
   font-weight: 600;
 }
 
-/* ---- Matrix: agent versions x tasks ------------------------------------- */
+/* ---- Matrix: agent versions x tasks -------------------------------------
+ * Every header answers "what is this?": a column is a question with its name, a row a
+ * version with what changed and who wrote it. The cells only carry the count.
+ */
 
 .matrix-wrap {
   overflow-x: auto;
 }
 
+/* Columns share the width and never shrink below their minimum; the question wraps inside.
+   With many tasks the minimums add up beyond the card and the wrapper scrolls. */
 .matrix {
   display: grid;
-  gap: 0.6rem;
+  gap: 0.5rem 0.6rem;
   align-items: stretch;
-  min-width: max-content;
 }
 
 .matrix .corner {
-  min-width: 5.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.1rem;
+  padding: 0 0.2rem 0.6rem;
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  font-weight: 600;
 }
 
+/* Name, the question itself, then how many checks; wraps instead of widening the column. */
 .matrix .col-head {
-  text-align: center;
-  padding: 0.4rem 0.6rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.2rem 0.3rem 0.6rem;
   min-width: 9.5rem;
 }
 
-.matrix .col-head .id {
-  font-family: var(--mono);
+.task-name {
   font-weight: 700;
-  font-size: 1.05rem;
-  display: block;
 }
 
-.matrix .col-head .name {
+a.task-name:hover {
+  text-decoration: underline;
+}
+
+.task-question {
+  font-size: var(--fs-sm);
   color: var(--text-muted);
-  font-size: 0.85rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
+.task-checks-count {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+.task-checks {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* The row head: version, where it came from, what it changed. */
 .matrix .row-head {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.2rem;
+}
+
+.matrix .row-head.rejected {
+  opacity: 0.7;
+}
+
+.row-head-top {
+  display: flex;
+  align-items: center;
   gap: 0.4rem;
-  padding: 0.3rem 0.5rem;
+  flex-wrap: wrap;
 }
 
+.row-change {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.pill.sm {
+  font-size: var(--fs-xs);
+  padding: 0.1rem 0.55rem;
+}
+
+/* An older row can be run again, but only when asked: the button shows on hover or focus. */
 .matrix .row-head .go {
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   padding: 0.2rem 0.6rem;
+  opacity: 0;
+  transition: opacity 0.1s ease;
 }
 
-/* The cell: big fraction, a mark per run. Empty cells are a hollow surface, like the
-   screenshot's waiting rows. */
+.matrix .row-head:hover .go,
+.matrix .row-head:focus-within .go {
+  opacity: 1;
+}
+
+.matrix .row-head .now {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* The legend: the three cell colours, then how to read and open a cell. */
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 1rem;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.legend-row > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.swatch.pass {
+  background: var(--pass);
+}
+
+.swatch.mixed {
+  background: var(--open);
+}
+
+.swatch.fail {
+  background: var(--fail);
+}
+
+.legend-toggle {
+  margin-left: auto;
+}
+
+.run-action {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* The cell: the count, big; below it only what is unusual (open, error, budget). */
 .cell {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
-  min-height: 4.6rem;
-  padding: 0.6rem 0.9rem;
-  border-radius: 16px;
+  gap: 0.15rem;
+  min-height: 3.4rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 14px;
   background: var(--surface-2);
   color: var(--text-faint);
   cursor: pointer;
-  transition: transform 0.1s ease, filter 0.1s ease;
+  transition: transform 0.1s ease, filter 0.1s ease, opacity 0.1s ease;
   position: relative;
 }
 
 .cell:hover {
   filter: brightness(0.97);
+}
+
+/* No run yet: no box, just a dash, so empty space stays quiet. */
+.cell.none {
+  background: transparent;
+}
+
+.cell.none:hover {
+  background: var(--surface-2);
+  filter: none;
+}
+
+/* A version that never ran gets one quiet line instead of a row of empty boxes. */
+.cell.empty-row {
+  align-items: flex-start;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--fs-sm);
+  cursor: default;
+  min-height: 2.6rem;
+}
+
+.cell.empty-row:hover {
+  filter: none;
+}
+
+/* A rejected attempt stays visible, but steps back. */
+.cell.faded {
+  opacity: 0.55;
+}
+
+.cell.faded:hover,
+.cell.faded.selected {
+  opacity: 1;
 }
 
 .cell.pass {
@@ -1029,53 +1268,33 @@ textarea.prompt {
 
 .cell.selected {
   outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 .cell .num {
   font-family: var(--mono);
   font-weight: 700;
-  font-size: 1.5rem;
+  font-size: var(--fs-xl);
   line-height: 1;
 }
 
 .cell .num small {
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-weight: 500;
   opacity: 0.7;
 }
 
-.cell .marks {
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  letter-spacing: 0.12em;
-  opacity: 0.85;
-  word-break: break-all;
-  text-align: center;
-  max-width: 12rem;
+.cell-extra {
+  font-size: var(--fs-xs);
+  font-weight: 600;
 }
 
 .cell .mixed-versions {
   position: absolute;
   top: 0.35rem;
   right: 0.5rem;
-  font-size: 0.65rem;
-  font-family: var(--mono);
+  font-size: var(--fs-xs);
   opacity: 0.7;
-}
-
-.cell .cell-go {
-  position: absolute;
-  bottom: 0.3rem;
-  right: 0.4rem;
-  font-size: 0.65rem;
-  padding: 0.1rem 0.45rem;
-  opacity: 0;
-  transition: opacity 0.1s ease;
-}
-
-.cell:hover .cell-go {
-  opacity: 1;
 }
 
 /* The run series under the matrix: per eval first (why), then the runs (which). */
@@ -1161,6 +1380,30 @@ textarea.prompt {
   }
 }
 
+/* History: a batch is one row until opened; its runs hang indented below it. */
+.history-row {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto;
+}
+
+.batch-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.batch-runs {
+  margin-left: 1.6rem;
+}
+
+.row.nested {
+  padding-top: 0.6rem;
+  padding-bottom: 0.6rem;
+}
+
+.fold-mark {
+  white-space: nowrap;
+}
+
 .n-field {
   display: inline-flex;
   align-items: center;
@@ -1216,7 +1459,7 @@ textarea.prompt {
 }
 
 .step-block .lbl {
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -1230,23 +1473,151 @@ textarea.prompt {
   border-radius: 10px;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 0.88rem;
+  font-size: var(--fs-sm);
 }
 
 .step.model .step-block pre {
   font-family: var(--sans);
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
 }
 
 .kv {
   font-family: var(--mono);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
+/* The run's outcome as a sentence: a big word, then the reason. */
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.verdict strong {
+  font-size: var(--fs-xl);
+  letter-spacing: -0.01em;
+}
+
+.verdict span {
+  font-size: var(--fs-md);
+}
+
+.verdict.pass {
+  background: var(--pass);
+  color: var(--pass-text);
+}
+
+.verdict.fail {
+  background: var(--fail);
+  color: var(--fail-text);
+}
+
+.verdict.open {
+  background: var(--open);
+  color: var(--open-text);
+}
+
+.facts-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.4rem;
+  font-size: var(--fs-sm);
+}
+
+.verdict-row {
+  display: flex;
+  gap: 0.7rem;
+  align-items: baseline;
+  padding: 0.55rem 0.8rem;
+  background: var(--surface-2);
+  border-radius: 12px;
+}
+
+.verdict-what {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.verdict-label {
+  font-weight: 600;
+}
+
+.verdict-row .kv {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+}
+
+/* The trace at a glance: model, tools, model, as a line of small stops. */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+/* Steps wear their block's colours: the model blue, a tool the grey of the catalogue. */
+.timeline-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  padding: 0.45rem 0.85rem;
+  margin-left: 0.6rem;
+  border-radius: 12px;
+  background: var(--model-soft);
+  color: var(--model-ink);
+}
+
+.timeline-step:first-child {
+  margin-left: 0;
+}
+
+.timeline-step + .timeline-step::before {
+  content: '→';
+  position: absolute;
+  left: -0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+}
+
+.timeline-step.tool {
+  background: var(--catalog-soft);
+  color: var(--catalog-ink);
+}
+
+.timeline-step.errored {
+  background: var(--fail);
+  color: var(--fail-text);
+}
+
+.pill.block-pill {
+  background: var(--k-soft);
+  color: var(--k-ink);
+}
+
+.timeline-name {
+  font-weight: 700;
+}
+
+.timeline-what {
+  font-size: var(--fs-xs);
+  opacity: 0.8;
+}
+
 .prose.answer {
-  border-left: 4px solid var(--accent);
   max-width: none;
+  background: var(--surface-hi);
+  font-size: var(--fs-md);
 }
 
 .view-switch {
@@ -1299,21 +1670,37 @@ textarea.prompt {
   fill: var(--pass-text);
 }
 
-.spark.empty {
-  display: inline-block;
-  width: 72px;
-}
-
+/* The recipe as labelled sentences: who, on what, as control, how much. */
 .recipe {
-  line-height: 1.8;
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 0.6rem 1rem;
+  margin: 0;
+  align-items: baseline;
 }
 
-.recipe .strong {
+.recipe > div {
+  display: contents;
+}
+
+.recipe dt {
   font-weight: 700;
 }
 
-.recipe a:hover {
-  text-decoration: underline;
+.recipe dd {
+  margin: 0;
+  line-height: 1.8;
+}
+
+@media (max-width: 700px) {
+  .recipe {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+
+  .recipe dd {
+    margin-bottom: 0.5rem;
+  }
 }
 
 .goal {
@@ -1340,7 +1727,7 @@ textarea.prompt {
 }
 
 .headline h2 {
-  font-size: 1.6rem;
+  font-size: var(--fs-xl);
 }
 
 .headline .holdout-part {
@@ -1355,7 +1742,7 @@ textarea.prompt {
   gap: 0.5rem;
 }
 
-/* The curve is the navigation: the selected column is the one terracotta thing. */
+/* The curve is the navigation: the selected column is lighter and ringed in terracotta. */
 .curve {
   margin: 0;
   background: var(--surface-2);
@@ -1370,7 +1757,9 @@ textarea.prompt {
 }
 
 .curve .col-selected {
-  fill: var(--accent-soft);
+  fill: var(--surface-hi);
+  stroke: var(--accent);
+  stroke-width: 2;
 }
 
 .curve .col-hit {
@@ -1492,7 +1881,8 @@ textarea.prompt {
 }
 
 .step-panel.waiting {
-  background: var(--accent-soft);
+  background: var(--surface-hi);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .step-panel-head {
@@ -1503,7 +1893,7 @@ textarea.prompt {
 }
 
 .step-panel-head h3 {
-  font-size: 1.3rem;
+  font-size: var(--fs-lg);
 }
 
 .step-panel-head .spacer {
@@ -1518,7 +1908,7 @@ textarea.prompt {
 }
 
 .phase-no {
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
   color: var(--text-muted);
 }
 
@@ -1535,7 +1925,7 @@ textarea.prompt {
 .phase .rationale {
   margin: 0;
   font-family: var(--sans);
-  font-size: 0.97rem;
+  font-size: var(--fs-md);
   white-space: pre-wrap;
   line-height: 1.55;
 }
@@ -1638,7 +2028,7 @@ textarea.prompt {
   border-radius: 12px;
   padding: 0.6rem 0;
   font-family: var(--mono);
-  font-size: 0.86rem;
+  font-size: var(--fs-sm);
   overflow-x: auto;
 }
 
@@ -1689,4 +2079,394 @@ textarea.prompt {
   padding: 0.35rem 0.4rem 0.35rem 0.8rem;
   background: var(--surface-2);
   border-radius: 12px;
+}
+
+/* ---- Building blocks: colour + sign ---------------------------------------
+ * t-<tone> sets the block's colours on any element; .ref is a mention, .kind marks a card
+ * or dialog as belonging to a block: its sign before the heading, nothing on the edge.
+ */
+
+.t-model { --k: var(--model); --k-soft: var(--model-soft); --k-ink: var(--model-ink); --k-sign: '◆'; }
+.t-agent { --k: var(--agent); --k-soft: var(--agent-soft); --k-ink: var(--agent-ink); --k-sign: '●'; }
+.t-task { --k: var(--task); --k-soft: var(--task-soft); --k-ink: var(--task-ink); --k-sign: '■'; }
+.t-training { --k: var(--training); --k-soft: var(--training-soft); --k-ink: var(--training-ink); --k-sign: '▲'; }
+.t-run { --k: var(--run); --k-soft: var(--run-soft); --k-ink: var(--run-ink); --k-sign: '▸'; }
+.t-catalog { --k: var(--catalog); --k-soft: var(--catalog-soft); --k-ink: var(--catalog-ink); --k-sign: '○'; }
+
+.sign {
+  color: var(--k);
+  font-size: 0.8em;
+}
+
+.ref {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0.12rem 0.65rem 0.12rem 0.5rem;
+  border-radius: var(--r-pill);
+  background: var(--k-soft);
+  color: var(--k-ink);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.ref .ref-sign {
+  color: var(--k);
+  font-size: 0.78em;
+}
+
+.ref .ref-version {
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+a.ref:hover {
+  background: var(--k);
+  color: #fff;
+}
+
+a.ref:hover .ref-sign {
+  color: #fff;
+}
+
+.card.kind > .card-head h2::before,
+.modal.kind > .card-head h2::before {
+  content: var(--k-sign);
+  color: var(--k);
+  font-size: 0.62em;
+  margin-right: 0.55rem;
+  vertical-align: 0.18em;
+}
+
+.nav-sign {
+  width: 1rem;
+  text-align: center;
+  color: var(--k);
+  font-size: var(--fs-xs);
+}
+
+.nav-item.active .nav-sign {
+  color: var(--accent-text);
+}
+
+.nav-label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+/* ---- Guided task editor -----------------------------------------------------
+ * Three questions top to bottom, each a soft section; evals as sentences, edited on demand;
+ * the summary at the end says when a run passes.
+ */
+
+.modal:has(.form.guided) {
+  width: min(900px, 100%);
+}
+
+.form.guided {
+  gap: 1rem;
+}
+
+.guide-step {
+  background: var(--surface-2);
+  border-radius: 16px;
+  padding: 1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.guide-step h3 {
+  font-size: var(--fs-lg);
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.guide-step .field input,
+.guide-step .field select,
+.guide-step .field textarea,
+.advanced .field input,
+.advanced .field select,
+.advanced .field textarea {
+  background: var(--surface);
+}
+
+.name-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.id-line {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.id-line .link {
+  font-size: var(--fs-sm);
+}
+
+/* Folded settings: a quiet line that says what is set; open, a soft section like a step. */
+.advanced {
+  background: var(--surface-2);
+  border-radius: 16px;
+  padding: 0.8rem 1.2rem;
+}
+
+.advanced[open] {
+  padding-bottom: 1.1rem;
+}
+
+.advanced > summary {
+  cursor: pointer;
+  display: flex;
+  gap: 0.8rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+  list-style: none;
+}
+
+.advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced > summary::before {
+  content: '▸';
+  color: var(--text-muted);
+  transition: transform 0.12s ease;
+}
+
+.advanced[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.advanced-title {
+  font-weight: 700;
+}
+
+.advanced-summary {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.advanced-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-top: 0.9rem;
+}
+
+/* A card that opens on demand: the head is the toggle. Block, not flex: details lays out
+   its content in a box of its own. */
+.card.fold {
+  display: block;
+}
+
+.fold-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.fold > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold-toggle {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.fold-toggle::after {
+  content: 'anzeigen';
+}
+
+.fold[open] .fold-toggle::after {
+  content: 'einklappen';
+}
+
+/* What a start costs, said before the click. */
+.cost {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.cost strong {
+  color: var(--text);
+}
+
+.guided-evals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.guided-eval {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 0.5rem 0.6rem 0.5rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.guided-eval.incomplete {
+  box-shadow: inset 0 0 0 2px var(--fail);
+}
+
+.guided-eval-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.guided-eval-head .spacer {
+  flex: 1;
+}
+
+.sentence-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.guided-eval-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.2rem 0.2rem 0.4rem 1.4rem;
+}
+
+.eval-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.eval-picker .lbl,
+.pass-summary .lbl {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.segment.wrap {
+  flex-wrap: wrap;
+  align-self: flex-start;
+  border-radius: 18px;
+}
+
+.eval-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.5rem;
+}
+
+.eval-choices > .small {
+  grid-column: 1 / -1;
+}
+
+.eval-choice {
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 0.7rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font: inherit;
+}
+
+.eval-choice:hover {
+  background: var(--k-soft, var(--surface-3));
+}
+
+.choice-label {
+  font-weight: 700;
+}
+
+.choice-example {
+  color: var(--k-ink, var(--text));
+  font-style: italic;
+}
+
+.pass-summary {
+  background: var(--k-soft, var(--surface-2));
+  color: var(--k-ink, var(--text));
+  border-radius: 14px;
+  padding: 0.8rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pass-summary ol {
+  margin: 0;
+  padding-left: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pass-summary.empty-summary {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.eval-sentence {
+  line-height: 1.6;
+}
+
+.eval-quote {
+  font-weight: 600;
+}
+
+.eval-code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--surface-3);
+  padding: 0.05rem 0.35rem;
+  border-radius: 6px;
+}
+
+.eval-missing {
+  color: var(--fail-text);
+  background: var(--fail);
+  padding: 0 0.35rem;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.eval-questions {
+  margin: 0.25rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.92em;
+}
+
+.row .task-question {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }

@@ -34,7 +34,7 @@ export function ToolsArea(p: Props) {
 
   return (
     <>
-      <section className="card">
+      <section className="card kind t-catalog">
         <div className="card-head">
           <h2>Tools</h2>
           <span className="sub">Was ein Agent angeboten bekommen kann. Die Positivliste steht am Agent.</span>
@@ -82,7 +82,7 @@ export function ToolsArea(p: Props) {
       </section>
 
       {list && list.servers.length > 0 && (
-        <section className="card">
+        <section className="card kind t-catalog">
           <div className="card-head">
             <h2>MCP-Server</h2>
             <span className="sub">

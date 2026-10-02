@@ -2,14 +2,17 @@
  * Design tokens. Light mode only.
  *
  * Sand instead of white: the ground is the darkest neutral, cards sit lighter on it, and
- * depth comes from brightness steps alone - no hairlines, no shadows. One accent, terracotta,
- * means "selected" and "identity". Status is a muted fill (sage, rose, sand) with dark text
- * on it, never a saturated stripe. Everything technical - ids, versions, model ids, numbers -
- * is mono and allowed to be large; prose is sans.
+ * depth comes from brightness steps alone - no hairlines, no shadows, no coloured edges.
+ * One accent, terracotta, means "selected" and "do this": a filled button, a ring around
+ * the chosen row - never a tinted surface, which would read as a status. Status is a muted
+ * fill (sage, rose, sand) with dark text on it; rose sits apart from terracotta in hue, so
+ * "failed" and "selected" never look alike. Everything technical - ids, versions, model ids,
+ * numbers - is mono; prose is sans.
  */
 :root {
   --bg: #e9e6dc;
   --surface: #f6f4ee;
+  --surface-hi: #fdfcf9;
   --surface-2: #edeae0;
   --surface-3: #e1ddd1;
 
@@ -20,19 +23,54 @@
   --accent: #d9694c;
   --accent-hover: #c95d42;
   --accent-text: #ffffff;
-  --accent-soft: #f3d3c9;
 
   --pill: #dedad0;
   --pill-text: #3a3833;
 
   --pass: #a8b98a;
   --pass-text: #23301a;
-  --fail: #dc8f7a;
-  --fail-text: #3a1a10;
+  --fail: #d99aa0;
+  --fail-text: #3d1419;
   --open: #d6c98e;
   --open-text: #3a3110;
   --info: #a9bfd0;
   --info-text: #17293a;
+
+  /*
+   * One colour per building block, so a mention says what it is before it is read. Muted and
+   * apart from the status fills (sage, rose, sand) and from terracotta (selected). Never alone:
+   * every mention also carries the block's sign (see components/kinds.ts).
+   *   --x       sign                  --x-soft  chip ground          --x-ink  text on the chip
+   */
+  --model: #4f6a8f;
+  --model-soft: #dbe2ec;
+  --model-ink: #2b3d55;
+  --agent: #8b4f7d;
+  --agent-soft: #ecdbe7;
+  --agent-ink: #4f2545;
+  --task: #2e7d78;
+  --task-soft: #d3e7e4;
+  --task-ink: #174541;
+  --training: #5b5ea6;
+  --training-soft: #dedff2;
+  --training-ink: #2f3166;
+  --run: #8a6f55;
+  --run-soft: #ebe1d6;
+  --run-ink: #4a3a2a;
+  --catalog: #7a776e;
+  --catalog-soft: #e3e0d8;
+  --catalog-ink: #3f3d38;
+
+  /*
+   * Five text sizes and one for the home page. Fewer steps make the hierarchy readable: what
+   * is small is secondary, what is large is the answer to the page's question.
+   */
+  --fs-xs: 0.8rem;
+  --fs-sm: 0.875rem;
+  --fs-md: 1rem;
+  --fs-lg: 1.2rem;
+  --fs-xl: 1.5rem;
+  --fs-display: 2.4rem;
 
   --topbar-h: 3.75rem;
 

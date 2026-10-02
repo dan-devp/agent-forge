@@ -80,9 +80,9 @@ public class JudgeQuestionsEval implements Eval {
 		return List.of(
 				EvalParam.required("model", "Judge-Model", Type.JUDGE_MODEL, "Chat- oder Decision-Model."),
 				EvalParam.required("questions", "Fragen", Type.LIST,
-						"Eine Frage je Zeile, so gestellt, dass Ja bestanden heisst."),
+						"Eine Frage je Zeile, so gestellt, dass Ja bestanden hei\u00dft."),
 				EvalParam.optional("threshold", "Schwelle", Type.NUMBER, DEFAULT_THRESHOLD,
-						"Ab diesem Wert (0 bis 1) zaehlt ein Decision-Model als Ja. Chat-Models ignorieren sie."));
+						"Ab diesem Wert (0 bis 1) z\u00e4hlt ein Decision-Model als Ja. Chat-Models ignorieren sie."));
 	}
 
 	/** Never called on its own: this eval always answers per question. */
@@ -106,7 +106,7 @@ public class JudgeQuestionsEval implements Eval {
 			model = chat.model(config.string("model"));
 		}
 		catch (RuntimeException ex) {
-			return each(questions, EvalResult.fail("Judge-Model nicht verfuegbar: " + ex.getMessage()));
+			return each(questions, EvalResult.fail("Judge-Model nicht verf\u00fcgbar: " + ex.getMessage()));
 		}
 		return model.kind() == ModelKind.DECISION
 				? byDecision(model, questions, config.number("threshold", DEFAULT_THRESHOLD), subject)

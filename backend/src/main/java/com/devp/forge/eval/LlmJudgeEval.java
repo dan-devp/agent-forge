@@ -52,7 +52,7 @@ public class LlmJudgeEval implements Eval {
 
 	@Override
 	public String description() {
-		return "Ein Model prueft die Antwort gegen ein frei formuliertes Kriterium. Kostet einen Model-Aufruf.";
+		return "Ein Model pr\u00fcft die Antwort gegen ein frei formuliertes Kriterium. Kostet einen Model-Aufruf.";
 	}
 
 	@Override
@@ -60,7 +60,7 @@ public class LlmJudgeEval implements Eval {
 		return List.of(
 				EvalParam.required("model", "Judge-Model", Type.MODEL, "Welches Model urteilt."),
 				EvalParam.required("criterion", "Kriterium", Type.TEXT,
-						"Was die Antwort leisten muss, in einem oder zwei Saetzen."));
+						"Was die Antwort leisten muss, in einem oder zwei S\u00e4tzen."));
 	}
 
 	@Override
@@ -73,11 +73,11 @@ public class LlmJudgeEval implements Eval {
 			model = clients.model(config.string("model"));
 		}
 		catch (RuntimeException ex) {
-			return EvalResult.fail("Judge-Model nicht verfuegbar: " + ex.getMessage());
+			return EvalResult.fail("Judge-Model nicht verf\u00fcgbar: " + ex.getMessage());
 		}
 		if (model.kind() != ModelKind.CHAT) {
 			return EvalResult.fail("'" + model.id() + "' ist ein Decision-Model und schreibt keinen Text - "
-					+ "dafuer gibt es judge-questions");
+					+ "daf\u00fcr gibt es judge-questions");
 		}
 
 		String user = """
@@ -130,7 +130,7 @@ public class LlmJudgeEval implements Eval {
 			passed = upper.contains("PASS") && !upper.contains("FAIL");
 			rationale = "Unklares Format, Rohtext: " + text.strip();
 		}
-		return new Verdict(passed, rationale == null ? "(keine Begruendung)" : rationale);
+		return new Verdict(passed, rationale == null ? "(keine Begr\u00fcndung)" : rationale);
 	}
 
 	record Verdict(boolean passed, String rationale) {

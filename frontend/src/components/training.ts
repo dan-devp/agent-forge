@@ -1,7 +1,52 @@
-import type { Session, SessionStatus } from '../api/client'
+import type { Score, Session, SessionStatus, TrainingStep } from '../api/client'
 
 export function isOpen(s: { status: SessionStatus }) {
   return s.status === 'RUNNING' || s.status === 'WAITING'
+}
+
+/**
+ * The most a session can cost: the baseline and every proposal measure all train and
+ * holdout tasks n times, and each proposal is one coach call. It may stop earlier.
+ */
+export function trainingCost(t: { train: string[]; holdout: string[]; repetitions: number; maxSteps: number }) {
+  const perMeasure = (t.train.length + t.holdout.length) * t.repetitions
+  return { perMeasure, runs: perMeasure * (1 + t.maxSteps), coachCalls: t.maxSteps }
+}
+
+const pct = (passed: number, total: number) => (total === 0 ? '–' : `${Math.round((100 * passed) / total)} %`)
+const share = (passed: number, total: number) => `${pct(passed, total)} (${passed}/${total})`
+
+/**
+ * The gate's decision as a sentence, from the measurements: what the candidate was compared
+ * with (the best version before it) and how train and holdout moved. Null when the numbers
+ * are not there; the caller then shows the stored reason.
+ */
+export function decisionSentence(step: TrainingStep, steps: TrainingStep[]): string | null {
+  const c = step.score
+  if (!c || step.seq === 0) return null
+  const before = steps.filter((s) => s.seq < step.seq && s.score && (s.seq === 0 || s.decision === 'ACCEPTED')).at(-1)
+  const b: Score | null = before?.score ?? null
+  if (!b) return null
+  // Compare rates without dividing: a/b against c/d as a*d against c*b.
+  const trend = (cp: number, ct: number, bp: number, bt: number) => Math.sign(cp * bt - bp * ct)
+  const moved = (what: string, t: number, cp: number, ct: number, bp: number, bt: number) =>
+    t > 0
+      ? `${what} stieg von ${share(bp, bt)} auf ${share(cp, ct)}`
+      : t < 0
+        ? `${what} fiel von ${share(bp, bt)} auf ${share(cp, ct)}`
+        : `${what} blieb bei ${share(cp, ct)}`
+
+  const trainTrend = trend(c.trainPassed, c.trainTotal, b.trainPassed, b.trainTotal)
+  const parts = [moved('Train', trainTrend, c.trainPassed, c.trainTotal, b.trainPassed, b.trainTotal)]
+  const notes: string[] = []
+  if (trainTrend === 0) notes.push('Gleichstand zählt als Zufall, nicht als Verbesserung.')
+  if (c.holdoutTotal > 0 && b.holdoutTotal > 0) {
+    const holdoutTrend = trend(c.holdoutPassed, c.holdoutTotal, b.holdoutPassed, b.holdoutTotal)
+    parts.push(moved('Holdout', holdoutTrend, c.holdoutPassed, c.holdoutTotal, b.holdoutPassed, b.holdoutTotal))
+    if (holdoutTrend < 0) notes.push('Fällt der Holdout, war die Verbesserung auswendig gelernt.')
+  }
+  const versus = before?.agentVersion != null ? `Verglichen mit v${before.agentVersion}.` : ''
+  return [`${parts.join(', ')}.`, ...notes, versus].filter(Boolean).join(' ')
 }
 
 /** Where a session started and where it got: the baseline and the last accepted measurement. */

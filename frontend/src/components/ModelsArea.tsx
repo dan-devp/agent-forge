@@ -9,17 +9,20 @@ import {
   type ProviderKey,
   type SecretNames,
 } from '../api/client'
+import { Advanced, GuideStep, NameField } from './forms'
 import { Modal } from './Modal'
+import { Ref } from './Ref'
 
 type Props = {
   onError: (message: string) => void
   onChanged: () => void
 }
 
-type Draft = ModelRequest & { id: string }
+type Draft = ModelRequest & { id: string; idTouched: boolean }
 
 const EMPTY: Draft = {
   id: '',
+  idTouched: false,
   name: '',
   description: '',
   provider: 'openai',
@@ -34,6 +37,7 @@ const LOCAL_URL = 'http://host.docker.internal:1234/v1'
 function toDraft(m: ModelView): Draft {
   return {
     id: m.id,
+    idTouched: true,
     name: m.name,
     description: m.description ?? '',
     provider: m.provider,
@@ -191,10 +195,10 @@ export function ModelsArea(p: Props) {
 
   return (
     <>
-      <section className="card">
+      <section className="card kind t-model">
         <div className="card-head">
           <h2>Models</h2>
-          <span className="sub">Endpunkt und Model-Id, Schlüssel nur als Variablenname</span>
+          <span className="sub">Woher die Antworten kommen. Der Schlüssel steht nie in der Datei, nur der Name seiner Variable.</span>
           <div className="actions">
             <button className="btn quiet sm" onClick={reload} disabled={busy} title="Dateien neu einlesen">
               neu laden
@@ -242,7 +246,7 @@ export function ModelsArea(p: Props) {
       </section>
 
       {shownDetail && displayed && (
-        <section className="card">
+        <section className="card kind t-model">
           <div className="card-head">
             <h2>{shownDetail.model.name}</h2>
             <div className="versions">
@@ -259,9 +263,6 @@ export function ModelsArea(p: Props) {
             </div>
             <span className="sub mono small">{shownDetail.model.id}</span>
             <div className="actions">
-              <button className="btn sm" onClick={() => setDraft(toDraft(shownDetail.model))} disabled={busy}>
-                bearbeiten
-              </button>
               <button
                 className="btn quiet danger sm"
                 onClick={() => setConfirmDelete(true)}
@@ -274,12 +275,15 @@ export function ModelsArea(p: Props) {
               >
                 löschen
               </button>
+              <button className="btn sm" onClick={() => setDraft(toDraft(shownDetail.model))} disabled={busy}>
+                bearbeiten
+              </button>
             </div>
           </div>
 
           <dl className="facts">
             <div>
-              <dt>Provider</dt>
+              <dt>Anbieter</dt>
               <dd>{providerLabel(displayed.provider, providers)}</dd>
             </div>
             <div>
@@ -287,7 +291,7 @@ export function ModelsArea(p: Props) {
               <dd className="mono">{displayed.baseUrl}</dd>
             </div>
             <div>
-              <dt>Model-Id</dt>
+              <dt>Model beim Anbieter</dt>
               <dd className="mono">{displayed.modelId}</dd>
             </div>
             <div>
@@ -318,7 +322,11 @@ export function ModelsArea(p: Props) {
             {shownDetail.usedByAgents.length > 0 && (
               <div>
                 <dt>Genutzt von</dt>
-                <dd className="mono">{shownDetail.usedByAgents.join(', ')}</dd>
+                <dd className="line">
+                  {shownDetail.usedByAgents.map((a) => (
+                    <Ref key={a} kind="agent" id={a} />
+                  ))}
+                </dd>
               </div>
             )}
             {displayed.description && (
@@ -341,21 +349,18 @@ export function ModelsArea(p: Props) {
       )}
 
       {draft && (
-        <Modal title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neues Model'} onClose={() => setDraft(null)}>
+        <Modal kind="model" title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neues Model'} onClose={() => setDraft(null)}>
           <form
-            className="form"
+            className="form guided"
             onSubmit={(e) => {
               e.preventDefault()
               save()
             }}
           >
-            <div className="form-grid">
-              <label className="field span-2">
-                <span>Provider</span>
-                <select
-                  value={draft.provider}
-                  onChange={(e) => setDraft(withProvider(draft, e.target.value as ProviderKey, providers))}
-                >
+            <GuideStep no="①" title="Wo läuft das Model?">
+              <label className="field">
+                <span>Anbieter</span>
+                <select value={draft.provider} onChange={(e) => setDraft(withProvider(draft, e.target.value as ProviderKey, providers))}>
                   {providers.map((p) => (
                     <option key={p.key} value={p.key}>
                       {p.label}
@@ -363,97 +368,94 @@ export function ModelsArea(p: Props) {
                   ))}
                 </select>
                 <span className="hint">
+                  {draft.provider === 'openai' && 'Die OpenAI-API. Braucht einen Schlüssel.'}
                   {draft.provider === 'anthropic' && 'Über den OpenAI-kompatiblen Endpunkt von Anthropic. Chat und Tools gehen, Anthropic-eigene Funktionen nicht.'}
                   {draft.provider === 'custom' && 'Gateway (LiteLLM, OpenRouter, …) oder eigener Server mit Schlüssel.'}
                   {draft.provider === 'local' && 'LM Studio, Ollama, vLLM oder der Mock. Aus dem Container heißt der Host host.docker.internal.'}
                   {draft.provider === 'typesafe' &&
-                    'Decision-Model (Jev): beantwortet Ja/Nein-Fragen mit einem Wert zwischen 0 und 1, schreibt keinen Text. Nur als Judge in judge-questions, nicht für Agents. Model-Id z. B. jev-latest.'}
+                    'Decision-Model (Jev): beantwortet Ja/Nein-Fragen mit einem Wert zwischen 0 und 1, schreibt keinen Text. Nur als Judge in judge-questions, nicht für Agents.'}
                 </span>
               </label>
-              <label className="field">
-                <span>Id</span>
-                <input
-                  value={draft.id}
-                  onChange={(e) => setDraft({ ...draft, id: e.target.value })}
-                  disabled={isExisting}
-                  placeholder="kleinbuchstaben-und-bindestriche"
-                  pattern="[a-z0-9][a-z0-9-]*"
-                  required
-                  className="mono"
-                />
-              </label>
-              <label className="field">
-                <span>Name</span>
-                <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
-              </label>
               {!isCloud(draft.provider) && (
-                <label className="field span-2">
-                  <span>Basis-URL (inkl. /v1)</span>
-                  <input
-                    value={draft.baseUrl ?? ''}
-                    onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })}
-                    required
-                    className="mono"
-                  />
+                <label className="field">
+                  <span>Adresse (Basis-URL inkl. /v1)</span>
+                  <input value={draft.baseUrl ?? ''} onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })} required className="mono" />
                 </label>
               )}
+            </GuideStep>
+
+            <GuideStep no="②" title="Welches Model, unter welchem Namen?">
               <label className="field">
-                <span>Model-Id am Endpunkt</span>
+                <span>Model beim Anbieter</span>
                 <input
                   value={draft.modelId}
                   onChange={(e) => setDraft({ ...draft, modelId: e.target.value })}
                   required
                   className="mono"
+                  placeholder={draft.provider === 'typesafe' ? 'jev-latest' : draft.provider === 'anthropic' ? 'claude-sonnet-5-5' : 'gpt-4o-mini'}
                 />
+                <span className="hint">So, wie der Anbieter es nennt — dieser Text geht bei jedem Aufruf mit.</span>
               </label>
-              {draft.provider !== 'typesafe' && (
-              <label className="field">
-                <span>Temperatur</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="2"
-                  value={draft.temperature}
-                  onChange={(e) => setDraft({ ...draft, temperature: Number(e.target.value) })}
-                />
-              </label>
-              )}
-              {draft.provider !== 'local' && (
-                <label className="field span-2">
+              <NameField naming={draft} existing={!!isExisting} placeholder="GPT-4o mini" onChange={(n) => setDraft({ ...draft, ...n })} />
+            </GuideStep>
+
+            {draft.provider !== 'local' && (
+              <GuideStep
+                no="③"
+                title="Womit meldet es sich an?"
+                hint={
+                  <>
+                    Der Schlüssel selbst steht nie in der Datei, nur der Name der Umgebungsvariable. Angeboten werden Variablen mit Präfix{' '}
+                    <code>{secrets?.prefix ?? 'API_KEY_'}</code> aus der Umgebung des Backends.
+                    {secrets && secrets.names.length === 0 && ' Derzeit ist keine gesetzt.'}
+                  </>
+                }
+              >
+                <label className="field">
                   <span>Schlüssel aus Umgebungsvariable</span>
-                  <select
-                    className="mono"
-                    value={draft.apiKeyEnv ?? ''}
-                    onChange={(e) => setDraft({ ...draft, apiKeyEnv: e.target.value || null })}
-                    required
-                  >
+                  <select className="mono" value={draft.apiKeyEnv ?? ''} onChange={(e) => setDraft({ ...draft, apiKeyEnv: e.target.value || null })} required>
                     <option value="">— wählen —</option>
                     {secrets?.names.map((n) => (
                       <option key={n} value={n}>
                         {n}
                       </option>
                     ))}
-                    {draft.apiKeyEnv && !secrets?.names.includes(draft.apiKeyEnv) && (
-                      <option value={draft.apiKeyEnv}>{draft.apiKeyEnv} (nicht gesetzt)</option>
-                    )}
+                    {draft.apiKeyEnv && !secrets?.names.includes(draft.apiKeyEnv) && <option value={draft.apiKeyEnv}>{draft.apiKeyEnv} (nicht gesetzt)</option>}
                   </select>
-                  <span className="hint">
-                    Nur der Name landet in der Datei. Angeboten werden Variablen mit Präfix{' '}
-                    <code>{secrets?.prefix ?? 'API_KEY_'}</code> aus der Umgebung des Backends.
-                    {secrets && secrets.names.length === 0 && ' Derzeit ist keine gesetzt.'}
-                  </span>
                 </label>
-              )}
-              <label className="field span-2">
-                <span>Beschreibung</span>
-                <textarea
-                  rows={2}
-                  value={draft.description ?? ''}
-                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                />
-              </label>
-            </div>
+              </GuideStep>
+            )}
+
+            <Advanced
+              summary={[
+                draft.provider !== 'typesafe' ? `Temperatur ${String(draft.temperature).replace('.', ',')}` : null,
+                draft.description ? 'Beschreibung gesetzt' : 'Beschreibung',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            >
+              <div className="form-grid">
+                {draft.provider !== 'typesafe' && (
+                  <label className="field">
+                    <span>Temperatur</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="2"
+                      value={draft.temperature}
+                      onChange={(e) => setDraft({ ...draft, temperature: Number(e.target.value) })}
+                    />
+                    <span className="hint">0 = möglichst gleiche Antworten, höher = mehr Abwechslung.</span>
+                  </label>
+                )}
+                <label className="field span-2">
+                  <span>Beschreibung, für Menschen</span>
+                  <textarea rows={2} value={draft.description ?? ''} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
+                </label>
+              </div>
+            </Advanced>
+
             <div className="toolbar end">
               <button type="button" className="btn quiet" onClick={() => setDraft(null)} disabled={busy}>
                 abbrechen
@@ -467,7 +469,7 @@ export function ModelsArea(p: Props) {
       )}
 
       {confirmDelete && shownDetail && (
-        <Modal title="Model löschen?" onClose={() => setConfirmDelete(false)}>
+        <Modal kind="model" title="Model löschen?" onClose={() => setConfirmDelete(false)}>
           <p>
             <strong>{shownDetail.model.name}</strong> <span className="mono muted">({shownDetail.model.id})</span> wird
             mit allen {shownDetail.versions.length} Version(en) ins Archiv verschoben. Die Id wird frei.

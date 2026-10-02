@@ -110,7 +110,7 @@ public final class JsonEvals {
 
 		@Override
 		public String description() {
-			return "Besteht, wenn die Antwort ein JSON-Objekt oder -Array enthaelt (auch in einem Codeblock).";
+			return "Besteht, wenn die Antwort ein JSON-Objekt oder -Array enth\u00e4lt (auch in einem Codeblock).";
 		}
 
 		@Override
@@ -130,7 +130,7 @@ public final class JsonEvals {
 						: EvalResult.fail("Antwort ist kein reines JSON");
 			}
 			return extract(subject.answer()).isPresent()
-					? EvalResult.pass("Antwort enthaelt JSON")
+					? EvalResult.pass("Antwort enth\u00e4lt JSON")
 					: EvalResult.fail("Kein JSON in der Antwort gefunden");
 		}
 	}
@@ -157,7 +157,7 @@ public final class JsonEvals {
 			return List.of(
 					EvalParam.required("path", "Pfad", Type.STRING, "Punktpfad mit Indizes, z. B. items[0].price"),
 					EvalParam.optional("value", "Erwarteter Wert", Type.STRING, null,
-							"Als Text verglichen; leer = nur Existenz pruefen."));
+							"Als Text verglichen; leer = nur Existenz pr\u00fcfen."));
 		}
 
 		@Override

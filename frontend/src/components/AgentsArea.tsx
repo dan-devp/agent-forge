@@ -10,7 +10,9 @@ import {
   type ToolAccess,
   type ToolInfo,
 } from '../api/client'
+import { Advanced, GuideStep, NameField } from './forms'
 import { Modal } from './Modal'
+import { Ref } from './Ref'
 
 type Props = {
   onError: (message: string) => void
@@ -22,6 +24,7 @@ type Mode = 'all' | 'none' | 'list'
 type Draft = {
   id: string
   name: string
+  idTouched: boolean
   description: string
   model: string
   mode: Mode
@@ -32,6 +35,7 @@ type Draft = {
 const EMPTY: Draft = {
   id: '',
   name: '',
+  idTouched: false,
   description: '',
   model: '',
   mode: 'all',
@@ -44,6 +48,7 @@ function toDraft(a: AgentView): Draft {
   return {
     id: a.id,
     name: a.name,
+    idTouched: true,
     description: a.description ?? '',
     model: a.model,
     mode: list ? 'list' : (a.tools as Mode),
@@ -197,10 +202,10 @@ export function AgentsArea(p: Props) {
 
   return (
     <>
-      <section className="card">
+      <section className="card kind t-agent">
         <div className="card-head">
           <h2>Agents</h2>
-          <span className="sub">Model, Systemprompt, Tool-Positivliste</span>
+          <span className="sub">Ein Model mit Anweisungen und den Tools, die es benutzen darf</span>
           <div className="actions">
             <button className="btn quiet sm" onClick={reload} disabled={busy} title="Dateien neu einlesen">
               neu laden
@@ -238,7 +243,11 @@ export function AgentsArea(p: Props) {
                   </div>
                 </div>
                 <div className="line">
-                  <span className={`pill ${a.modelExists ? '' : 'fail'}`}>{modelName(a.model)}</span>
+                  {a.modelExists ? (
+                    <Ref kind="model" id={a.model} title={modelName(a.model)} />
+                  ) : (
+                    <span className="pill fail">Model {a.model} fehlt</span>
+                  )}
                   <span className="muted small">{accessLabel(a.tools)}</span>
                 </div>
                 <div className="line">
@@ -259,7 +268,7 @@ export function AgentsArea(p: Props) {
       </section>
 
       {shownDetail && displayed && (
-        <section className="card">
+        <section className="card kind t-agent">
           <div className="card-head">
             <h2>{shownDetail.agent.name}</h2>
             <div className="versions">
@@ -276,11 +285,11 @@ export function AgentsArea(p: Props) {
             </div>
             <span className="sub mono small">{shownDetail.agent.id}</span>
             <div className="actions">
-              <button className="btn sm" onClick={() => setDraft(toDraft(shownDetail.agent))} disabled={busy}>
-                bearbeiten
-              </button>
               <button className="btn quiet danger sm" onClick={() => setConfirmDelete(true)} disabled={busy}>
                 löschen
+              </button>
+              <button className="btn sm" onClick={() => setDraft(toDraft(shownDetail.agent))} disabled={busy}>
+                bearbeiten
               </button>
             </div>
           </div>
@@ -289,7 +298,7 @@ export function AgentsArea(p: Props) {
             <div>
               <dt>Model</dt>
               <dd className="line">
-                <span className="mono">{displayed.model}</span>
+                <Ref kind="model" id={displayed.model} link={displayed.modelExists} />
                 {!displayed.modelExists && <span className="pill fail">fehlt</span>}
               </dd>
             </div>
@@ -337,102 +346,39 @@ export function AgentsArea(p: Props) {
       )}
 
       {draft && (
-        <Modal title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neuer Agent'} onClose={() => setDraft(null)}>
+        <Modal kind="agent" title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neuer Agent'} onClose={() => setDraft(null)}>
           <form
-            className="form"
+            className="form guided"
             onSubmit={(e) => {
               e.preventDefault()
               save()
             }}
           >
-            <div className="form-grid">
+            <GuideStep no="①" title="Wer antwortet?">
+              <NameField naming={draft} existing={!!isExisting} placeholder="Rookie" onChange={(n) => setDraft({ ...draft, ...n })} />
               <label className="field">
-                <span>Id</span>
-                <input
-                  value={draft.id}
-                  onChange={(e) => setDraft({ ...draft, id: e.target.value })}
-                  disabled={isExisting}
-                  placeholder="kleinbuchstaben-und-bindestriche"
-                  pattern="[a-z0-9][a-z0-9-]*"
-                  required
-                  className="mono"
-                />
-              </label>
-              <label className="field">
-                <span>Name</span>
-                <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} required />
-              </label>
-              <label className="field span-2">
                 <span>Model</span>
                 <select value={draft.model} onChange={(e) => setDraft({ ...draft, model: e.target.value })} required>
                   {/* Decision models only judge; they cannot drive an agent. */}
                   {models
                     .filter((m) => m.kind === 'chat' || m.id === draft.model)
                     .map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} · {m.modelId}
-                      {m.configured ? '' : ' (nicht nutzbar)'}
-                    </option>
-                  ))}
+                      <option key={m.id} value={m.id}>
+                        {m.name} · {m.modelId}
+                        {m.configured ? '' : ' (nicht nutzbar)'}
+                      </option>
+                    ))}
                 </select>
+                <span className="hint">Das Model schreibt die Antworten. Decision-Models urteilen nur und fehlen hier deshalb.</span>
               </label>
-              <div className="field span-2">
-                <span>Tools</span>
-                <div className="segment">
-                  {(['all', 'none', 'list'] as Mode[]).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      className={draft.mode === m ? 'on' : ''}
-                      onClick={() => setDraft({ ...draft, mode: m })}
-                    >
-                      {m === 'all' ? 'alle' : m === 'none' ? 'keine' : 'Auswahl'}
-                    </button>
-                  ))}
-                </div>
-                {draft.mode === 'list' && (
-                  <div className="checks">
-                    {tools.map((t) => {
-                      const on = draft.picked.includes(t.name)
-                      return (
-                        <label key={t.name} className={`check-pill ${on ? 'on' : ''}`} title={t.description}>
-                          <input
-                            type="checkbox"
-                            checked={on}
-                            onChange={(e) =>
-                              setDraft({
-                                ...draft,
-                                picked: e.target.checked
-                                  ? [...draft.picked, t.name]
-                                  : draft.picked.filter((n) => n !== t.name),
-                              })
-                            }
-                          />
-                          {t.name}
-                        </label>
-                      )
-                    })}
-                    {draft.picked
-                      .filter((n) => !tools.some((t) => t.name === n))
-                      .map((n) => (
-                        <label key={n} className="check-pill on" title="nicht registriert — bleibt in der Liste">
-                          <input
-                            type="checkbox"
-                            checked
-                            onChange={() => setDraft({ ...draft, picked: draft.picked.filter((x) => x !== n) })}
-                          />
-                          {n} ?
-                        </label>
-                      ))}
-                    {tools.length === 0 && <span className="hint">Kein Tool registriert.</span>}
-                  </div>
-                )}
-                <span className="hint">
-                  Die Liste filtert, was dem Model angeboten wird. Ein Tool, von dem es nichts weiß, kann es
-                  nicht aufrufen.
-                </span>
-              </div>
-              <label className="field span-2">
+            </GuideStep>
+
+            <GuideStep
+              no="②"
+              title="Wie soll er sich verhalten?"
+              hint="Der Systemprompt steht vor jeder Frage: Rolle, Regeln, Ton. Ihn schreibt im Training der Coach um."
+            >
+              <label className="field">
                 <span>Systemprompt</span>
                 <textarea
                   className="prompt"
@@ -442,15 +388,60 @@ export function AgentsArea(p: Props) {
                   placeholder="Du bist …"
                 />
               </label>
-              <label className="field span-2">
+            </GuideStep>
+
+            <GuideStep
+              no="③"
+              title="Welche Tools darf er benutzen?"
+              hint="Nur angebotene Tools kann das Model aufrufen. Von einem Tool, das nicht auf der Liste steht, weiß es nichts."
+            >
+              <div className="segment">
+                {(['all', 'none', 'list'] as Mode[]).map((m) => (
+                  <button key={m} type="button" className={draft.mode === m ? 'on' : ''} onClick={() => setDraft({ ...draft, mode: m })}>
+                    {m === 'all' ? 'alle' : m === 'none' ? 'keine' : 'Auswahl'}
+                  </button>
+                ))}
+              </div>
+              {draft.mode === 'list' && (
+                <div className="checks">
+                  {tools.map((t) => {
+                    const on = draft.picked.includes(t.name)
+                    return (
+                      <label key={t.name} className={`check-pill ${on ? 'on' : ''}`} title={t.description}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              picked: e.target.checked ? [...draft.picked, t.name] : draft.picked.filter((n) => n !== t.name),
+                            })
+                          }
+                        />
+                        {t.name}
+                      </label>
+                    )
+                  })}
+                  {draft.picked
+                    .filter((n) => !tools.some((t) => t.name === n))
+                    .map((n) => (
+                      <label key={n} className="check-pill on" title="nicht registriert — bleibt in der Liste">
+                        <input type="checkbox" checked onChange={() => setDraft({ ...draft, picked: draft.picked.filter((x) => x !== n) })} />
+                        {n} ?
+                      </label>
+                    ))}
+                  {tools.length === 0 && <span className="hint">Kein Tool registriert.</span>}
+                </div>
+              )}
+            </GuideStep>
+
+            <Advanced summary={draft.description ? 'Beschreibung gesetzt' : 'Beschreibung, für Menschen'}>
+              <label className="field">
                 <span>Beschreibung</span>
-                <textarea
-                  rows={2}
-                  value={draft.description}
-                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                />
+                <textarea rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
               </label>
-            </div>
+            </Advanced>
+
             <div className="toolbar end">
               <button type="button" className="btn quiet" onClick={() => setDraft(null)} disabled={busy}>
                 abbrechen
@@ -464,7 +455,7 @@ export function AgentsArea(p: Props) {
       )}
 
       {confirmDelete && shownDetail && (
-        <Modal title="Agent löschen?" onClose={() => setConfirmDelete(false)}>
+        <Modal kind="agent" title="Agent löschen?" onClose={() => setConfirmDelete(false)}>
           <p>
             <strong>{shownDetail.agent.name}</strong> <span className="mono muted">({shownDetail.agent.id})</span> wird
             mit allen {shownDetail.versions.length} Version(en) ins Archiv verschoben. Die Id wird frei.

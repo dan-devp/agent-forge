@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router'
 import type { Status } from '../api/client'
-import { AREAS } from './areas'
+import { AREAS, GROUP_LABEL, type AreaGroup } from './areas'
+import { KINDS } from './kinds'
 
 type Props = {
   status: Status | null
@@ -8,7 +9,9 @@ type Props = {
   onDismissError: () => void
 }
 
-/** Inside an area: sidebar with one pill per area, the active one terracotta, content to the right. */
+const GROUPS: AreaGroup[] = ['build', 'measure', 'lookup']
+
+/** Inside an area: sidebar grouped by what one does there, the active pill terracotta, content to the right. */
 export function AreaShell(p: Props) {
   const location = useLocation()
   const current = AREAS.find((a) => location.pathname.startsWith(a.path))
@@ -16,15 +19,26 @@ export function AreaShell(p: Props) {
   return (
     <div className="area">
       <aside className="sidebar" aria-label="Bereiche">
-        {AREAS.map((a) => (
-          <NavLink
-            key={a.id}
-            to={a.path}
-            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${a.ready ? '' : 'disabled'}`}
-          >
-            <span>{a.label}</span>
-            <span className="count">{p.status ? a.count(p.status) : ''}</span>
-          </NavLink>
+        {GROUPS.map((g) => (
+          <div key={g} className="nav-group">
+            <span className="nav-group-label">{GROUP_LABEL[g]}</span>
+            {AREAS.filter((a) => a.group === g).map((a) => (
+              <NavLink
+                key={a.id}
+                to={a.path}
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''} ${a.ready ? '' : 'disabled'}`}
+                title={a.hint}
+              >
+                <span className="nav-label">
+                  <span className={`nav-sign t-${KINDS[a.kind].tone}`} aria-hidden="true">
+                    {KINDS[a.kind].sign}
+                  </span>
+                  {a.label}
+                </span>
+                <span className="count">{p.status ? a.count(p.status) : ''}</span>
+              </NavLink>
+            ))}
+          </div>
         ))}
       </aside>
       <main className="content">

@@ -10,7 +10,8 @@ import {
   type SessionStatus,
   type TrainingStep,
 } from '../api/client'
-import { diffLines, isOpen, journey } from './training'
+import { decisionSentence, diffLines, isOpen, journey } from './training'
+import { Ref } from './Ref'
 
 const POLL_MS = 1500
 
@@ -53,10 +54,10 @@ function bestRates(steps: TrainingStep[]) {
   return out
 }
 
-/** The training at a glance, for lists: the best-so-far line, nothing else. */
+/** The training at a glance, for lists: the best-so-far line, nothing else. One point is no line. */
 export function Sparkline({ session }: { session: Session }) {
   const values = bestRates(session.steps).filter((v): v is number => v !== null)
-  if (values.length === 0) return <span className="spark empty" />
+  if (values.length < 2) return null
   const W = 72
   const H = 22
   const x = (i: number) => (values.length === 1 ? W / 2 : 3 + ((W - 6) * i) / (values.length - 1))
@@ -124,7 +125,7 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
 
   if (!session || session.id !== sid) {
     return (
-      <section className="card">
+      <section className="card kind t-training">
         <p className="empty">lädt …</p>
       </section>
     )
@@ -147,11 +148,11 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
         </Link>
       </nav>
 
-      <section className="card">
+      <section className="card kind t-training">
         <div className="headline">
           <div className="headline-main">
             <h2>
-              <span className="mono">{s.agentId}</span>
+              <Ref kind="agent" id={s.agentId} />
               {baseline && (
                 <>
                   : Train <span className="mono">{ratio(baseline.trainPassed, baseline.trainTotal)}</span>
@@ -188,7 +189,7 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
             <SessionStatusPill status={s.status} />
             <div className="toolbar">
               <Link className="btn quiet sm" to={`/runs?agent=${encodeURIComponent(s.agentId)}`}>
-                Matrix
+                zur Matrix
               </Link>
               {isOpen(s) && (
                 <button className="btn quiet danger sm" onClick={() => perform(() => trainingsApi.stop(s.id))} disabled={busy}>
@@ -214,8 +215,8 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
         )}
 
         <p className="small faint">
-          Gestartet {new Date(s.startedAt).toLocaleString('de-DE')} · Training v{s.trainingVersion} · Coach {s.coachId} v{s.coachVersion} · n=
-          {s.repetitions} · Freigabe {s.approval === 'MANUAL' ? 'von Hand' : 'durch das Gate'}
+          Gestartet {new Date(s.startedAt).toLocaleString('de-DE')} · Training v{s.trainingVersion} · Coach <Ref kind="agent" id={s.coachId} version={s.coachVersion} /> · je
+          Task {s.repetitions} Runs · Freigabe {s.approval === 'MANUAL' ? 'von Hand' : 'durch das Gate'}
         </p>
       </section>
     </>
@@ -231,10 +232,10 @@ function Curve(p: { session: Session; selected: number | null; onSelect: (seq: n
   const steps = p.session.steps
   const W = 680
   const H = 200
-  const pad = { l: 40, r: 20, t: 14, b: 52 }
-  const cols = Math.max(steps.length, 2)
-  const colW = (W - pad.l - pad.r) / (cols - 1)
-  const x = (i: number) => pad.l + colW * i
+  const pad = { l: 44, r: 4, t: 14, b: 52 }
+  // Each step owns a column and sits in its middle, so the first and last label fit as well.
+  const colW = (W - pad.l - pad.r) / Math.max(steps.length, 1)
+  const x = (i: number) => pad.l + colW * (i + 0.5)
   const y = (r: number) => pad.t + (H - pad.t - pad.b) * (1 - r)
   const best = bestRates(steps)
 
@@ -258,7 +259,7 @@ function Curve(p: { session: Session; selected: number | null; onSelect: (seq: n
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Trainingskurve">
         {steps.map((st, i) =>
           p.selected === st.seq ? (
-            <rect key={`sel-${st.seq}`} x={x(i) - colW / 2 + 4} y={4} width={colW - 8} height={H - 8} rx={12} className="col-selected" />
+            <rect key={`sel-${st.seq}`} x={x(i) - colW / 2 + 3} y={3} width={colW - 6} height={H - 6} rx={12} className="col-selected" />
           ) : null,
         )}
         {[0, 0.5, 1].map((r) => (
@@ -366,7 +367,16 @@ function StepPanel(p: {
   const failed = batchRuns ? batchRuns.filter((r) => r.status !== 'CANCELLED' && r.passed === false) : []
   const waiting = s.status === 'WAITING' && st.decision === 'PENDING' && st.score !== null
   const hasDiff = st.baseVersion !== null && st.agentVersion !== null
-  const coachTokens = st.coachTokens !== null ? `Coach ${st.coachTokens} tok, ${((st.coachDurationMs ?? 0) / 1000).toFixed(1)} s` : null
+  const sentence = decisionSentence(st, s.steps)
+  const decisionWord =
+    st.decision === 'ACCEPTED'
+      ? 'Angenommen'
+      : st.decision === 'REJECTED'
+        ? 'Verworfen'
+        : waiting
+          ? `Das Gate empfiehlt ${st.gate === 'ACCEPTED' ? 'annehmen' : 'verwerfen'}`
+          : null
+  const coachTokens =st.coachTokens !== null ? `Coach ${st.coachTokens} tok, ${((st.coachDurationMs ?? 0) / 1000).toFixed(1)} s` : null
 
   function open(next: Drawer) {
     if (drawer === next) {
@@ -432,7 +442,7 @@ function StepPanel(p: {
               {tallies.map((t) => (
                 <div key={t.taskId} className="task-tally">
                   <span className={`dot ${t.open > 0 ? 'open' : t.total === 0 ? '' : t.passed === t.total ? 'pass' : 'fail'}`} />
-                  <span className="mono">{t.taskId}</span>
+                  <Ref kind="task" id={t.taskId} />
                   {t.holdout && <span className="small faint">Holdout</span>}
                   <span className="mono num">
                     {t.passed}/{t.total}
@@ -451,10 +461,15 @@ function StepPanel(p: {
         <div className="phase-body">
           {st.seq === 0 ? (
             <p className="muted">Der Startpunkt, an dem sich jeder Vorschlag messen muss.</p>
-          ) : st.reason ? (
-            <p>
-              {waiting && <span className="muted">Gate empfiehlt {st.gate === 'ACCEPTED' ? 'annehmen' : 'verwerfen'}: </span>}
-              {st.reason}
+          ) : st.reason || sentence ? (
+            <p title={st.reason ?? undefined}>
+              {decisionWord && (
+                <strong>
+                  {decisionWord}
+                  {st.decidedBy === 'user' && ' (von dir entschieden)'}:{' '}
+                </strong>
+              )}
+              {sentence ?? st.reason}
             </p>
           ) : (
             <p className="muted">steht noch aus</p>
@@ -495,7 +510,7 @@ function StepPanel(p: {
         <div className="failed-runs">
           {failed.map((r) => (
             <Link key={r.id} to={`/runs/${r.id}`} className="failed-run">
-              <span className="mono">{r.taskId}</span>
+              <Ref kind="task" id={r.taskId ?? '?'} link={false} />
               {s.holdout.includes(r.taskId ?? '') && <span className="small faint">Holdout</span>}
               <span className="small muted preview">{r.answer ?? r.error ?? r.status}</span>
             </Link>

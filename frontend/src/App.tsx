@@ -20,7 +20,7 @@ function Topbar({ status }: { status: Status | null }) {
   const area = AREAS.find((a) => location.pathname.startsWith(a.path))
   return (
     <header className="topbar">
-      <Link to="/" className="brand">
+      <Link to="/" className="brand" title={status ? `Daten in ${status.dataDir}` : undefined}>
         <span className="dot" />
         agent forge
       </Link>
@@ -29,14 +29,6 @@ function Topbar({ status }: { status: Status | null }) {
           <span className="sep">/</span>
           <span className="current">{area.label}</span>
         </nav>
-      )}
-      <span className="spacer" />
-      {status && (
-        <div className="meta">
-          <span className="pill mono ghost" title="DATA_DIR">
-            {status.dataDir}
-          </span>
-        </div>
       )}
     </header>
   )
