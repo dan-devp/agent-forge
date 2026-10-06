@@ -95,10 +95,22 @@ public class TrainingEngine {
 
 	// --- Commands ----------------------------------------------------------------------------
 
-	/** Checks everything a session needs, records it, and hands the loop to the training thread. */
+	/** From the agent's current version. */
 	public Session start(String trainingId) {
+		return start(trainingId, null);
+	}
+
+	/**
+	 * Checks everything a session needs, records it, and hands the loop to the training thread.
+	 *
+	 * @param startVersion the agent version to measure and improve; {@code null} for the current
+	 *                     one. An older one repeats a training from an earlier state — what the
+	 *                     session writes still lands on top as the next version.
+	 */
+	public Session start(String trainingId, Integer startVersion) {
 		Training training = trainings.get(trainingId);
-		Agent agent = agents.get(training.agentId());
+		Agent current = agents.get(training.agentId());
+		Agent agent = startVersion == null ? current : agents.get(training.agentId(), startVersion);
 		Agent coachAgent = agents.get(training.coachId());
 		check(training, agent, coachAgent);
 
@@ -118,7 +130,7 @@ public class TrainingEngine {
 		}
 		Session started = session;
 		try {
-			executor.execute(() -> loop(started, training, coachAgent));
+			executor.execute(() -> loop(started, training, coachAgent, current.version()));
 		}
 		catch (RejectedExecutionException ex) {
 			sessions.finish(session.id(), SessionStatus.FAILED, agent.version(), agent.version(), 0,
@@ -126,8 +138,9 @@ public class TrainingEngine {
 			active = null;
 			throw new EntityConflictException("Another training session is still running.");
 		}
-		log.info("Training session {} started: training {} v{}, agent {} v{}, coach {} v{}", session.id(),
-				training.id(), training.version(), agent.id(), agent.version(), coachAgent.id(), coachAgent.version());
+		log.info("Training session {} started: training {} v{}, agent {} v{} (current v{}), coach {} v{}",
+				session.id(), training.id(), training.version(), agent.id(), agent.version(), current.version(),
+				coachAgent.id(), coachAgent.version());
 		return session;
 	}
 
@@ -195,9 +208,9 @@ public class TrainingEngine {
 
 	// --- The loop ----------------------------------------------------------------------------
 
-	private void loop(Session session, Training training, Agent coachAgent) {
+	private void loop(Session session, Training training, Agent coachAgent, int currentAtStart) {
 		UUID id = session.id();
-		Loop state = new Loop(session);
+		Loop state = new Loop(session, currentAtStart);
 		try {
 			state.end = measureBaseline(state);
 			if (state.end == null) {
@@ -216,6 +229,12 @@ public class TrainingEngine {
 		}
 	}
 
+	/** The step learns its batch as soon as it is queued, so its runs show while they are measured. */
+	private void pointAt(Session s, StepDraft step, UUID batch) {
+		step.batchId = batch;
+		sessions.updateStep(s.id(), step.toStep());
+	}
+
 	/** Step 0. Returns an end when the session cannot go on. */
 	private End measureBaseline(Loop state) {
 		Session s = state.session;
@@ -224,7 +243,7 @@ public class TrainingEngine {
 		sessions.addStep(s.id(), step.toStep());
 
 		Measurement m = bench.measure(s.agentId(), s.startVersion(), s.train(), s.holdout(), s.repetitions(),
-				() -> stopRequested.contains(s.id()));
+				() -> stopRequested.contains(s.id()), batch -> pointAt(s, step, batch));
 		state.tokens += m.tokens();
 		step.measured(m);
 		step.decision = Decision.ACCEPTED;
@@ -298,7 +317,7 @@ public class TrainingEngine {
 					written.version());
 
 			Measurement m = bench.measure(s.agentId(), written.version(), s.train(), s.holdout(), s.repetitions(),
-					() -> stopRequested.contains(s.id()));
+					() -> stopRequested.contains(s.id()), batch -> pointAt(s, step, batch));
 			state.tokens += m.tokens();
 			step.measured(m);
 			if (m.stopped()) {
@@ -373,13 +392,16 @@ public class TrainingEngine {
 		Integer finalVersion = null;
 		try {
 			Agent current = agents.get(s.agentId());
-			if (state.lastWritten != null && state.bestVersion != null && !state.bestVersion.equals(state.lastWritten)
-					&& current.version() == state.lastWritten) {
-				Agent best = agents.get(s.agentId(), state.bestVersion);
+			// A session that improved nothing leaves the agent as it was before it began: that is
+			// the start version, unless the session started from an older one on purpose.
+			boolean improved = state.bestVersion != null && state.bestVersion != s.startVersion();
+			Integer settle = improved ? state.bestVersion : Integer.valueOf(state.currentAtStart);
+			if (state.lastWritten != null && !settle.equals(state.lastWritten) && current.version() == state.lastWritten) {
+				Agent best = agents.get(s.agentId(), settle);
 				current = agents.update(new Agent(best.id(), 0, best.name(), best.description(), best.modelId(),
 						best.tools(), best.systemPrompt()));
 				note = (note == null ? "" : note + " - ") + "Prompt von v%d als v%d wieder aktuell"
-						.formatted(state.bestVersion, current.version());
+						.formatted(settle, current.version());
 			}
 			finalVersion = current.version();
 		}
@@ -414,14 +436,17 @@ public class TrainingEngine {
 	/** What one loop knows while it runs. */
 	private static final class Loop {
 		final Session session;
+		/** The agent's current version when the session began; the start may be an older one. */
+		final int currentAtStart;
 		int tokens;
 		Integer bestVersion;
 		Measurement best;
 		Integer lastWritten;
 		End end;
 
-		Loop(Session session) {
+		Loop(Session session, int currentAtStart) {
 			this.session = session;
+			this.currentAtStart = currentAtStart;
 		}
 	}
 

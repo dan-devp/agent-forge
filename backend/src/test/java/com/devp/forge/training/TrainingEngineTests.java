@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import com.devp.forge.agent.Agent;
@@ -62,6 +63,8 @@ class TrainingEngineTests {
 
 	private final List<CoachBrief> briefs = new ArrayList<>();
 	private final List<Integer> measured = new ArrayList<>();
+	/** Per measurement: did the step already point at its batch while it was measured? */
+	private final List<Boolean> visibleWhileMeasured = new ArrayList<>();
 	private Function<CoachBrief, Proposal> coachBehaviour;
 
 	@BeforeEach
@@ -98,8 +101,12 @@ class TrainingEngineTests {
 	private final Bench bench = new Bench() {
 		@Override
 		public Measurement measure(String agent, int version, List<String> train, List<String> holdout, int n,
-				BooleanSupplier stop) {
+				BooleanSupplier stop, Consumer<UUID> started) {
 			measured.add(version);
+			UUID batch = UUID.randomUUID();
+			started.accept(batch);
+			Step current = sessions.list(trainingId, 1).getFirst().steps().getLast();
+			visibleWhileMeasured.add(batch.equals(current.batchId()));
 			String prompt = agents.get(agent, version).systemPrompt();
 			int passed = Math.min(lessons(prompt), 3);
 			int held = prompt.contains("auswendig") ? 0 : 3;
@@ -107,7 +114,7 @@ class TrainingEngineTests {
 					? List.of(new FailedRun(TRAIN, UUID.randomUUID(), "DONE", "Wie spaet?", "Mittag", null, List.of(),
 							List.of("tool-called: nicht aufgerufen")))
 					: List.of();
-			return new Measurement(UUID.randomUUID(), new Score(passed, 3, held, 3),
+			return new Measurement(batch, new Score(passed, 3, held, 3),
 					List.of(new TaskScore(TRAIN, false, passed, 3), new TaskScore(HOLDOUT, true, held, 3)), failures,
 					10, stop.getAsBoolean());
 		}
@@ -158,6 +165,8 @@ class TrainingEngineTests {
 		assertThat(s.note()).contains("nichts mehr zu lernen");
 		assertThat(s.steps()).extracting(Step::seq).containsExactly(0, 1, 2, 3);
 		assertThat(s.steps()).extracting(Step::agentVersion).containsExactly(1, 2, 3, 4);
+		// Every step pointed at its batch while it was still measured, not only afterwards.
+		assertThat(visibleWhileMeasured).containsExactly(true, true, true, true);
 		assertThat(s.steps()).extracting(Step::decision).containsOnly(Decision.ACCEPTED);
 		assertThat(s.steps()).extracting(st -> st.score().train()).containsExactly("0/3", "1/3", "2/3", "3/3");
 		assertThat(s.steps().get(1).baseVersion()).isEqualTo(1);
@@ -209,6 +218,26 @@ class TrainingEngineTests {
 		// Every attempt starts from v1, the best; the last attempt is covered by a copy of v1.
 		assertThat(briefs).allSatisfy(b -> assertThat(b.agentVersion()).isEqualTo(1));
 		assertThat(s.finalVersion()).isEqualTo(5);
+	}
+
+	@Test
+	void startsFromAnOlderVersionAndLeavesTheAgentAsItWasWhenNothingImproves() {
+		agents.update(new Agent(agentId, 0, "Trainee", null, "local", ToolAccess.ALL, "Du bist Trainee.\n- Regel 1"));
+		String trained = "Du bist Trainee.\n- Regel 1\n- Regel 2";
+		agents.update(new Agent(agentId, 0, "Trainee", null, "local", ToolAccess.ALL, trained));
+		training(1, null, Approval.GATE, List.of(TRAIN));
+		coachBehaviour = brief -> answer(brief.systemPrompt() + "\nSei freundlich.", "- freundlicher");
+		TrainingEngine engine = engine(Runnable::run);
+
+		Session s = engine.find(engine.start(trainingId, 1).id());
+
+		assertThat(s.startVersion()).isEqualTo(1);
+		assertThat(measured).containsExactly(1, 4);
+		assertThat(s.steps().get(1).decision()).isEqualTo(Decision.REJECTED);
+		// Nothing beat v1, so the agent goes back to where it stood before: v3, not v1.
+		assertThat(agents.get(agentId).systemPrompt()).isEqualTo(trained);
+		assertThat(s.finalVersion()).isEqualTo(5);
+		assertThat(s.note()).contains("Prompt von v3 als v5");
 	}
 
 	@Test

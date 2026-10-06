@@ -3,6 +3,7 @@ package com.devp.forge.training;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 /**
  * Measures one agent version on the training's tasks: n runs per task, wait, count.
@@ -15,9 +16,12 @@ public interface Bench {
 	/**
 	 * Blocks until every run is final, or until {@code stop} says so — then the rest of the
 	 * batch is cancelled and {@link Measurement#stopped()} is true.
+	 *
+	 * @param started told the batch id once the runs are queued, before they run: the step can
+	 *                point at its runs while they are measured, so a watcher sees them come in
 	 */
 	Measurement measure(String agentId, int agentVersion, List<String> train, List<String> holdout, int repetitions,
-			BooleanSupplier stop);
+			BooleanSupplier stop, Consumer<UUID> started);
 
 	/**
 	 * @param failures failed runs of the <em>train</em> tasks, at most a few per task — the

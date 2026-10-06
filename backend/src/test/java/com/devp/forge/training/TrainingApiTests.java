@@ -1,6 +1,8 @@
 package com.devp.forge.training;
 
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.devp.forge.agent.Agent;
 import com.devp.forge.agent.AgentRepository;
@@ -100,6 +102,10 @@ class TrainingApiTests {
 				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
 						.string(containsString("approval: manual")));
 
+		// A start version the agent does not have is refused before anything runs.
+		mvc.perform(post("/api/trainings/" + trainingId + "/sessions").contentType(MediaType.APPLICATION_JSON)
+				.content("{\"startVersion\": 99}")).andExpect(status().isNotFound());
+
 		// What a training uses cannot be archived under it.
 		mvc.perform(delete("/api/agents/" + coachId)).andExpect(status().isConflict());
 		mvc.perform(delete("/api/tasks/no-tool")).andExpect(status().isConflict());
@@ -111,7 +117,9 @@ class TrainingApiTests {
 	@Test
 	void theRealBenchCountsFailedRunsAndShowsOnlyTrainFailures() {
 		properties.setPollMs(50);
-		Measurement m = bench.measure(agentId, 1, List.of("time-and-division"), List.of("no-tool"), 2, () -> false);
+		AtomicReference<UUID> started = new AtomicReference<>();
+		Measurement m = bench.measure(agentId, 1, List.of("time-and-division"), List.of("no-tool"), 2, () -> false,
+				started::set);
 
 		assertThat(m.score()).isEqualTo(new Score(0, 2, 0, 2));
 		assertThat(m.tasks()).extracting(Bench.TaskScore::taskId).containsExactly("time-and-division", "no-tool");
@@ -121,5 +129,6 @@ class TrainingApiTests {
 			assertThat(f.error()).isNotBlank();
 		});
 		assertThat(runs.list(10, null, null, m.batchId())).hasSize(4);
+		assertThat(started.get()).isEqualTo(m.batchId());
 	}
 }

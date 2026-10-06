@@ -106,10 +106,11 @@ public class TrainingController {
 		return list();
 	}
 
+	/** Body optional: {@code {"startVersion": 3}} starts from that agent version, without it from the current one. */
 	@PostMapping("/api/trainings/{id}/sessions")
 	@ResponseStatus(HttpStatus.ACCEPTED)
-	public Session start(@PathVariable String id) {
-		return engine.start(id);
+	public Session start(@PathVariable String id, @RequestBody(required = false) StartRequest request) {
+		return engine.start(id, request == null ? null : request.startVersion());
 	}
 
 	@GetMapping("/api/sessions/{id}")
@@ -163,5 +164,8 @@ public class TrainingController {
 	}
 
 	public record DecisionRequest(Boolean accept) {
+	}
+
+	public record StartRequest(Integer startVersion) {
 	}
 }

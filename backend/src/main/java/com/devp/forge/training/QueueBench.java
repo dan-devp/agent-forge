@@ -3,7 +3,9 @@ package com.devp.forge.training;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -42,9 +44,10 @@ public class QueueBench implements Bench {
 
 	@Override
 	public Measurement measure(String agentId, int agentVersion, List<String> train, List<String> holdout,
-			int repetitions, BooleanSupplier stop) {
+			int repetitions, BooleanSupplier stop, Consumer<UUID> started) {
 		List<String> all = Stream.concat(train.stream(), holdout.stream()).toList();
 		Batch batch = queue.enqueue(agentId, agentVersion, all, repetitions);
+		started.accept(batch.id());
 
 		boolean stopped = false;
 		List<Run> done;
