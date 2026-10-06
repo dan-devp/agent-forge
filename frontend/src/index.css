@@ -10,30 +10,31 @@
  * numbers - is mono; prose is sans.
  */
 :root {
-  --bg: #e9e6dc;
-  --surface: #f6f4ee;
-  --surface-hi: #fdfcf9;
-  --surface-2: #edeae0;
-  --surface-3: #e1ddd1;
+  /* Light sand, not grey sand: a darker ground read like a veil over everything. */
+  --bg: #f2f0ea;
+  --surface: #fcfbf8;
+  --surface-hi: #ffffff;
+  --surface-2: #f1eee7;
+  --surface-3: #e7e3da;
 
-  --text: #1e1d1a;
-  --text-muted: #6d6a61;
-  --text-faint: #9a968b;
+  --text: #191815;
+  --text-muted: #5c5950;
+  --text-faint: #8f8b80;
 
-  --accent: #d9694c;
-  --accent-hover: #c95d42;
+  --accent: #dc6244;
+  --accent-hover: #c8553a;
   --accent-text: #ffffff;
 
-  --pill: #dedad0;
-  --pill-text: #3a3833;
+  --pill: #e8e5dd;
+  --pill-text: #34322d;
 
-  --pass: #a8b98a;
-  --pass-text: #23301a;
-  --fail: #d99aa0;
-  --fail-text: #3d1419;
-  --open: #d6c98e;
-  --open-text: #3a3110;
-  --info: #a9bfd0;
+  --pass: #a9cc8c;
+  --pass-text: #1e3313;
+  --fail: #eba3a8;
+  --fail-text: #4b141b;
+  --open: #ecd68a;
+  --open-text: #3d3210;
+  --info: #b3cde0;
   --info-text: #17293a;
 
   /*

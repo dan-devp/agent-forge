@@ -14,7 +14,8 @@ import {
   type Task,
   type TrainingStep,
 } from '../api/client'
-import { decisionSentence, diffLines, isOpen, journey } from './training'
+import { PromptDiff } from './PromptDiff'
+import { decisionSentence, isOpen, journey } from './training'
 import { Ref } from './Ref'
 
 const POLL_MS = 1500
@@ -35,6 +36,8 @@ export function SessionStatusPill({ status }: { status: SessionStatus }) {
 
 const ratio = (passed: number, total: number) => `${passed}/${total}`
 const rate = (passed: number, total: number) => (total === 0 ? null : passed / total)
+const pct = (v: number) => `${Math.round(v * 100)} %`
+const finished = (r: Run) => r.status !== 'QUEUED' && r.status !== 'RUNNING'
 
 /** What happened to a step, in one word — the only place where colour means something. */
 function outcome(step: TrainingStep, session: Session): { label: string; tone: string } {
@@ -75,10 +78,55 @@ export function Sparkline({ session }: { session: Session }) {
   )
 }
 
+/** The runs of the step being measured right now, as far as they got. */
+type Live = { batch: string; runs: Run[] }
+
+/** A step that was just accepted, and by how much it lifted the best train rate. */
+type Celebration = { seq: number; delta: number }
+
+type LiveState = { kind: 'start' | 'coach' | 'measure' | 'wait'; text: string; done: number; total: number }
+
+/** Where a running session stands, for the status line: who is at work, and how far. */
+function liveState(s: Session, live: Live | null): LiveState | null {
+  if (!isOpen(s)) return null
+  const step = s.steps.at(-1)
+  if (!step) return { kind: 'start', text: 'Die Session startet …', done: 0, total: 0 }
+  if (s.status === 'WAITING') return { kind: 'wait', text: `v${step.agentVersion} ist gemessen und wartet auf deine Entscheidung.`, done: 0, total: 0 }
+  if (step.seq > 0 && step.agentVersion === null) {
+    return { kind: 'coach', text: `Der Coach liest die gescheiterten Runs und schreibt Vorschlag ${step.seq} …`, done: 0, total: 0 }
+  }
+  const runs = live && live.batch === step.batchId ? live.runs.filter((r) => r.status !== 'CANCELLED') : []
+  const done = runs.filter(finished).length
+  const what = step.seq === 0 ? `die Ausgangslage v${step.agentVersion}` : `Vorschlag v${step.agentVersion}`
+  return {
+    kind: 'measure',
+    text: runs.length === 0 ? `Misst ${what} …` : `Misst ${what}: ${done} von ${runs.length} Runs fertig`,
+    done,
+    total: runs.length,
+  }
+}
+
+/** The status line while a session runs: a pulse, what is happening, a bar for how far. */
+function LiveBar({ state }: { state: LiveState }) {
+  const share = state.total > 0 ? (100 * state.done) / state.total : null
+  return (
+    <div className={`live-bar ${state.kind}`} role="status" aria-live="polite">
+      <span className="live-pulse" aria-hidden="true" />
+      <span className="live-text">{state.text}</span>
+      {state.kind !== 'wait' && (
+        <span className="progress" aria-hidden="true">
+          {share === null ? <span className="indeterminate" /> : <span style={{ width: `${share}%` }} />}
+        </span>
+      )}
+    </div>
+  )
+}
+
 /**
  * One session on its own page. A sentence with the result on top, the curve as the way to
  * pick a step, and below it exactly one step: what was proposed, what it measured, what was
- * decided. The raw material — diff, failed runs, the coach's input — waits behind buttons.
+ * decided. While it runs, the page follows along: the runs of the step being measured fill
+ * in, the curve shows the rate so far, and an accepted version gets its moment.
  */
 export function SessionPage(p: { onError: (m: string) => void; onChanged: () => void }) {
   const { id: trainingId, sid } = useParams()
@@ -89,20 +137,47 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
   // Names for what the steps measure: a task reads as its name, a check as its label.
   const [tasks, setTasks] = useState<Task[]>([])
   const [evalTypes, setEvalTypes] = useState<EvalType[]>([])
+  const [live, setLive] = useState<Live | null>(null)
+  const [celebrate, setCelebrate] = useState<Celebration | null>(null)
   const timer = useRef<number | null>(null)
   const wasOpen = useRef(false)
+  // The decisions seen at the last poll, to notice the moment a step gets accepted.
+  const decided = useRef<Map<number, string> | null>(null)
 
   useEffect(() => {
     tasksApi.list().then(setTasks).catch(() => setTasks([]))
     catalogApi.evals().then(setEvalTypes).catch(() => setEvalTypes([]))
   }, [])
 
+  /** A step that turns accepted while the page is open gets a moment; history does not. */
+  function noticeAccepted(s: Session) {
+    const before = decided.current
+    decided.current = new Map(s.steps.map((st) => [st.seq, st.decision]))
+    if (!before) return
+    const fresh = s.steps.find((st) => st.seq > 0 && st.decision === 'ACCEPTED' && before.get(st.seq) !== 'ACCEPTED')
+    if (!fresh) return
+    const rates = bestRates(s.steps)
+    const i = s.steps.indexOf(fresh)
+    setCelebrate({ seq: fresh.seq, delta: (rates[i] ?? 0) - (rates[i - 1] ?? 0) })
+    window.setTimeout(() => setCelebrate((c) => (c?.seq === fresh.seq ? null : c)), 4500)
+  }
+
   const load = (id: string) =>
     trainingsApi
       .session(id)
       .then((s) => {
+        noticeAccepted(s)
         setSession(s)
         setTick((t) => t + 1)
+        // The step being measured: its runs as far as they got, for the live view.
+        const step = s.steps.at(-1)
+        if (isOpen(s) && step?.batchId && step.score === null) {
+          const batch = step.batchId
+          runsApi
+            .batchRuns(batch)
+            .then((runs) => setLive({ batch, runs }))
+            .catch(() => {})
+        }
         if (isOpen(s)) {
           wasOpen.current = true
           timer.current = window.setTimeout(() => load(id), POLL_MS)
@@ -115,6 +190,7 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
 
   useEffect(() => {
     if (!sid) return
+    decided.current = null
     load(sid)
     return () => {
       if (timer.current) window.clearTimeout(timer.current)
@@ -156,6 +232,10 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
     selected &&
     setParams(openTask === task ? { step: String(selected.seq) } : { step: String(selected.seq), task }, { replace: true })
   const proposals = Math.max(0, s.steps.length - 1)
+  const state = liveState(s, live)
+  // Ended on the baseline because it already passed everything: one point, nothing to draw.
+  const nothingToLearn =
+    !isOpen(s) && s.steps.length === 1 && baseline !== null && baseline.trainTotal > 0 && baseline.trainPassed === baseline.trainTotal
 
   return (
     <>
@@ -194,12 +274,12 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
               )}
             </h2>
             <p className="muted">
-              {proposals} von {s.maxSteps} Schritten · {s.totalTokens.toLocaleString('de-DE')} Tokens
+              {proposals} von {s.maxSteps} Vorschlägen · {s.totalTokens.toLocaleString('de-DE')} Tokens
               {s.maxTokens !== null && ` von ${s.maxTokens.toLocaleString('de-DE')}`}
               {s.finalVersion !== null && ` · Prompt v${s.finalVersion} ist jetzt aktuell`}
               {s.finalVersion === null && s.bestVersion !== null && ` · beste Version bisher v${s.bestVersion}`}
             </p>
-            {s.note && <p className="small muted">{s.note}</p>}
+            {s.note && !nothingToLearn && <p className="small muted">{s.note}</p>}
             {s.error && <p className="error">{s.error}</p>}
           </div>
           <div className="headline-side">
@@ -217,7 +297,23 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
           </div>
         </div>
 
-        <Curve session={s} selected={selected?.seq ?? null} onSelect={select} />
+        {state && <LiveBar state={state} />}
+
+        {nothingToLearn && baseline ? (
+          <div className="verdict pass session-callout">
+            <strong>Nichts zu lernen</strong>
+            <span>
+              Schon die Ausgangslage v{s.startVersion} besteht alle {baseline.trainTotal} Train-Runs. Der Coach musste nichts verbessern —
+              deshalb gibt es hier nur einen Messpunkt und keine Kurve.
+            </span>
+            <span className="small">
+              Eine Kurve entsteht, wenn der Agent anfangs scheitert: ein Agent ohne Vorwissen, schwierigere Prüfungen oder Tasks, die er noch nicht
+              kennt.
+            </span>
+          </div>
+        ) : (
+          <Curve session={s} selected={selected?.seq ?? null} live={live} celebrate={celebrate} onSelect={select} />
+        )}
 
         {selected && (
           <StepPanel
@@ -228,6 +324,8 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
             busy={busy}
             tasks={tasks}
             evalTypes={evalTypes}
+            live={live}
+            celebrating={celebrate?.seq === selected.seq}
             openTask={openTask}
             onToggleTask={toggleTask}
             onDecide={(accept) => perform(() => trainingsApi.decide(s.id, selected.seq, accept))}
@@ -246,34 +344,57 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
 
 /**
  * The curve doubles as navigation: one column per step, the thick line is the best train
- * rate so far, dots are the measured candidates (filled accepted, hollow rejected), squares
- * the holdout. Below each column the version and what became of it; a click selects it.
+ * rate so far with the ground below it filled, dots are the measured candidates (filled
+ * accepted, hollow rejected) with their rate, squares the holdout. The step being measured
+ * shows a pulsing dot at the rate so far; an accepted step pops and says how much it gained.
  */
-function Curve(p: { session: Session; selected: number | null; onSelect: (seq: number) => void }) {
+function Curve(p: {
+  session: Session
+  selected: number | null
+  live: Live | null
+  celebrate: Celebration | null
+  onSelect: (seq: number) => void
+}) {
   const steps = p.session.steps
   const W = 680
-  const H = 200
-  const pad = { l: 44, r: 4, t: 14, b: 52 }
+  const H = 220
+  const pad = { l: 44, r: 4, t: 26, b: 52 }
   // Each step owns a column and sits in its middle, so the first and last label fit as well.
   const colW = (W - pad.l - pad.r) / Math.max(steps.length, 1)
   const x = (i: number) => pad.l + colW * (i + 0.5)
   const y = (r: number) => pad.t + (H - pad.t - pad.b) * (1 - r)
   const best = bestRates(steps)
 
-  const bestPath = best
+  const bestPts = best
     .map((v, i) => (v === null ? null : { v, i }))
     .filter((pt): pt is { v: number; i: number } => pt !== null)
     .flatMap((pt, k, all) => {
-      const here = `${k === 0 ? 'M' : 'L'} ${x(pt.i)} ${y(pt.v)}`
+      const here = [x(pt.i), y(pt.v)] as const
       const next = all[k + 1]
-      return next ? [here, `L ${x(next.i)} ${y(pt.v)}`] : [here]
+      return next ? [here, [x(next.i), y(pt.v)] as const] : [here]
     })
-    .join(' ')
+  const bestPath = bestPts.map(([px, py], k) => `${k === 0 ? 'M' : 'L'} ${px} ${py}`).join(' ')
+  const area = bestPts.length > 1 ? `${bestPath} L ${bestPts[bestPts.length - 1][0]} ${y(0)} L ${bestPts[0][0]} ${y(0)} Z` : ''
   const holdoutPath = steps
     .map((st, i) => (st.score && st.score.holdoutTotal > 0 ? { i, v: st.score.holdoutPassed / st.score.holdoutTotal } : null))
     .filter((pt): pt is { i: number; v: number } => pt !== null)
     .map((pt, k) => `${k === 0 ? 'M' : 'L'} ${x(pt.i)} ${y(pt.v)}`)
     .join(' ')
+  // The line draws itself anew when a measurement lands, not on every poll.
+  const scored = steps.filter((st) => st.score).length
+
+  // The step under measurement: train runs done so far, and their rate.
+  const last = steps.at(-1)
+  const lastIndex = steps.length - 1
+  const measuring = isOpen(p.session) && last !== undefined && last.score === null && last.batchId !== null
+  const liveTrain =
+    measuring && p.live && p.live.batch === last.batchId
+      ? p.live.runs.filter((r) => r.status !== 'CANCELLED' && p.session.train.includes(r.taskId ?? ''))
+      : []
+  const liveDone = liveTrain.filter(finished)
+  const livePassed = liveDone.filter((r) => r.passed).length
+  const liveRate = liveDone.length > 0 ? livePassed / liveDone.length : null
+  const working = isOpen(p.session) && last !== undefined && last.score === null
 
   return (
     <figure className="curve">
@@ -283,6 +404,7 @@ function Curve(p: { session: Session; selected: number | null; onSelect: (seq: n
             <rect key={`sel-${st.seq}`} x={x(i) - colW / 2 + 3} y={3} width={colW - 6} height={H - 6} rx={12} className="col-selected" />
           ) : null,
         )}
+        {working && <rect x={x(lastIndex) - colW / 2 + 3} y={3} width={colW - 6} height={H - 6} rx={12} className="col-live" />}
         {[0, 0.5, 1].map((r) => (
           <g key={r}>
             <line x1={pad.l} x2={W - pad.r} y1={y(r)} y2={y(r)} className="grid" />
@@ -291,23 +413,53 @@ function Curve(p: { session: Session; selected: number | null; onSelect: (seq: n
             </text>
           </g>
         ))}
+        {area && <path key={`area-${scored}`} d={area} className="best-area" />}
         {holdoutPath && <path d={holdoutPath} className="holdout-line" />}
-        {bestPath && <path d={bestPath} className="best-line" />}
+        {bestPath && <path key={`line-${scored}`} d={bestPath} className="best-line" pathLength={1} />}
         {steps.map((st, i) => {
           const o = outcome(st, p.session)
           const sc = st.score as Score | null
+          const trainRate = sc ? sc.trainPassed / Math.max(1, sc.trainTotal) : null
+          const party = p.celebrate?.seq === st.seq
           return (
             <g key={st.seq}>
               {sc && sc.holdoutTotal > 0 && (
                 <rect x={x(i) - 4} y={y(sc.holdoutPassed / sc.holdoutTotal) - 4} width={8} height={8} className="holdout-dot" />
               )}
-              {sc && (
-                <circle cx={x(i)} cy={y(sc.trainPassed / Math.max(1, sc.trainTotal))} r={6} className={`train-dot ${st.decision.toLowerCase()}`} />
+              {trainRate !== null && (
+                <>
+                  {party && <circle cx={x(i)} cy={y(trainRate)} r={6} className="party-ring" />}
+                  <circle
+                    key={`${st.seq}-${st.decision}`}
+                    cx={x(i)}
+                    cy={y(trainRate)}
+                    r={6}
+                    className={`train-dot ${st.decision.toLowerCase()} ${party ? 'party' : ''}`}
+                  />
+                  <text x={x(i)} y={y(trainRate) - 12} textAnchor="middle" className="value">
+                    {pct(trainRate)}
+                  </text>
+                  {party && p.celebrate && p.celebrate.delta > 0 && (
+                    // Above the dot, unless that leaves the chart: at the top it goes below.
+                    <text x={x(i)} y={y(trainRate) - 30 < 12 ? y(trainRate) + 30 : y(trainRate) - 30} textAnchor="middle" className="delta">
+                      +{Math.round(p.celebrate.delta * 100)} %
+                    </text>
+                  )}
+                </>
+              )}
+              {i === lastIndex && measuring && liveRate !== null && (
+                <>
+                  <circle cx={x(i)} cy={y(liveRate)} r={6} className="live-ring" />
+                  <circle cx={x(i)} cy={y(liveRate)} r={6} className="live-point" />
+                  <text x={x(i)} y={y(liveRate) - 12} textAnchor="middle" className="value live">
+                    {livePassed}/{liveDone.length}
+                  </text>
+                </>
               )}
               <text x={x(i)} y={H - pad.b + 20} textAnchor="middle" className="axis mono">
                 {st.agentVersion !== null ? `v${st.agentVersion}` : '–'}
               </text>
-              <text x={x(i)} y={H - pad.b + 36} textAnchor="middle" className={`axis outcome ${o.tone}`}>
+              <text x={x(i)} y={H - pad.b + 36} textAnchor="middle" className={`axis outcome ${o.tone} ${sc ? '' : 'pulse'}`}>
                 {o.label}
               </text>
               <rect
@@ -338,15 +490,28 @@ function Curve(p: { session: Session; selected: number | null; onSelect: (seq: n
   )
 }
 
-type TaskTally = { taskId: string; holdout: boolean; passed: number; total: number; open: number }
+type TaskTally = { taskId: string; holdout: boolean; passed: number; total: number; open: number; runs: Run[] }
 
 function tallyByTask(session: Session, runs: Run[]): TaskTally[] {
   const all = [...session.train.map((t) => ({ t, h: false })), ...session.holdout.map((t) => ({ t, h: true }))]
   return all.map(({ t, h }) => {
     const mine = runs.filter((r) => r.taskId === t && r.status !== 'CANCELLED')
-    const open = mine.filter((r) => r.status === 'QUEUED' || r.status === 'RUNNING').length
-    return { taskId: t, holdout: h, passed: mine.filter((r) => r.passed).length, total: mine.length - open, open }
+    const open = mine.filter((r) => !finished(r)).length
+    return { taskId: t, holdout: h, passed: mine.filter((r) => r.passed).length, total: mine.length - open, open, runs: mine }
   })
+}
+
+/** One tile per run: waiting, running, passed or failed. A new state remounts it, so it pops. */
+function RunTiles({ runs }: { runs: Run[] }) {
+  return (
+    <span className="tiles" aria-hidden="true">
+      {runs.map((r) => {
+        const tone =
+          r.status === 'QUEUED' ? 'queued' : r.status === 'RUNNING' ? 'running' : r.status === 'DONE' && r.passed ? 'pass' : 'fail'
+        return <span key={`${r.id}-${r.status}`} className={`tile ${tone}`} />
+      })}
+    </span>
+  )
 }
 
 type Drawer = 'diff' | 'coach' | null
@@ -359,6 +524,8 @@ function StepPanel(p: {
   busy: boolean
   tasks: Task[]
   evalTypes: EvalType[]
+  live: Live | null
+  celebrating: boolean
   openTask: string | null
   onToggleTask: (task: string) => void
   onDecide: (accept: boolean) => void
@@ -371,10 +538,10 @@ function StepPanel(p: {
   const [drawer, setDrawer] = useState<Drawer>(null)
   const [diff, setDiff] = useState<{ before: string; after: string } | null>(null)
 
-  // The measurement per task comes from the step's batch; reloaded with every poll while it runs.
+  // While a step is measured, the page polls its runs; once measured, they are loaded once here.
   const measuring = st.batchId !== null && st.score === null
   useEffect(() => {
-    if (!st.batchId) return
+    if (!st.batchId || measuring) return
     let stale = false
     runsApi
       .batchRuns(st.batchId)
@@ -385,9 +552,10 @@ function StepPanel(p: {
     return () => {
       stale = true
     }
-  }, [st.batchId, measuring ? p.tick : 0]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [st.batchId, measuring]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const batchRuns = runs && runs.batch === st.batchId ? runs.list : null
+  const batchRuns =
+    measuring && p.live && p.live.batch === st.batchId ? p.live.runs : runs && runs.batch === st.batchId ? runs.list : null
   const tallies = batchRuns ? tallyByTask(s, batchRuns) : null
   const waiting = s.status === 'WAITING' && st.decision === 'PENDING' && st.score !== null
   const hasDiff = st.baseVersion !== null && st.agentVersion !== null
@@ -400,7 +568,7 @@ function StepPanel(p: {
         : waiting
           ? `Das Gate empfiehlt ${st.gate === 'ACCEPTED' ? 'annehmen' : 'verwerfen'}`
           : null
-  const coachTokens =st.coachTokens !== null ? `Coach ${st.coachTokens} tok, ${((st.coachDurationMs ?? 0) / 1000).toFixed(1)} s` : null
+  const coachTokens = st.coachTokens !== null ? `Coach ${st.coachTokens} tok, ${((st.coachDurationMs ?? 0) / 1000).toFixed(1)} s` : null
 
   function open(next: Drawer) {
     if (drawer === next) {
@@ -420,7 +588,7 @@ function StepPanel(p: {
   }
 
   return (
-    <div className={`step-panel ${waiting ? 'waiting' : ''}`}>
+    <div className={`step-panel ${waiting ? 'waiting' : ''} ${p.celebrating ? 'celebrate' : ''}`}>
       <div className="step-panel-head">
         <h3>
           {st.agentVersion !== null ? <span className="mono">v{st.agentVersion}</span> : <span className="mono">Schritt {st.seq}</span>}
@@ -440,11 +608,13 @@ function StepPanel(p: {
           {st.seq === 0 ? (
             <p className="muted">Ausgangslage: der Prompt von v{st.agentVersion}, so wie er war.</p>
           ) : st.rationale ? (
-            <pre className="rationale">{st.rationale}</pre>
+            <pre className="rationale appear">{st.rationale}</pre>
           ) : st.coachOutput === null ? (
-            <p className="muted">
-              <span className="spinner" /> Der Coach schreibt einen Vorschlag …
-            </p>
+            <div className="coach-writing">
+              <span className="muted">Der Coach schreibt einen Vorschlag …</span>
+              <span className="shimmer" />
+              <span className="shimmer short" />
+            </div>
           ) : (
             <p className="muted">Der Coach hat keine Begründung geschrieben.</p>
           )}
@@ -456,7 +626,7 @@ function StepPanel(p: {
         <span className="phase-name">Messung</span>
         <div className="phase-body">
           {st.agentVersion === null && st.seq > 0 ? (
-            <p className="muted">nicht gemessen</p>
+            <p className="muted">noch nicht gemessen</p>
           ) : !tallies ? (
             <p className="muted">
               <span className="spinner" /> wartet auf die Runs …
@@ -473,8 +643,8 @@ function StepPanel(p: {
                       <span className="small faint">{t.holdout ? 'Holdout' : ''}</span>
                       <span className="mono num">
                         {t.passed}/{t.total}
-                        {t.open > 0 && <span className="faint"> +{t.open} offen</span>}
                       </span>
+                      <RunTiles runs={t.runs} />
                       <span className="task-tally-toggle">{open ? 'zuklappen' : 'Runs ansehen'}</span>
                     </button>
                     {open && batchRuns && (
@@ -500,7 +670,7 @@ function StepPanel(p: {
           {st.seq === 0 ? (
             <p className="muted">Der Startpunkt, an dem sich jeder Vorschlag messen muss.</p>
           ) : st.reason || sentence ? (
-            <p title={st.reason ?? undefined}>
+            <p title={st.reason ?? undefined} className="appear">
               {decisionWord && (
                 <strong>
                   {decisionWord}
@@ -614,23 +784,6 @@ function TaskRuns(p: { taskId: string; runs: Run[]; evalTypes: EvalType[]; onErr
       <Link to={`/tasks/${encodeURIComponent(p.taskId)}`} className="link small">
         Task-Definition ansehen
       </Link>
-    </div>
-  )
-}
-
-function PromptDiff(p: { before: string; after: string; from: number | null; to: number | null }) {
-  const lines = diffLines(p.before, p.after)
-  return (
-    <div className="diff">
-      <div className="diff-head small muted mono">
-        v{p.from} → v{p.to}
-      </div>
-      {lines.map((l, i) => (
-        <div key={i} className={`diff-line ${l.kind}`}>
-          <span className="sign">{l.kind === 'add' ? '+' : l.kind === 'del' ? '−' : ' '}</span>
-          <span>{l.text || ' '}</span>
-        </div>
-      ))}
     </div>
   )
 }

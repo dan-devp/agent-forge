@@ -397,7 +397,7 @@ function TaskHead({ id, task, showChecks }: { id: string; task: Task | undefined
         <ul className="task-checks">
           {task.evals.map((e, i) => (
             <li key={i}>
-              <EvalSentence config={e} detail={false} />
+              <EvalSentence config={e} />
             </li>
           ))}
         </ul>

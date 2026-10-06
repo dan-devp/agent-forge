@@ -12,6 +12,8 @@ import {
 } from '../api/client'
 import { Advanced, GuideStep, NameField } from './forms'
 import { Modal } from './Modal'
+import { PromptDiff } from './PromptDiff'
+import { changeOf } from './versions'
 import { Ref } from './Ref'
 
 type Props = {
@@ -80,7 +82,8 @@ export function AgentsArea(p: Props) {
   const [models, setModels] = useState<ModelView[]>([])
   const [tools, setTools] = useState<ToolInfo[]>([])
   const [detail, setDetail] = useState<AgentDetail | null>(null)
-  const [view, setView] = useState<{ agent: AgentView; source: string | null } | null>(null)
+  // The version shown, its file if asked for, and the version before it (undefined while loading).
+  const [view, setView] = useState<{ agent: AgentView; source: string | null; prev: AgentView | null | undefined } | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -106,7 +109,7 @@ export function AgentsArea(p: Props) {
       .then((d) => {
         if (stale) return
         setDetail(d)
-        setView({ agent: d.agent, source: null })
+        show(d, d.agent.version)
       })
       .catch((e: Error) => {
         if (stale) return
@@ -121,22 +124,34 @@ export function AgentsArea(p: Props) {
   const shownDetail = selectedId ? detail : null
   const displayed = selectedId ? view?.agent ?? null : null
 
-  function showVersion(version: number) {
-    if (!detail) return
-    if (version === detail.agent.version) {
-      setView({ agent: detail.agent, source: null })
-      return
-    }
-    Promise.all([agentsApi.version(detail.agent.id, version), agentsApi.source(detail.agent.id, version)])
-      .then(([agent, source]) => setView({ agent, source }))
+  /**
+   * Shows one version together with the one before it, so every step through the versions
+   * reads as a change. An older version brings its file along; the current one shows it on demand.
+   */
+  function show(d: AgentDetail, version: number) {
+    const older = [...d.versions].sort((a, b) => a - b).filter((v) => v < version)
+    const before = older.length > 0 ? older[older.length - 1] : null
+    const current = version === d.agent.version
+    // The current version is known already: show it now, the change follows when the one before arrives.
+    if (current) setView({ agent: d.agent, source: null, prev: undefined })
+    Promise.all([
+      current ? Promise.resolve(d.agent) : agentsApi.version(d.agent.id, version),
+      current ? Promise.resolve(null) : agentsApi.source(d.agent.id, version),
+      before === null ? Promise.resolve(null) : agentsApi.version(d.agent.id, before),
+    ])
+      .then(([agent, source, prev]) => setView({ agent, source, prev }))
       .catch(fail)
+  }
+
+  function showVersion(version: number) {
+    if (detail) show(detail, version)
   }
 
   function showSource() {
     if (!view) return
     agentsApi
       .source(view.agent.id, view.agent.version)
-      .then((source) => setView({ agent: view.agent, source }))
+      .then((source) => setView({ ...view, source }))
       .catch(fail)
   }
 
@@ -169,7 +184,7 @@ export function AgentsArea(p: Props) {
       if (saved.id === selectedId) {
         const d = await agentsApi.get(saved.id)
         setDetail(d)
-        setView({ agent: d.agent, source: null })
+        show(d, d.agent.version)
       } else {
         navigate(`/agents/${saved.id}`)
       }
@@ -193,7 +208,7 @@ export function AgentsArea(p: Props) {
       if (selectedId) {
         const d = await agentsApi.get(selectedId)
         setDetail(d)
-        setView({ agent: d.agent, source: null })
+        show(d, d.agent.version)
       }
     })
 
@@ -330,10 +345,7 @@ export function AgentsArea(p: Props) {
             )}
           </dl>
 
-          <div className="field">
-            <span>Systemprompt</span>
-            <pre className="prose">{displayed.systemPrompt}</pre>
-          </div>
+          <VersionChange agent={displayed} prev={view?.prev} />
 
           {view?.source != null ? (
             <pre className="source mono">{view.source}</pre>
@@ -472,5 +484,47 @@ export function AgentsArea(p: Props) {
         </Modal>
       )}
     </>
+  )
+}
+
+/**
+ * The prompt of a version as a change against the one before: what changed in a few words
+ * (prompt, model, tools), then the prompt line by line with additions and removals marked.
+ * The first version has nothing before it and shows its prompt as it is.
+ */
+function VersionChange({ agent, prev }: { agent: AgentView; prev: AgentView | null | undefined }) {
+  if (prev === undefined) {
+    return (
+      <div className="field">
+        <span>Systemprompt</span>
+        <pre className="prose">{agent.systemPrompt}</pre>
+      </div>
+    )
+  }
+  if (prev === null) {
+    return (
+      <div className="field">
+        <span>Systemprompt · erste Version</span>
+        <pre className="prose">{agent.systemPrompt}</pre>
+      </div>
+    )
+  }
+  const change = changeOf(agent, prev, [prev])
+  return (
+    <div className="field version-change">
+      <span>Systemprompt · Änderungen gegenüber v{prev.version}</span>
+      <span className="line">
+        {change.map((c) => (
+          <span key={c} className="pill sm">
+            {c}
+          </span>
+        ))}
+      </span>
+      {agent.systemPrompt === prev.systemPrompt ? (
+        <pre className="prose">{agent.systemPrompt}</pre>
+      ) : (
+        <PromptDiff before={prev.systemPrompt} after={agent.systemPrompt} from={prev.version} to={agent.version} />
+      )}
+    </div>
   )
 }

@@ -75,8 +75,11 @@ function cleanParams(config: EvalConfig, type: EvalType | undefined): Record<str
   return out
 }
 
-/** "Bestanden, wenn …": every eval as a sentence, numbered, because all of them must hold. */
-function PassSummary({ evals, types }: { evals: EvalConfig[]; types: EvalType[] }) {
+/**
+ * "Bestanden, wenn …": every eval as a sentence, numbered, because all of them must hold. With
+ * detail, a judge's questions are listed, not just counted.
+ */
+function PassSummary({ evals, types, detail = false }: { evals: EvalConfig[]; types: EvalType[]; detail?: boolean }) {
   if (evals.length === 0) {
     return (
       <div className="pass-summary empty-summary">
@@ -91,7 +94,7 @@ function PassSummary({ evals, types }: { evals: EvalConfig[]; types: EvalType[] 
       <ol>
         {evals.map((e, i) => (
           <li key={i}>
-            <EvalSentence config={e} detail={false} />
+            <EvalSentence config={e} detail={detail} />
           </li>
         ))}
       </ol>
@@ -378,7 +381,7 @@ export function TasksArea(p: Props) {
             <span className="phase-no">②</span>
             <span className="phase-name">Prüfungen</span>
             <div className="phase-body">
-              <PassSummary evals={displayed.evals} types={types} />
+              <PassSummary evals={displayed.evals} types={types} detail />
             </div>
           </div>
 

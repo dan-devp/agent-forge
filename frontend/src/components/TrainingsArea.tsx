@@ -12,11 +12,13 @@ import {
   type TrainingRequest,
   type TrainingView,
 } from '../api/client'
+import { EvalSentence } from './EvalSentence'
 import { Advanced, GuideStep, NameField } from './forms'
 import { Modal } from './Modal'
 import { SessionStatusPill, Sparkline } from './TrainingSession'
 import { isOpen, journey, trainingCost } from './training'
 import { Ref } from './Ref'
+import { originsOf } from './versions'
 
 type Props = {
   onError: (message: string) => void
@@ -114,6 +116,43 @@ function approvalText(a: 'GATE' | 'MANUAL' | 'gate' | 'manual') {
   return a === 'MANUAL' || a === 'manual' ? 'du entscheidest von Hand' : 'das Gate entscheidet'
 }
 
+/**
+ * A task in full, inside the training editor: the question as the agent reads it and every
+ * check, judge questions listed. Deciding train or holdout needs to know what is measured.
+ */
+function TaskPeek({ task }: { task: Task }) {
+  return (
+    <div className="task-peek">
+      {task.description && <p className="small muted">{task.description}</p>}
+      <div className="field">
+        <span>Frage an den Agent</span>
+        <pre className="prose">{task.input.trim()}</pre>
+      </div>
+      <div className="field">
+        <span>Bestanden, wenn {task.evals.length === 1 ? 'diese Prüfung hält' : `alle ${task.evals.length} Prüfungen halten`}</span>
+        {task.evals.length === 0 ? (
+          <p className="small muted">Keine Prüfung — dieser Task kann nicht scheitern und taugt nicht fürs Training.</p>
+        ) : (
+          <ol className="task-peek-checks">
+            {task.evals.map((e, i) => (
+              <li key={i}>
+                <EvalSentence config={e} />
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+      <span className="small muted">
+        {task.maxToolCalls === null ? 'Tool-Budget wie voreingestellt' : `höchstens ${task.maxToolCalls} Tool-Aufrufe je Run`} · Id{' '}
+        <span className="mono">{task.id}</span> v{task.version} ·{' '}
+        <a href={`/tasks/${encodeURIComponent(task.id)}`} target="_blank" rel="noreferrer" className="link">
+          in neuem Tab öffnen
+        </a>
+      </span>
+    </div>
+  )
+}
+
 /** The recipe as labelled sentences: who learns from whom, on what, against what, how much. */
 function Recipe({ t }: { t: Training }) {
   return (
@@ -173,6 +212,11 @@ export function TrainingsArea(p: Props) {
   const [detail, setDetail] = useState<TrainingDetail | null>(null)
   const [source, setSource] = useState<string | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
+  // The task opened in the editor, to read it in full before giving it a role.
+  const [peek, setPeek] = useState<string | null>(null)
+  // The agent's versions, to start a session from one of them; the current one unless picked.
+  const [agentVersions, setAgentVersions] = useState<{ agent: string; current: number; versions: number[] } | null>(null)
+  const [startPick, setStartPick] = useState<{ training: string; version: number } | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -212,6 +256,23 @@ export function TrainingsArea(p: Props) {
   }, [selectedId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const shown = selectedId && detail?.training.id === selectedId ? detail : null
+
+  // The agent's versions for the start choice; fetched again when a session added some.
+  const shownAgent = shown?.training.agentId
+  const sessionCount = shown?.sessions.length ?? 0
+  useEffect(() => {
+    if (!shownAgent) return
+    let stale = false
+    agentsApi
+      .get(shownAgent)
+      .then((d) => {
+        if (!stale) setAgentVersions({ agent: d.agent.id, current: d.agent.version, versions: d.versions })
+      })
+      .catch(() => {})
+    return () => {
+      stale = true
+    }
+  }, [shownAgent, sessionCount])
   const running = list?.some((v) => v.lastSession && isOpen(v.lastSession)) ?? false
 
   async function perform(action: () => Promise<void>) {
@@ -228,7 +289,8 @@ export function TrainingsArea(p: Props) {
   const start = () =>
     perform(async () => {
       if (!shown) return
-      const s = await trainingsApi.start(shown.training.id)
+      const from = startPick?.training === shown.training.id ? startPick.version : undefined
+      const s = await trainingsApi.start(shown.training.id, from)
       navigate(`/trainings/${shown.training.id}/sessions/${s.id}`)
     })
 
@@ -290,6 +352,10 @@ export function TrainingsArea(p: Props) {
 
   const isExisting = draft ? list?.some((v) => v.training.id === draft.id) : false
   const t = shown?.training
+  const versionsOfAgent = t && agentVersions?.agent === t.agentId ? agentVersions : null
+  const startVersion = !t || !versionsOfAgent ? null : startPick?.training === t.id ? startPick.version : versionsOfAgent.current
+  // Which versions a coach wrote in this training's sessions, to tell them apart in the list.
+  const coachOrigins = t && shown ? originsOf(t.agentId, [shown]) : {}
 
   return (
     <>
@@ -381,9 +447,38 @@ export function TrainingsArea(p: Props) {
             >
               trainieren
             </button>
+            {versionsOfAgent && (
+              <label className="start-from">
+                ab
+                <select
+                  value={startVersion ?? ''}
+                  onChange={(e) => setStartPick({ training: t.id, version: Number(e.target.value) })}
+                  title="Mit welcher Version des Agents die Session beginnt"
+                >
+                  {[...versionsOfAgent.versions]
+                    .sort((a, b) => b - a)
+                    .map((v) => {
+                      const o = coachOrigins[v]
+                      return (
+                        <option key={v} value={v}>
+                          v{v}
+                          {v === versionsOfAgent.current ? ' · aktuell' : ''}
+                          {o ? ` · Coach, ${o.decision === 'ACCEPTED' ? 'angenommen' : o.decision === 'REJECTED' ? 'verworfen' : 'offen'}` : ''}
+                        </option>
+                      )
+                    })}
+                </select>
+              </label>
+            )}
             <CostLine t={t} />
             {running && <span className="pill open">eine Session läuft schon</span>}
           </div>
+          {versionsOfAgent && startVersion !== null && startVersion !== versionsOfAgent.current && (
+            <p className="hint">
+              Startet bei v{startVersion} statt bei der aktuellen v{versionsOfAgent.current}. Was die Session schreibt, kommt als neue Version
+              obendrauf; findet sie nichts Besseres als v{startVersion}, bleibt v{versionsOfAgent.current} aktuell.
+            </p>
+          )}
 
           <div className="field">
             <span>Sessions</span>
@@ -463,10 +558,23 @@ export function TrainingsArea(p: Props) {
               <div className="task-roles">
                 {tasks.map((task) => {
                   const role = draft.roles[task.id] ?? ''
+                  const open = peek === task.id
                   return (
-                    <div key={task.id} className="task-role">
-                      <Ref kind="task" id={task.id} link={false} />
-                      <span className="muted small">{task.name}</span>
+                    <div key={task.id} className={`task-role-group ${open ? 'open' : ''}`}>
+                    <div className="task-role">
+                      <button
+                        type="button"
+                        className="task-role-name"
+                        onClick={() => setPeek(open ? null : task.id)}
+                        aria-expanded={open}
+                        title={open ? 'zuklappen' : 'Frage und Prüfungen ansehen'}
+                      >
+                        <span className="task-role-caret" aria-hidden="true">
+                          {open ? '▾' : '▸'}
+                        </span>
+                        <span className="task-role-title">{task.name}</span>
+                        <span className="task-role-question">{task.input.trim()}</span>
+                      </button>
                       <span className="segment">
                         {(['', 'train', 'holdout'] as Role[]).map((r) => (
                           <button
@@ -479,6 +587,8 @@ export function TrainingsArea(p: Props) {
                           </button>
                         ))}
                       </span>
+                    </div>
+                    {open && <TaskPeek task={task} />}
                     </div>
                   )
                 })}

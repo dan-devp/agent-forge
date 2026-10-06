@@ -425,7 +425,12 @@ export const trainingsApi = {
     request<Training>(`/api/trainings/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(body) }),
   remove: (id: string) => request<void>(`/api/trainings/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   reload: () => request<TrainingView[]>('/api/trainings/reload', { method: 'POST' }),
-  start: (id: string) => request<Session>(`/api/trainings/${encodeURIComponent(id)}/sessions`, { method: 'POST' }),
+  /** Without a start version from the agent's current one. */
+  start: (id: string, startVersion?: number) =>
+    request<Session>(`/api/trainings/${encodeURIComponent(id)}/sessions`, {
+      method: 'POST',
+      body: JSON.stringify(startVersion === undefined ? {} : { startVersion }),
+    }),
   session: (id: string) => request<Session>(`/api/sessions/${id}`),
   stop: (id: string) => request<{ stopping: boolean }>(`/api/sessions/${id}/stop`, { method: 'POST' }),
   decide: (id: string, seq: number, accept: boolean) =>
