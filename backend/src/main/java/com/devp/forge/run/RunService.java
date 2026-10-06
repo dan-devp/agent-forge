@@ -197,7 +197,12 @@ public class RunService {
 		}
 	}
 
-	/** Writes the final state, then lets the evals run. Every final state is evaluated. */
+	/**
+	 * Judges the run, then writes its final state. Every final state is evaluated, and final
+	 * means judged: whoever waits for a run to end — a training's measurement, the matrix — must
+	 * never see it done while its verdict is still missing. A judge call takes a moment; a run
+	 * counted in that moment would count as failed.
+	 */
 	private Run finish(Run started, RunStatus status, String answer, String error, Instant start, String reportedModel,
 			Integer tokens, Task task) {
 		List<RunStep> trace = runs.trace(started.id());
@@ -208,8 +213,13 @@ public class RunService {
 				.orElse(null);
 		Run finished = started.withStatus(status, start)
 				.finished(status, answer, error, reportedModel, total, Instant.now(), trace);
-		runs.finish(finished);
-		return evaluation.evaluate(finished, task);
+		try {
+			return evaluation.evaluate(finished, task);
+		}
+		finally {
+			// Last, and even if judging breaks: a run must not stay RUNNING forever.
+			runs.finish(finished);
+		}
 	}
 
 	public Optional<Run> find(UUID id) {
