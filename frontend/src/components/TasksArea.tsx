@@ -76,21 +76,21 @@ function cleanParams(config: EvalConfig, type: EvalType | undefined): Record<str
 }
 
 /**
- * "Bestanden, wenn …": every eval as a sentence, numbered, because all of them must hold. With
+ * "Passes when …": every eval as a sentence, numbered, because all of them must hold. With
  * detail, a judge's questions are listed, not just counted.
  */
 function PassSummary({ evals, types, detail = false }: { evals: EvalConfig[]; types: EvalType[]; detail?: boolean }) {
   if (evals.length === 0) {
     return (
       <div className="pass-summary empty-summary">
-        <strong>Noch keine Prüfung.</strong> Ohne Prüfung wird ein Run nicht bewertet — er zählt weder als bestanden noch als gescheitert.
+        <strong>No check yet.</strong> Without a check, a Run is not judged — it counts as neither passed nor failed.
       </div>
     )
   }
   const incomplete = evals.filter((e) => missingParams(e, types.find((t) => t.type === e.type)).length > 0).length
   return (
     <div className="pass-summary">
-      <span className="lbl">Bestanden, wenn {evals.length === 1 ? 'diese Prüfung hält' : `alle ${evals.length} Prüfungen halten`}:</span>
+      <span className="lbl">Passes when {evals.length === 1 ? 'this check holds' : `all ${evals.length} checks hold`}:</span>
       <ol>
         {evals.map((e, i) => (
           <li key={i}>
@@ -98,7 +98,7 @@ function PassSummary({ evals, types, detail = false }: { evals: EvalConfig[]; ty
           </li>
         ))}
       </ol>
-      {incomplete > 0 && <span className="small error">{incomplete} Prüfung(en) unvollständig — „…“ markiert, was fehlt.</span>}
+      {incomplete > 0 && <span className="small error">{incomplete} check(s) incomplete — "…" marks what is missing.</span>}
     </div>
   )
 }
@@ -107,10 +107,10 @@ function PassSummary({ evals, types, detail = false }: { evals: EvalConfig[]; ty
 function GroupCounts({ evals }: { evals: EvalConfig[] }) {
   const counts = new Map<string, number>()
   evals.forEach((e) => {
-    const label = groupOf(e.type)?.label ?? 'Weitere'
+    const label = groupOf(e.type)?.label ?? 'More'
     counts.set(label, (counts.get(label) ?? 0) + 1)
   })
-  if (counts.size === 0) return <span className="muted small">keine Prüfung</span>
+  if (counts.size === 0) return <span className="muted small">no checks</span>
   return (
     <>
       {[...counts].map(([label, n]) => (
@@ -299,20 +299,20 @@ export function TasksArea(p: Props) {
       <section className="card kind t-task">
         <div className="card-head">
           <h2>Tasks</h2>
-          <span className="sub">Was der Agent gefragt wird und woran man eine gute Antwort erkennt</span>
+          <span className="sub">What the Agent is asked and how to tell a good answer</span>
           <div className="actions">
-            <button className="btn quiet sm" onClick={reload} disabled={busy} title="Dateien neu einlesen">
-              neu laden
+            <button className="btn quiet sm" onClick={reload} disabled={busy} title="Read the files again">
+              reload
             </button>
             <button className="btn primary sm" onClick={() => openEditor({ ...EMPTY })} disabled={busy}>
-              neuer Task
+              new Task
             </button>
           </div>
         </div>
         {tasks === null ? (
-          <p className="empty">lädt …</p>
+          <p className="empty">loading …</p>
         ) : tasks.length === 0 ? (
-          <p className="empty">Noch kein Task.</p>
+          <p className="empty">No Task yet.</p>
         ) : (
           <div className="rows">
             {tasks.map((t) => (
@@ -359,10 +359,10 @@ export function TasksArea(p: Props) {
             <span className="sub mono small">{shownDetail.task.id}</span>
             <div className="actions">
               <button className="btn quiet danger sm" onClick={() => setConfirmDelete(true)} disabled={busy}>
-                löschen
+                delete
               </button>
               <button className="btn sm" onClick={() => openEditor(toDraft(shownDetail.task))} disabled={busy}>
-                bearbeiten
+                edit
               </button>
             </div>
           </div>
@@ -371,7 +371,7 @@ export function TasksArea(p: Props) {
 
           <div className="phase">
             <span className="phase-no">①</span>
-            <span className="phase-name">Frage</span>
+            <span className="phase-name">Question</span>
             <div className="phase-body">
               <pre className="prose">{displayed.input}</pre>
             </div>
@@ -379,7 +379,7 @@ export function TasksArea(p: Props) {
 
           <div className="phase">
             <span className="phase-no">②</span>
-            <span className="phase-name">Prüfungen</span>
+            <span className="phase-name">Checks</span>
             <div className="phase-body">
               <PassSummary evals={displayed.evals} types={types} detail />
             </div>
@@ -387,17 +387,17 @@ export function TasksArea(p: Props) {
 
           <div className="phase">
             <span className="phase-no">③</span>
-            <span className="phase-name">Grenzen</span>
+            <span className="phase-name">Limits</span>
             <div className="phase-body">
               <p>
                 {displayed.maxToolCalls === null ? (
-                  <span className="muted">Tool-Budget wie voreingestellt</span>
+                  <span className="muted">default Tool budget</span>
                 ) : (
                   <>
-                    höchstens <span className="mono">{displayed.maxToolCalls}</span> Tool-Aufrufe je Run
+                    at most <span className="mono">{displayed.maxToolCalls}</span> Tool calls per Run
                   </>
                 )}
-                <span className="muted"> · {shownDetail.runs} Run(s) bisher</span>
+                <span className="muted"> · {shownDetail.runs} Run(s) so far</span>
               </p>
             </div>
           </div>
@@ -406,14 +406,14 @@ export function TasksArea(p: Props) {
             <pre className="source mono">{view.source}</pre>
           ) : (
             <button className="link" onClick={showSource}>
-              Datei anzeigen
+              Show file
             </button>
           )}
         </section>
       )}
 
       {draft && (
-        <Modal kind="task" title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neuer Task'} onClose={closeEditor}>
+        <Modal kind="task" title={isExisting ? `${draft.name || draft.id} — new version` : 'New Task'} onClose={closeEditor}>
           <form
             className="form guided"
             onSubmit={(e) => {
@@ -423,26 +423,26 @@ export function TasksArea(p: Props) {
           >
             <GuideStep
               no="①"
-              title="Was fragst du den Agent?"
-              hint="Die Eingabe wird die Nachricht an den Agent, wörtlich. Was hier steht, muss der Agent nicht selbst wissen — soll er eine Regel lernen, gehört sie nicht hierher, sondern in die Prüfungen."
+              title="What do you ask the Agent?"
+              hint="The input becomes the message to the Agent, word for word. The Agent does not have to know what is written here by itself — if it should learn a rule, the rule belongs in the checks, not here."
             >
               <label className="field">
-                <span>Eingabe</span>
+                <span>Input</span>
                 <textarea
                   className="prompt"
                   value={draft.input}
                   onChange={(e) => setDraft({ ...draft, input: e.target.value })}
                   required
-                  placeholder="Wie spät ist es gerade in Berlin?"
+                  placeholder="What time is it in Berlin?"
                 />
               </label>
-              <NameField naming={draft} existing={!!isExisting} placeholder="Uhrzeit in Berlin" onChange={(n) => setDraft({ ...draft, ...n })} />
+              <NameField naming={draft} existing={!!isExisting} placeholder="Time in Berlin" onChange={(n) => setDraft({ ...draft, ...n })} />
             </GuideStep>
 
             <GuideStep
               no="②"
-              title="Woran erkennst du eine gute Antwort?"
-              hint="Jede Prüfung ist eine Bedingung, alle müssen halten. Endet ein Run ohne Antwort (Fehler, Budget), scheitern auch die verneinten."
+              title="How do you tell a good answer?"
+              hint="Each check is a condition, and all of them must hold. If a Run ends without an answer (error, budget), the negated ones fail too."
             >
 
               {draft.evals.length > 0 && (
@@ -455,14 +455,14 @@ export function TasksArea(p: Props) {
                       <div key={i} className={`guided-eval ${open ? 'open' : ''} ${missing.length > 0 ? 'incomplete' : ''}`}>
                         <div className="guided-eval-head">
                           <span className="mono muted">{i + 1}</span>
-                          <button type="button" className="sentence-btn" onClick={() => setEditing(open ? null : i)} title="bearbeiten">
+                          <button type="button" className="sentence-btn" onClick={() => setEditing(open ? null : i)} title="edit">
                             <EvalSentence config={e} />
                           </button>
                           <span className="spacer" />
                           <button type="button" className="btn quiet sm" onClick={() => setEditing(open ? null : i)}>
-                            {open ? 'fertig' : 'ändern'}
+                            {open ? 'done' : 'change'}
                           </button>
-                          <button type="button" className="btn quiet sm" onClick={() => moveEval(i, -1)} disabled={i === 0} title="nach oben">
+                          <button type="button" className="btn quiet sm" onClick={() => moveEval(i, -1)} disabled={i === 0} title="move up">
                             ↑
                           </button>
                           <button
@@ -470,11 +470,11 @@ export function TasksArea(p: Props) {
                             className="btn quiet sm"
                             onClick={() => moveEval(i, 1)}
                             disabled={i === draft.evals.length - 1}
-                            title="nach unten"
+                            title="move down"
                           >
                             ↓
                           </button>
-                          <button type="button" className="btn quiet danger sm" onClick={() => removeEval(i)} title="entfernen">
+                          <button type="button" className="btn quiet danger sm" onClick={() => removeEval(i)} title="remove">
                             ×
                           </button>
                         </div>
@@ -506,7 +506,7 @@ export function TasksArea(p: Props) {
               )}
 
               <div className="eval-picker">
-                <span className="lbl">{draft.evals.length === 0 ? 'Was soll geprüft werden?' : 'Weitere Prüfung: was soll geprüft werden?'}</span>
+                <span className="lbl">{draft.evals.length === 0 ? 'What should be checked?' : 'Another check: what should be checked?'}</span>
                 <div className="segment wrap">
                   {groupedTypes(types).map(({ group }) => (
                     <button
@@ -528,7 +528,7 @@ export function TasksArea(p: Props) {
                         <button key={t.type} type="button" className="eval-choice" onClick={() => addEval(t)}>
                           <span className="choice-label">{t.label}</span>
                           <span className="small muted">{t.description}</span>
-                          {EXAMPLES[t.type] && <span className="small choice-example">z. B. {EXAMPLES[t.type]}</span>}
+                          {EXAMPLES[t.type] && <span className="small choice-example">e.g. {EXAMPLES[t.type]}</span>}
                         </button>
                       ))}
                     </div>
@@ -538,22 +538,22 @@ export function TasksArea(p: Props) {
 
             <Advanced
               summary={[
-                draft.maxToolCalls === '' ? 'Tool-Budget wie voreingestellt' : `höchstens ${draft.maxToolCalls} Tool-Aufrufe`,
-                draft.description ? 'Beschreibung gesetzt' : 'Beschreibung',
+                draft.maxToolCalls === '' ? 'default Tool budget' : `at most ${draft.maxToolCalls} Tool calls`,
+                draft.description ? 'description set' : 'description',
               ].join(' · ')}
             >
               <div className="form-grid">
                 <label className="field">
-                  <span>Tool-Budget je Run (leer = Vorgabe)</span>
+                  <span>Tool budget per Run (empty = default)</span>
                   <input type="number" min="0" value={draft.maxToolCalls} onChange={(e) => setDraft({ ...draft, maxToolCalls: e.target.value })} />
-                  <span className="hint">Wird es überschritten, endet der Run als „Budget überschritten“ und scheitert.</span>
+                  <span className="hint">If it is exceeded, the Run ends as "over budget" and fails.</span>
                 </label>
                 <label className="field">
-                  <span>Beschreibung, für Menschen</span>
+                  <span>Description, for people</span>
                   <input
                     value={draft.description}
                     onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                    placeholder="wofür der Task da ist"
+                    placeholder="what the Task is for"
                   />
                 </label>
               </div>
@@ -563,10 +563,10 @@ export function TasksArea(p: Props) {
 
             <div className="toolbar end">
               <button type="button" className="btn quiet" onClick={closeEditor} disabled={busy}>
-                abbrechen
+                cancel
               </button>
               <button type="submit" className="btn primary" disabled={busy}>
-                {isExisting ? 'als neue Version speichern' : 'anlegen'}
+                {isExisting ? 'save as new version' : 'create'}
               </button>
             </div>
           </form>
@@ -574,18 +574,18 @@ export function TasksArea(p: Props) {
       )}
 
       {confirmDelete && shownDetail && (
-        <Modal kind="task" title="Task löschen?" onClose={() => setConfirmDelete(false)}>
+        <Modal kind="task" title="Delete Task?" onClose={() => setConfirmDelete(false)}>
           <p>
-            <strong>{shownDetail.task.name}</strong> <span className="mono muted">({shownDetail.task.id})</span> wird mit
-            allen {shownDetail.versions.length} Version(en) ins Archiv verschoben. Die Id wird frei.
-            {shownDetail.runs > 0 && ` ${shownDetail.runs} Run(s) verweisen darauf und behalten Id und Version.`}
+            <strong>{shownDetail.task.name}</strong> <span className="mono muted">({shownDetail.task.id})</span> moves to
+            the archive with all {shownDetail.versions.length} version(s). The id becomes free.
+            {shownDetail.runs > 0 && ` ${shownDetail.runs} Run(s) refer to it and keep their id and version.`}
           </p>
           <div className="toolbar end">
             <button className="btn quiet" onClick={() => setConfirmDelete(false)} disabled={busy}>
-              abbrechen
+              cancel
             </button>
             <button className="btn primary" onClick={remove} disabled={busy}>
-              ins Archiv
+              archive
             </button>
           </div>
         </Modal>
@@ -641,7 +641,7 @@ function ParamField({
             value={Array.isArray(value) ? value.join('\n') : String(value ?? '')}
             onChange={(e) => onChange(e.target.value)}
             required={spec.required}
-            placeholder="eine Frage je Zeile"
+            placeholder="one question per line"
           />
           <span className="hint">{spec.description}</span>
         </label>
@@ -660,7 +660,7 @@ function ParamField({
         <label className={cls} title={spec.description}>
           {label}
           <select value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} required={spec.required}>
-            <option value="">— Model wählen —</option>
+            <option value="">— choose a Model —</option>
             {models
               .filter((m) => spec.type === 'JUDGE_MODEL' || m.kind === 'chat' || m.id === value)
               .map((m) => (
@@ -682,7 +682,7 @@ function ParamField({
             onChange={(e) => onChange(e.target.value)}
             required={spec.required}
             className="mono"
-            placeholder="Tool-Name oder *"
+            placeholder="Tool name or *"
           />
           <datalist id={`tools-${spec.name}`}>
             {tools.map((t) => (

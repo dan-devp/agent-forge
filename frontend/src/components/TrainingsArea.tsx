@@ -81,7 +81,7 @@ function toDraft(t: Training): Draft {
 }
 
 function when(at: string) {
-  return new Date(at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  return new Date(at).toLocaleString('en-US', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
 function ratio(score: { trainPassed: number; trainTotal: number }) {
@@ -93,7 +93,7 @@ function Progress({ session }: { session: Session }) {
   const { baseline, best } = journey(session)
   if (!baseline) return null
   return (
-    <span className="mono" title="bestandene Train-Runs: Ausgangslage → beste Version">
+    <span className="mono" title="passed Train Runs: baseline → best version">
       <span className="muted">Train </span>
       {ratio(baseline)}
       {best && best !== baseline && <> → {ratio(best)}</>}
@@ -104,16 +104,16 @@ function Progress({ session }: { session: Session }) {
 /** How much a session may cost, said before it starts. */
 function CostLine({ t }: { t: { train: string[]; holdout: string[]; repetitions: number; maxSteps: number } }) {
   const c = trainingCost(t)
-  if (c.perMeasure === 0) return <span className="cost">Noch kein Task gewählt — ohne Train-Task kann nichts gemessen werden.</span>
+  if (c.perMeasure === 0) return <span className="cost">No Task chosen yet — without a Train Task, nothing can be measured.</span>
   return (
-    <span className="cost" title={`${c.perMeasure} Runs je Messung × (Ausgangslage + ${t.maxSteps} Vorschläge); hört auf, wenn nichts mehr zu lernen ist`}>
-      kostet bis zu <strong>{c.runs} Runs</strong> und <strong>{c.coachCalls} Coach-Aufruf{c.coachCalls === 1 ? '' : 'e'}</strong>
+    <span className="cost" title={`${c.perMeasure} Runs per measurement × (baseline + ${t.maxSteps} proposals); stops when there is nothing left to learn`}>
+      costs up to <strong>{c.runs} Runs</strong> and <strong>{c.coachCalls} Coach call{c.coachCalls === 1 ? '' : 's'}</strong>
     </span>
   )
 }
 
 function approvalText(a: 'GATE' | 'MANUAL' | 'gate' | 'manual') {
-  return a === 'MANUAL' || a === 'manual' ? 'du entscheidest von Hand' : 'das Gate entscheidet'
+  return a === 'MANUAL' || a === 'manual' ? 'you decide by hand' : 'the Gate decides'
 }
 
 /**
@@ -125,13 +125,13 @@ function TaskPeek({ task }: { task: Task }) {
     <div className="task-peek">
       {task.description && <p className="small muted">{task.description}</p>}
       <div className="field">
-        <span>Frage an den Agent</span>
+        <span>Question for the Agent</span>
         <pre className="prose">{task.input.trim()}</pre>
       </div>
       <div className="field">
-        <span>Bestanden, wenn {task.evals.length === 1 ? 'diese Prüfung hält' : `alle ${task.evals.length} Prüfungen halten`}</span>
+        <span>Passes when {task.evals.length === 1 ? 'this check holds' : `all ${task.evals.length} checks hold`}</span>
         {task.evals.length === 0 ? (
-          <p className="small muted">Keine Prüfung — dieser Task kann nicht scheitern und taugt nicht fürs Training.</p>
+          <p className="small muted">No check — this Task cannot fail and is no use for training.</p>
         ) : (
           <ol className="task-peek-checks">
             {task.evals.map((e, i) => (
@@ -143,10 +143,10 @@ function TaskPeek({ task }: { task: Task }) {
         )}
       </div>
       <span className="small muted">
-        {task.maxToolCalls === null ? 'Tool-Budget wie voreingestellt' : `höchstens ${task.maxToolCalls} Tool-Aufrufe je Run`} · Id{' '}
+        {task.maxToolCalls === null ? 'default Tool budget' : `at most ${task.maxToolCalls} Tool calls per Run`} · Id{' '}
         <span className="mono">{task.id}</span> v{task.version} ·{' '}
         <a href={`/tasks/${encodeURIComponent(task.id)}`} target="_blank" rel="noreferrer" className="link">
-          in neuem Tab öffnen
+          open in a new tab
         </a>
       </span>
     </div>
@@ -158,40 +158,40 @@ function Recipe({ t }: { t: Training }) {
   return (
     <dl className="recipe">
       <div>
-        <dt>Wer</dt>
+        <dt>Who</dt>
         <dd>
-          <Ref kind="agent" id={t.agentId} /> lernt, <Ref kind="agent" id={t.coachId} /> schreibt als Coach die Vorschläge.
+          <Ref kind="agent" id={t.agentId} /> learns, <Ref kind="agent" id={t.coachId} /> writes the proposals as Coach.
         </dd>
       </div>
       <div>
-        <dt>Gemessen an</dt>
+        <dt>Measured on</dt>
         <dd>
           <span className="line">
             {t.train.map((id) => (
               <Ref key={id} kind="task" id={id} />
             ))}
-            <span className="muted small">Train: der Coach sieht, woran diese Tasks scheitern.</span>
+            <span className="muted small">Train: the Coach sees where these Tasks fail.</span>
           </span>
         </dd>
       </div>
       {t.holdout.length > 0 && (
         <div>
-          <dt>Kontrolle</dt>
+          <dt>Control</dt>
           <dd>
             <span className="line">
               {t.holdout.map((id) => (
                 <Ref key={id} kind="task" id={id} />
               ))}
-              <span className="muted small">Holdout: wird mitgemessen, der Coach sieht ihn nie.</span>
+              <span className="muted small">Holdout: measured alongside, the Coach never sees it.</span>
             </span>
           </dd>
         </div>
       )}
       <div>
-        <dt>Umfang</dt>
+        <dt>Scope</dt>
         <dd>
-          Je Task {t.repetitions} Run{t.repetitions === 1 ? '' : 's'}, höchstens {t.maxSteps} Vorschl{t.maxSteps === 1 ? 'ag' : 'äge'},{' '}
-          {t.maxTokens === null ? 'ohne Token-Grenze' : `höchstens ${t.maxTokens.toLocaleString('de-DE')} Tokens`}; {approvalText(t.approval)}.
+          {t.repetitions} Run{t.repetitions === 1 ? '' : 's'} per Task, at most {t.maxSteps} proposal{t.maxSteps === 1 ? '' : 's'},{' '}
+          {t.maxTokens === null ? 'no token limit' : `at most ${t.maxTokens.toLocaleString('en-US')} tokens`}; {approvalText(t.approval)}.
         </dd>
       </div>
     </dl>
@@ -362,20 +362,20 @@ export function TrainingsArea(p: Props) {
       <section className="card kind t-training">
         <div className="card-head">
           <h2>Trainings</h2>
-          <span className="sub">Ein Coach schreibt aus gescheiterten Runs die nächste Agent-Version, das Gate misst, ob sie besser ist</span>
+          <span className="sub">A Coach writes the next Agent version from failed Runs, the Gate measures whether it is better</span>
           <div className="actions">
-            <button className="btn quiet sm" onClick={reload} disabled={busy} title="Dateien neu einlesen">
-              neu laden
+            <button className="btn quiet sm" onClick={reload} disabled={busy} title="Read the files again">
+              reload
             </button>
             <button className="btn primary sm" onClick={() => setDraft(emptyDraft(agents))} disabled={busy}>
-              neues Training
+              new Training
             </button>
           </div>
         </div>
         {list === null ? (
-          <p className="empty">lädt …</p>
+          <p className="empty">loading …</p>
         ) : list.length === 0 ? (
-          <p className="empty">Noch kein Training.</p>
+          <p className="empty">No Training yet.</p>
         ) : (
           <div className="rows">
             {list.map(({ training: tr, lastSession: last }) => (
@@ -390,7 +390,7 @@ export function TrainingsArea(p: Props) {
                 <div>
                   <div className="title">{tr.name}</div>
                   <div className="line small muted">
-                    <Ref kind="agent" id={tr.agentId} /> lernt bei <Ref kind="agent" id={tr.coachId} />
+                    <Ref kind="agent" id={tr.agentId} /> learns from <Ref kind="agent" id={tr.coachId} />
                   </div>
                 </div>
                 <div className="line">
@@ -400,7 +400,7 @@ export function TrainingsArea(p: Props) {
                       <Progress session={last} />
                     </>
                   ) : (
-                    <span className="muted small">noch nie trainiert</span>
+                    <span className="muted small">never trained</span>
                   )}
                 </div>
                 <div className="line">{last && <SessionStatusPill status={last.status} />}</div>
@@ -419,10 +419,10 @@ export function TrainingsArea(p: Props) {
             </span>
             <div className="actions">
               <button className="btn quiet danger sm" onClick={() => setConfirmDelete(true)} disabled={busy}>
-                löschen
+                delete
               </button>
               <button className="btn sm" onClick={() => setDraft(toDraft(t))} disabled={busy}>
-                bearbeiten
+                edit
               </button>
             </div>
           </div>
@@ -432,7 +432,7 @@ export function TrainingsArea(p: Props) {
           {t.goal && (
             <dl className="recipe">
               <div>
-                <dt>Ziel</dt>
+                <dt>Goal</dt>
                 <dd className="goal">{t.goal}</dd>
               </div>
             </dl>
@@ -443,17 +443,17 @@ export function TrainingsArea(p: Props) {
               className="btn primary"
               onClick={start}
               disabled={busy || running || t.train.length === 0}
-              title={running ? 'es läuft schon eine Session - eine zur Zeit' : 'Ausgangslage messen, dann Schritt für Schritt verbessern'}
+              title={running ? 'a Session is already running - one at a time' : 'measure the baseline, then improve step by step'}
             >
-              trainieren
+              train
             </button>
             {versionsOfAgent && (
               <label className="start-from">
-                ab
+                from
                 <select
                   value={startVersion ?? ''}
                   onChange={(e) => setStartPick({ training: t.id, version: Number(e.target.value) })}
-                  title="Mit welcher Version des Agents die Session beginnt"
+                  title="The version of the Agent the Session starts from"
                 >
                   {[...versionsOfAgent.versions]
                     .sort((a, b) => b - a)
@@ -462,8 +462,8 @@ export function TrainingsArea(p: Props) {
                       return (
                         <option key={v} value={v}>
                           v{v}
-                          {v === versionsOfAgent.current ? ' · aktuell' : ''}
-                          {o ? ` · Coach, ${o.decision === 'ACCEPTED' ? 'angenommen' : o.decision === 'REJECTED' ? 'verworfen' : 'offen'}` : ''}
+                          {v === versionsOfAgent.current ? ' · current' : ''}
+                          {o ? ` · Coach, ${o.decision === 'ACCEPTED' ? 'accepted' : o.decision === 'REJECTED' ? 'rejected' : 'pending'}` : ''}
                         </option>
                       )
                     })}
@@ -471,19 +471,19 @@ export function TrainingsArea(p: Props) {
               </label>
             )}
             <CostLine t={t} />
-            {running && <span className="pill open">eine Session läuft schon</span>}
+            {running && <span className="pill open">a Session is already running</span>}
           </div>
           {versionsOfAgent && startVersion !== null && startVersion !== versionsOfAgent.current && (
             <p className="hint">
-              Startet bei v{startVersion} statt bei der aktuellen v{versionsOfAgent.current}. Was die Session schreibt, kommt als neue Version
-              obendrauf; findet sie nichts Besseres als v{startVersion}, bleibt v{versionsOfAgent.current} aktuell.
+              Starts at v{startVersion} instead of the current v{versionsOfAgent.current}. What the Session writes goes on top as a new
+              version; if it finds nothing better than v{startVersion}, v{versionsOfAgent.current} stays current.
             </p>
           )}
 
           <div className="field">
             <span>Sessions</span>
             {shown.sessions.length === 0 ? (
-              <p className="hint">Noch keine. „trainieren“ misst zuerst die Ausgangslage, dann schreibt der Coach Version um Version.</p>
+              <p className="hint">None yet. "train" first measures the baseline, then the Coach writes version after version.</p>
             ) : (
               <div className="rows">
                 {shown.sessions.map((s) => (
@@ -493,8 +493,8 @@ export function TrainingsArea(p: Props) {
                       <Sparkline session={s} />
                       <Progress session={s} />
                       <span className="small muted">
-                        v{s.startVersion} → v{s.finalVersion ?? s.bestVersion ?? s.startVersion} · {Math.max(0, s.steps.length - 1)} Schritt(e) ·{' '}
-                        {s.totalTokens.toLocaleString('de-DE')} tok
+                        v{s.startVersion} → v{s.finalVersion ?? s.bestVersion ?? s.startVersion} · {Math.max(0, s.steps.length - 1)} step(s) ·{' '}
+                        {s.totalTokens.toLocaleString('en-US')} tok
                       </span>
                     </span>
                     <SessionStatusPill status={s.status} />
@@ -507,7 +507,7 @@ export function TrainingsArea(p: Props) {
       )}
 
       {draft && (
-        <Modal kind="training" title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neues Training'} onClose={() => { setDraft(null); setSource(null) }}>
+        <Modal kind="training" title={isExisting ? `${draft.name || draft.id} — new version` : 'New Training'} onClose={() => { setDraft(null); setSource(null) }}>
           <form
             className="form guided"
             onSubmit={(e) => {
@@ -515,18 +515,18 @@ export function TrainingsArea(p: Props) {
               save()
             }}
           >
-            <GuideStep no="①" title="Wer lernt, wer coacht?">
+            <GuideStep no="①" title="Who learns, who coaches?">
               <NameField
                 naming={draft}
                 existing={!!isExisting}
-                placeholder="Rookie lernt Tools"
+                placeholder="Rookie learns Tools"
                 onChange={(n) => setDraft({ ...draft, ...n })}
               />
               <div className="form-grid">
                 <label className="field">
-                  <span>Agent, der lernt</span>
+                  <span>Agent that learns</span>
                   <select value={draft.agent} onChange={(e) => setDraft({ ...draft, agent: e.target.value })} required>
-                    <option value="">— Agent wählen —</option>
+                    <option value="">— choose an Agent —</option>
                     {agents.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name} · {a.id} v{a.version}
@@ -535,9 +535,9 @@ export function TrainingsArea(p: Props) {
                   </select>
                 </label>
                 <label className="field">
-                  <span>Coach, der umschreibt</span>
+                  <span>Coach that rewrites</span>
                   <select value={draft.coach} onChange={(e) => setDraft({ ...draft, coach: e.target.value })} required>
-                    <option value="">— Agent wählen —</option>
+                    <option value="">— choose an Agent —</option>
                     {agents
                       .filter((a) => a.id !== draft.agent)
                       .map((a) => (
@@ -552,8 +552,8 @@ export function TrainingsArea(p: Props) {
 
             <GuideStep
               no="②"
-              title="Woran wird gemessen?"
-              hint="Train: der Coach sieht die gescheiterten Runs dieser Tasks. Holdout: wird mitgemessen, der Coach sieht ihn nie — fällt er, war die Verbesserung auswendig gelernt."
+              title="What is it measured on?"
+              hint="Train: the Coach sees the failed Runs of these Tasks. Holdout: measured alongside, the Coach never sees it — if it drops, the improvement was only memorized."
             >
               <div className="task-roles">
                 {tasks.map((task) => {
@@ -567,7 +567,7 @@ export function TrainingsArea(p: Props) {
                         className="task-role-name"
                         onClick={() => setPeek(open ? null : task.id)}
                         aria-expanded={open}
-                        title={open ? 'zuklappen' : 'Frage und Prüfungen ansehen'}
+                        title={open ? 'collapse' : 'view the question and checks'}
                       >
                         <span className="task-role-caret" aria-hidden="true">
                           {open ? '▾' : '▸'}
@@ -583,7 +583,7 @@ export function TrainingsArea(p: Props) {
                             className={role === r ? (r === '' ? 'on neutral' : 'on') : ''}
                             onClick={() => setDraft({ ...draft, roles: { ...draft.roles, [task.id]: r } })}
                           >
-                            {r === '' ? 'nicht dabei' : r === 'train' ? 'Train' : 'Holdout'}
+                            {r === '' ? 'not included' : r === 'train' ? 'Train' : 'Holdout'}
                           </button>
                         ))}
                       </span>
@@ -595,58 +595,58 @@ export function TrainingsArea(p: Props) {
               </div>
             </GuideStep>
 
-            <GuideStep no="③" title={<>Wohin soll es gehen? <span className="muted small">optional</span></>}>
+            <GuideStep no="③" title={<>Where should it go? <span className="muted small">optional</span></>}>
               <label className="field">
-                <span>Ziel, liest der Coach</span>
+                <span>Goal, read by the Coach</span>
                 <textarea
                   rows={3}
                   value={draft.goal}
                   onChange={(e) => setDraft({ ...draft, goal: e.target.value })}
-                  placeholder="Der Agent soll Tools nutzen, wo sie die Antwort sicher machen."
+                  placeholder="The Agent should use Tools where they make the answer certain."
                 />
               </label>
             </GuideStep>
 
             <Advanced
-              summary={`je Task ${draft.repetitions || 3}× · höchstens ${draft.maxSteps || 3} Vorschläge · ${
-                draft.maxTokens ? `${Number(draft.maxTokens).toLocaleString('de-DE')} Tokens` : 'ohne Token-Grenze'
+              summary={`${draft.repetitions || 3}× per Task · at most ${draft.maxSteps || 3} proposals · ${
+                draft.maxTokens ? `${Number(draft.maxTokens).toLocaleString('en-US')} tokens` : 'no token limit'
               } · ${approvalText(draft.approval)}`}
             >
               <div className="form-grid">
                 <label className="field">
-                  <span>Runs je Task und Messung</span>
+                  <span>Runs per Task and measurement</span>
                   <input type="number" min={1} max={20} value={draft.repetitions} onChange={(e) => setDraft({ ...draft, repetitions: e.target.value })} />
-                  <span className="hint">Mehr Runs, weniger Zufall — und mehr Kosten.</span>
+                  <span className="hint">More Runs, less chance — and more cost.</span>
                 </label>
                 <label className="field">
-                  <span>Vorschläge höchstens</span>
+                  <span>Maximum proposals</span>
                   <input type="number" min={1} max={20} value={draft.maxSteps} onChange={(e) => setDraft({ ...draft, maxSteps: e.target.value })} />
-                  <span className="hint">So oft schreibt der Coach den Prompt höchstens um.</span>
+                  <span className="hint">The Coach rewrites the prompt at most this often.</span>
                 </label>
                 <label className="field">
-                  <span>Token-Budget (leer = keins)</span>
+                  <span>Token budget (empty = none)</span>
                   <input type="number" min={1} value={draft.maxTokens} onChange={(e) => setDraft({ ...draft, maxTokens: e.target.value })} />
                 </label>
                 <div className="field">
-                  <span>Wer entscheidet</span>
+                  <span>Who decides</span>
                   <span className="segment">
                     <button type="button" className={draft.approval === 'gate' ? 'on' : ''} onClick={() => setDraft({ ...draft, approval: 'gate' })}>
-                      das Gate
+                      the Gate
                     </button>
                     <button type="button" className={draft.approval === 'manual' ? 'on' : ''} onClick={() => setDraft({ ...draft, approval: 'manual' })}>
-                      ich, von Hand
+                      me, by hand
                     </button>
                   </span>
                 </div>
                 <label className="field span-2">
-                  <span>Beschreibung, für Menschen</span>
+                  <span>Description, for people</span>
                   <input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
                 </label>
               </div>
               {isExisting && (
                 <>
                   <button type="button" className="link" onClick={toggleSource}>
-                    {source !== null ? 'Datei ausblenden' : 'Datei der aktuellen Version anzeigen'}
+                    {source !== null ? 'Hide file' : 'Show the file of the current version'}
                   </button>
                   {source !== null && <pre className="source mono">{source}</pre>}
                 </>
@@ -664,10 +664,10 @@ export function TrainingsArea(p: Props) {
               />
               <span className="spacer" />
               <button type="button" className="btn quiet" onClick={() => setDraft(null)} disabled={busy}>
-                abbrechen
+                cancel
               </button>
               <button type="submit" className="btn primary" disabled={busy}>
-                {isExisting ? 'als neue Version speichern' : 'anlegen'}
+                {isExisting ? 'save as new version' : 'create'}
               </button>
             </div>
           </form>
@@ -675,18 +675,18 @@ export function TrainingsArea(p: Props) {
       )}
 
       {confirmDelete && shown && (
-        <Modal kind="training" title="Training löschen?" onClose={() => setConfirmDelete(false)}>
+        <Modal kind="training" title="Delete Training?" onClose={() => setConfirmDelete(false)}>
           <p>
-            <strong>{shown.training.name}</strong> <span className="mono muted">({shown.training.id})</span> wird mit allen{' '}
-            {shown.versions.length} Version(en) ins Archiv verschoben. Die {shown.sessions.length} Session(s) bleiben in der Datenbank, die
-            Agent-Versionen, die der Coach geschrieben hat, auch.
+            <strong>{shown.training.name}</strong> <span className="mono muted">({shown.training.id})</span> moves to the archive with all{' '}
+            {shown.versions.length} version(s). The {shown.sessions.length} Session(s) stay in the database, and so do the Agent
+            versions the Coach wrote.
           </p>
           <div className="toolbar end">
             <button className="btn quiet" onClick={() => setConfirmDelete(false)} disabled={busy}>
-              abbrechen
+              cancel
             </button>
             <button className="btn primary" onClick={remove} disabled={busy}>
-              ins Archiv
+              archive
             </button>
           </div>
         </Modal>

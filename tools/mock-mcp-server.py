@@ -9,7 +9,7 @@ Replaces a real MCP server in tests: same JSON-RPC methods (initialize,
 tools/list, tools/call), same response shape. Logs every request so it is
 visible what the agent actually asks for.
 
-Offers two tools (descriptions and results are German — the model reads them):
+Offers two tools (descriptions and results are written for the model):
   weather(location)   - fixed answer, proves argument pass-through
   wordLength(word)    - really counts, so the answer is checkable
 """
@@ -22,19 +22,19 @@ PROTOCOL_VERSION = "2025-06-18"
 TOOLS = [
     {
         "name": "weather",
-        "description": "Liefert das Wetter fuer einen Ort. Nutze dieses Tool bei Wetterfragen.",
+        "description": "Returns the weather for a place. Use this tool for questions about the weather.",
         "inputSchema": {
             "type": "object",
-            "properties": {"location": {"type": "string", "description": "Name des Ortes"}},
+            "properties": {"location": {"type": "string", "description": "Name of the place"}},
             "required": ["location"],
         },
     },
     {
         "name": "wordLength",
-        "description": "Zaehlt die Buchstaben eines Wortes. Nutze dieses Tool, statt selbst zu zaehlen.",
+        "description": "Counts the letters of a word. Use this tool instead of counting yourself.",
         "inputSchema": {
             "type": "object",
-            "properties": {"word": {"type": "string", "description": "Das zu zaehlende Wort"}},
+            "properties": {"word": {"type": "string", "description": "The word to count"}},
             "required": ["word"],
         },
     },
@@ -43,11 +43,11 @@ TOOLS = [
 
 def call_tool(name, args):
     if name == "weather":
-        location = args.get("location", "unbekannt")
-        return f"In {location} sind es 17 Grad, bewoelkt, Wind aus West."
+        location = args.get("location", "unknown")
+        return f"In {location} it is 17 degrees, cloudy, wind from the west."
     if name == "wordLength":
         word = args.get("word", "")
-        return f"Das Wort '{word}' hat {len(word)} Buchstaben."
+        return f"The word '{word}' has {len(word)} letters."
     raise ValueError(f"Unknown tool: {name}")
 
 

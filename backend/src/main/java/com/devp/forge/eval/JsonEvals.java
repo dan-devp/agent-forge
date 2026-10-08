@@ -18,7 +18,7 @@ import tools.jackson.databind.json.JsonMapper;
  *
  * <p>Models wrap JSON in prose or code fences. The whole answer is tried first, then the
  * first fenced block, then the first {@code {...}} or {@code [...]} span — so a task does
- * not fail because the model said "Hier ist das JSON:" before delivering it.
+ * not fail because the model said "Here is the JSON:" before delivering it.
  */
 public final class JsonEvals {
 
@@ -105,33 +105,33 @@ public final class JsonEvals {
 
 		@Override
 		public String label() {
-			return "Antwort ist JSON";
+			return "Answer is JSON";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn die Antwort ein JSON-Objekt oder -Array enth\u00e4lt (auch in einem Codeblock).";
+			return "Passes when the answer contains a JSON object or array (also inside a code block).";
 		}
 
 		@Override
 		public List<EvalParam> params() {
-			return List.of(EvalParam.optional("strict", "Nur JSON, kein Text drumherum", Type.BOOLEAN, false,
-					"Die ganze Antwort muss JSON sein, ohne Prosa oder Codeblock."));
+			return List.of(EvalParam.optional("strict", "Only JSON, no text around it", Type.BOOLEAN, false,
+					"The whole answer must be JSON, without prose or a code block."));
 		}
 
 		@Override
 		public EvalResult evaluate(EvalConfig config, EvalSubject subject) {
 			if (!subject.hasAnswer()) {
-				return EvalResult.fail("Keine Antwort (Status " + subject.status() + ")");
+				return EvalResult.fail("No answer (status " + subject.status() + ")");
 			}
 			if (config.bool("strict", false)) {
 				return tryParse(subject.answer().strip()).isPresent()
-						? EvalResult.pass("Antwort ist reines JSON")
-						: EvalResult.fail("Antwort ist kein reines JSON");
+						? EvalResult.pass("Answer is pure JSON")
+						: EvalResult.fail("Answer is not pure JSON");
 			}
 			return extract(subject.answer()).isPresent()
-					? EvalResult.pass("Antwort enth\u00e4lt JSON")
-					: EvalResult.fail("Kein JSON in der Antwort gefunden");
+					? EvalResult.pass("Answer contains JSON")
+					: EvalResult.fail("No JSON found in the answer");
 		}
 	}
 
@@ -144,20 +144,20 @@ public final class JsonEvals {
 
 		@Override
 		public String label() {
-			return "JSON-Feld hat Wert";
+			return "JSON field has value";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn das Feld unter dem Pfad existiert — und, falls angegeben, den erwarteten Wert hat.";
+			return "Passes when the field at the path exists — and, if given, has the expected value.";
 		}
 
 		@Override
 		public List<EvalParam> params() {
 			return List.of(
-					EvalParam.required("path", "Pfad", Type.STRING, "Punktpfad mit Indizes, z. B. items[0].price"),
-					EvalParam.optional("value", "Erwarteter Wert", Type.STRING, null,
-							"Als Text verglichen; leer = nur Existenz pr\u00fcfen."));
+					EvalParam.required("path", "Path", Type.STRING, "Dot path with indexes, e.g. items[0].price"),
+					EvalParam.optional("value", "Expected value", Type.STRING, null,
+							"Compared as text; empty = only check that it exists."));
 		}
 
 		@Override
@@ -165,15 +165,15 @@ public final class JsonEvals {
 			String path = config.string("path");
 			String expected = config.string("value");
 			if (!subject.hasAnswer()) {
-				return EvalResult.fail("Keine Antwort (Status " + subject.status() + ")");
+				return EvalResult.fail("No answer (status " + subject.status() + ")");
 			}
 			Optional<JsonNode> root = extract(subject.answer());
 			if (root.isEmpty()) {
-				return EvalResult.fail("Kein JSON in der Antwort gefunden");
+				return EvalResult.fail("No JSON found in the answer");
 			}
 			JsonNode node = at(root.get(), path);
 			if (node.isMissingNode() || node.isNull()) {
-				return EvalResult.fail("Pfad " + path + " fehlt");
+				return EvalResult.fail("Path " + path + " is missing");
 			}
 			if (expected == null || expected.isBlank()) {
 				return EvalResult.pass(path + " = " + render(node));
@@ -181,7 +181,7 @@ public final class JsonEvals {
 			String actual = node.isValueNode() ? node.asString() : node.toString();
 			return actual.strip().equalsIgnoreCase(expected.strip())
 					? EvalResult.pass(path + " = " + render(node))
-					: EvalResult.fail(path + " = " + render(node) + ", erwartet " + expected);
+					: EvalResult.fail(path + " = " + render(node) + ", expected " + expected);
 		}
 
 		private static String render(JsonNode node) {

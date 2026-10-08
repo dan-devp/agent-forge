@@ -1,8 +1,8 @@
 ---
 id: time-and-division
 version: 1
-name: Zeit und Rechnung
-description: Zwei eingebaute Tools in einer Runde. Prueft, ob der Agent Tools nutzt, statt zu raten.
+name: Time and arithmetic
+description: Two built-in tools in one round. Checks whether the agent uses tools instead of guessing.
 max-tool-calls: 4
 evals:
   - type: tool-called
@@ -12,5 +12,5 @@ evals:
   - type: regex
     pattern: '\b14\b'
 ---
-Wie spaet ist es gerade in Berlin? Und was ergibt 100 geteilt durch 7, mit Rest?
-Nenne beides in einem kurzen Satz.
+What time is it in Berlin right now? And what is 100 divided by 7, with remainder?
+Give both in one short sentence.

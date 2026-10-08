@@ -3,51 +3,51 @@ import type { EvalConfig, EvalType } from '../api/client'
 /**
  * Evals by intent: first what should be checked, then the two to four evals that do it. The
  * server's catalogue stays the source of every type, label and parameter; this only orders
- * it and adds an example. A type the guide does not know lands under "Weitere".
+ * it and adds an example. A type the guide does not know lands under "More".
  */
 export type EvalGroup = { id: string; label: string; hint: string; types: string[] }
 
 export const GROUPS: EvalGroup[] = [
   {
     id: 'content',
-    label: 'Inhalt der Antwort',
-    hint: 'Was in der Antwort stehen muss oder nicht stehen darf.',
+    label: 'Content of the answer',
+    hint: 'What the answer must contain or must not contain.',
     types: ['contains', 'not-contains', 'equals', 'regex', 'not-regex', 'length'],
   },
   {
     id: 'tools',
-    label: 'Tool-Nutzung',
-    hint: 'Ob und wie oft der Agent Tools aufruft — geprüft am Trace, nicht an der Antwort.',
+    label: 'Tool use',
+    hint: 'Whether and how often the Agent calls Tools — checked on the Trace, not on the answer.',
     types: ['tool-called', 'tool-not-called', 'max-tool-calls'],
   },
   {
     id: 'structure',
-    label: 'Form und Struktur',
-    hint: 'Ob die Antwort gültiges JSON ist und was in einem Feld steht.',
+    label: 'Form and structure',
+    hint: 'Whether the answer is valid JSON and what a field holds.',
     types: ['json-valid', 'json-path'],
   },
   {
     id: 'judge',
-    label: 'Urteil durch einen Judge',
-    hint: 'Ein Model bewertet die Antwort. Kostet je Run einen Aufruf.',
+    label: 'Verdict by a Judge',
+    hint: 'A Model rates the answer. Costs one call per Run.',
     types: ['judge-questions', 'llm-judge'],
   },
 ]
 
 export const EXAMPLES: Record<string, string> = {
-  contains: 'Die Antwort muss „Hauptstadt“ enthalten.',
-  'not-contains': 'Kein „Ich hoffe, das hilft“ in der Antwort.',
-  equals: 'Die Antwort ist genau „Paris“ und sonst nichts.',
-  regex: 'Die 14 steht als eigenes Wort da: \\b14\\b',
-  'not-regex': 'Keine Uhrzeit mit Sekunden: \\d{2}:\\d{2}:\\d{2}',
-  length: 'Höchstens 40 Wörter.',
-  'tool-called': 'Für die Uhrzeit muss currentTime aufgerufen werden.',
-  'tool-not-called': 'Bei einer Wissensfrage kein Tool: *',
-  'max-tool-calls': 'Höchstens 2 Tool-Aufrufe.',
-  'json-valid': 'Die Antwort ist gültiges JSON.',
-  'json-path': 'Im JSON steht items[0].price = 12.5',
-  'judge-questions': '„Nennt die Antwort die Uhrzeit in Berlin?“ – ein Urteil je Frage.',
-  'llm-judge': 'Ein Kriterium in Prosa, z. B. „Die Begründung ist schlüssig.“',
+  contains: 'The answer must contain "capital".',
+  'not-contains': 'No "I hope this helps" in the answer.',
+  equals: 'The answer is exactly "Paris" and nothing else.',
+  regex: 'The 14 stands as a word of its own: \\b14\\b',
+  'not-regex': 'No time with seconds: \\d{2}:\\d{2}:\\d{2}',
+  length: 'At most 40 words.',
+  'tool-called': 'For the time, currentTime must be called.',
+  'tool-not-called': 'No Tool for a knowledge question: *',
+  'max-tool-calls': 'At most 2 Tool calls.',
+  'json-valid': 'The answer is valid JSON.',
+  'json-path': 'The JSON has items[0].price = 12.5',
+  'judge-questions': '"Does the answer give the time in Berlin?" – one verdict per question.',
+  'llm-judge': 'A criterion in prose, e.g. "The reasoning is sound."',
 }
 
 export function groupOf(type: string): EvalGroup | null {
@@ -63,7 +63,7 @@ export function groupedTypes(types: EvalType[]): { group: EvalGroup; types: Eval
   const rest = types.filter((t) => !groupOf(t.type))
   return rest.length === 0
     ? known
-    : [...known, { group: { id: 'other', label: 'Weitere', hint: 'Evals, die die Anleitung noch nicht kennt.', types: rest.map((t) => t.type) }, types: rest }]
+    : [...known, { group: { id: 'other', label: 'More', hint: 'Evals the guide does not know yet.', types: rest.map((t) => t.type) }, types: rest }]
 }
 
 /** Required parameters without a value; a non-empty list means the eval cannot be saved yet. */

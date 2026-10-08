@@ -23,11 +23,11 @@ function ToolName({ name }: { name: unknown }) {
 
 function JudgeModel({ id }: { id: unknown }) {
   const t = str(id)
-  return t ? <Ref kind="model" id={t} /> : <span className="eval-missing">Judge-Model fehlt</span>
+  return t ? <Ref kind="model" id={t} /> : <span className="eval-missing">Judge Model missing</span>
 }
 
 /**
- * One eval as a sentence: "Antwort enthält „Hauptstadt“" instead of contains text=Hauptstadt.
+ * One eval as a sentence: 'Answer contains "capital"' instead of contains text=capital.
  * A missing value shows as "…", so an incomplete eval is visible in the sentence itself.
  */
 export function EvalSentence({ config, detail = true }: { config: EvalConfig; detail?: boolean }) {
@@ -37,61 +37,61 @@ export function EvalSentence({ config, detail = true }: { config: EvalConfig; de
     case 'contains':
       body = (
         <>
-          Antwort enthält <Quote text={p.text} />
-          {bool(p['ignore-case'], false) && <span className="muted"> (Groß/klein egal)</span>}
+          Answer contains <Quote text={p.text} />
+          {bool(p['ignore-case'], false) && <span className="muted"> (ignoring case)</span>}
         </>
       )
       break
     case 'not-contains':
       body = (
         <>
-          Antwort enthält <strong>nicht</strong> <Quote text={p.text} />
-          {bool(p['ignore-case'], false) && <span className="muted"> (Groß/klein egal)</span>}
+          Answer does <strong>not</strong> contain <Quote text={p.text} />
+          {bool(p['ignore-case'], false) && <span className="muted"> (ignoring case)</span>}
         </>
       )
       break
     case 'equals':
       body = (
         <>
-          Antwort ist genau <Quote text={p.text} />
-          {!bool(p['ignore-case'], true) && <span className="muted"> (Groß/klein zählt)</span>}
+          Answer is exactly <Quote text={p.text} />
+          {!bool(p['ignore-case'], true) && <span className="muted"> (case-sensitive)</span>}
         </>
       )
       break
     case 'regex':
       body = (
         <>
-          Antwort passt auf <Code text={p.pattern} />
+          Answer matches <Code text={p.pattern} />
         </>
       )
       break
     case 'not-regex':
       body = (
         <>
-          Antwort passt <strong>nicht</strong> auf <Code text={p.pattern} />
+          Answer does <strong>not</strong> match <Code text={p.pattern} />
         </>
       )
       break
     case 'length': {
-      const unit = str(p.unit) === 'chars' ? 'Zeichen' : 'Wörter'
+      const unit = str(p.unit) === 'chars' ? 'characters' : 'words'
       const min = str(p.min)
       const max = str(p.max)
       body =
         min && max ? (
           <>
-            Antwort hat zwischen {min} und {max} {unit}
+            Answer has between {min} and {max} {unit}
           </>
         ) : max ? (
           <>
-            Antwort hat höchstens {max} {unit}
+            Answer has at most {max} {unit}
           </>
         ) : min ? (
           <>
-            Antwort hat mindestens {min} {unit}
+            Answer has at least {min} {unit}
           </>
         ) : (
           <>
-            Antwort-Länge <span className="eval-missing">ohne Grenze</span>
+            Answer length <span className="eval-missing">without a limit</span>
           </>
         )
       break
@@ -99,10 +99,10 @@ export function EvalSentence({ config, detail = true }: { config: EvalConfig; de
     case 'tool-called':
       body =
         str(p.tool) === '*' ? (
-          <>Mindestens ein Tool wird aufgerufen</>
+          <>At least one Tool is called</>
         ) : (
           <>
-            <ToolName name={p.tool} /> wird aufgerufen
+            <ToolName name={p.tool} /> is called
           </>
         )
       break
@@ -110,28 +110,28 @@ export function EvalSentence({ config, detail = true }: { config: EvalConfig; de
       body =
         str(p.tool) === '*' ? (
           <>
-            <strong>Kein</strong> Tool wird aufgerufen
+            <strong>No</strong> Tool is called
           </>
         ) : (
           <>
-            <ToolName name={p.tool} /> wird <strong>nicht</strong> aufgerufen
+            <ToolName name={p.tool} /> is <strong>not</strong> called
           </>
         )
       break
     case 'max-tool-calls':
-      body = str(p.max) === '0' ? <>Kein einziger Tool-Aufruf</> : <>Höchstens {str(p.max) || '…'} Tool-Aufrufe</>
+      body = str(p.max) === '0' ? <>Not a single Tool call</> : <>At most {str(p.max) || '…'} Tool calls</>
       break
     case 'json-valid':
-      body = bool(p.strict, false) ? <>Antwort ist reines JSON, ohne Text drumherum</> : <>Antwort enthält gültiges JSON</>
+      body = bool(p.strict, false) ? <>Answer is pure JSON, with no text around it</> : <>Answer contains valid JSON</>
       break
     case 'json-path':
       body = str(p.value) ? (
         <>
-          JSON-Feld <Code text={p.path} /> ist <Quote text={p.value} />
+          JSON field <Code text={p.path} /> is <Quote text={p.value} />
         </>
       ) : (
         <>
-          JSON-Feld <Code text={p.path} /> ist vorhanden
+          JSON field <Code text={p.path} /> exists
         </>
       )
       break
@@ -139,7 +139,7 @@ export function EvalSentence({ config, detail = true }: { config: EvalConfig; de
       const questions = listValue(p.questions)
       body = (
         <>
-          <JudgeModel id={p.model} /> beantwortet {questions.length === 1 ? 'eine Frage' : `${questions.length} Fragen`} mit Ja
+          <JudgeModel id={p.model} /> answers {questions.length === 1 ? 'one question' : `${questions.length} questions`} with yes
           {detail && questions.length > 0 && (
             <ul className="eval-questions">
               {questions.map((q, i) => (
@@ -154,7 +154,7 @@ export function EvalSentence({ config, detail = true }: { config: EvalConfig; de
     case 'llm-judge':
       body = (
         <>
-          <JudgeModel id={p.model} /> prüft <Quote text={p.criterion} />
+          <JudgeModel id={p.model} /> checks <Quote text={p.criterion} />
         </>
       )
       break

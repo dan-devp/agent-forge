@@ -21,8 +21,8 @@ import org.springframework.stereotype.Component;
  * and continues with the result, without a failed run being able to break anything. Real
  * capabilities arrive via MCP.
  *
- * <p>Descriptions and results are German on purpose — the model reads them, and German is
- * the agent's working language.
+ * <p>Descriptions and results are written for the model: it reads them to decide when to call
+ * a tool and what the result means.
  */
 @Component
 public class BuiltinTools {
@@ -47,11 +47,10 @@ public class BuiltinTools {
 		}
 	}
 
-	@Tool(description = "Liefert das aktuelle Datum und die aktuelle Uhrzeit. "
-			+ "Nutze dieses Tool immer, wenn nach dem heutigen Datum oder der Zeit gefragt wird — "
-			+ "rate sie niemals.")
+	@Tool(description = "Returns the current date and time. "
+			+ "Use this tool whenever someone asks for today's date or the time — never guess them.")
 	public String currentTime(
-			@ToolParam(description = "Zeitzone als IANA-Id, z. B. Europe/Berlin. Leer = Europe/Berlin.",
+			@ToolParam(description = "Time zone as an IANA id, e.g. Europe/Berlin. Empty = Europe/Berlin.",
 					required = false) String timeZone) {
 
 		ZoneId zone = timeZone == null || timeZone.isBlank() ? ZoneId.of("Europe/Berlin") : ZoneId.of(timeZone);
@@ -60,18 +59,18 @@ public class BuiltinTools {
 		return now;
 	}
 
-	@Tool(description = "Berechnet den Rest und das Ergebnis einer ganzzahligen Division. "
-			+ "Nutze dieses Tool fuer Rechnungen, statt im Kopf zu rechnen.")
+	@Tool(description = "Computes the result and the remainder of an integer division. "
+			+ "Use this tool for arithmetic instead of working it out in your head.")
 	public String divide(
 			@ToolParam(description = "Dividend") long dividend,
-			@ToolParam(description = "Divisor, darf nicht 0 sein") long divisor) {
+			@ToolParam(description = "Divisor, must not be 0") long divisor) {
 
 		if (divisor == 0) {
 			// Return the error as a result instead of throwing: the model should get the chance
 			// to correct the call rather than ending the run.
-			return "Fehler: Division durch 0 ist nicht definiert.";
+			return "Error: division by 0 is not defined.";
 		}
-		return "%d geteilt durch %d ergibt %d Rest %d".formatted(dividend, divisor, dividend / divisor,
+		return "%d divided by %d is %d remainder %d".formatted(dividend, divisor, dividend / divisor,
 				dividend % divisor);
 	}
 }

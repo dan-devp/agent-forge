@@ -25,18 +25,18 @@ export function NameField(p: { naming: Naming; existing: boolean; placeholder?: 
       <span className="id-line">
         Id <span className="mono">{id || '…'}</span>
         {p.existing ? (
-          <span className="faint"> · bleibt fest, Läufe verweisen darauf</span>
+          <span className="faint"> · stays fixed, Runs refer to it</span>
         ) : (
           !showInput && (
             <button type="button" className="link" onClick={() => setEditing(true)}>
-              ändern
+              change
             </button>
           )
         )}
       </span>
       {showInput && (
         <label className="field">
-          <span>Id (Dateiname, kleinbuchstaben-und-bindestriche)</span>
+          <span>Id (file name, lowercase-with-hyphens)</span>
           <input
             className="mono"
             value={id}
@@ -71,7 +71,7 @@ export function Advanced(p: { summary: ReactNode; children: ReactNode }) {
   return (
     <details className="advanced">
       <summary>
-        <span className="advanced-title">Weitere Einstellungen</span>
+        <span className="advanced-title">More settings</span>
         <span className="advanced-summary">{p.summary}</span>
       </summary>
       <div className="advanced-body">{p.children}</div>

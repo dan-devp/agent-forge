@@ -28,7 +28,7 @@ class JudgeQuestionsEvalTests {
 	private static final Model JEV = new Model("jev", 1, "Jev", null, Provider.TYPESAFE, "https://api.typesafe.ai/v1",
 			"jev-latest", "API_KEY_TYPESAFE", 0.7);
 
-	private static final EvalSubject ANSWERED = new EvalSubject("Wie spaet ist es?", "Es ist 10:00 Uhr.", "DONE",
+	private static final EvalSubject ANSWERED = new EvalSubject("What time is it?", "It is 10:00 am.", "DONE",
 			List.of());
 
 	private final ChatClientRegistry chat = mock(ChatClientRegistry.class);
@@ -52,13 +52,13 @@ class JudgeQuestionsEvalTests {
 				new Decisions(Map.of("q1", 0.93, "q2", 0.41, "q3", 0.6), "jev-1.13.0", 57));
 
 		List<EvalResult> results = eval.evaluateAll(
-				cfg(List.of("Nennt die Uhrzeit?", "Nennt die Zeitzone?", "Ist sie knapp?"), 0.55), ANSWERED);
+				cfg(List.of("Gives the time?", "Gives the time zone?", "Is it brief?"), 0.55), ANSWERED);
 
 		assertThat(results).extracting(EvalResult::subject)
-				.containsExactly("Nennt die Uhrzeit?", "Nennt die Zeitzone?", "Ist sie knapp?");
+				.containsExactly("Gives the time?", "Gives the time zone?", "Is it brief?");
 		assertThat(results).extracting(EvalResult::passed).containsExactly(true, false, true);
-		assertThat(results.get(0).rationale()).isEqualTo("Ja (0.93)");
-		assertThat(results.get(1).rationale()).isEqualTo("Nein (0.41 < 0.55)");
+		assertThat(results.get(0).rationale()).isEqualTo("Yes (0.93)");
+		assertThat(results.get(1).rationale()).isEqualTo("No (0.41 < 0.55)");
 		// One call, its cost once: summing verdicts must give the real judge cost.
 		assertThat(results).extracting(EvalResult::tokens).containsExactly(57, null, null);
 		assertThat(results).extracting(EvalResult::model).containsOnly("jev-1.13.0");
@@ -66,7 +66,7 @@ class JudgeQuestionsEvalTests {
 
 	@Test
 	void noAnswerFailsEveryQuestionWithoutCallingTheJudge() {
-		EvalSubject silent = new EvalSubject("Frage", null, "BUDGET_EXCEEDED", List.of());
+		EvalSubject silent = new EvalSubject("Question", null, "BUDGET_EXCEEDED", List.of());
 
 		List<EvalResult> results = eval.evaluateAll(cfg(List.of("A?", "B?"), null), silent);
 
@@ -83,23 +83,27 @@ class JudgeQuestionsEvalTests {
 		List<EvalResult> results = eval.evaluateAll(cfg(List.of("A?", "B?"), null), ANSWERED);
 
 		assertThat(results).noneMatch(EvalResult::passed);
-		assertThat(results.getFirst().rationale()).contains("Judge-Aufruf fehlgeschlagen").contains("401");
+		assertThat(results.getFirst().rationale()).contains("Judge call failed").contains("401");
 	}
 
 	@Test
 	void chatAnswersAreReadPerNumberAndAMissingOneFails() {
 		Map<Integer, JudgeQuestionsEval.Line> lines = JudgeQuestionsEval.parse("""
-				1: JA - die Uhrzeit steht da
-				2) nein: keine Zeitzone
-				3. Ja
-				1: NEIN - spaetere Zeile zaehlt nicht
-				Fazit: passt""");
+				1: YES - the time is there
+				2) no: no time zone
+				3. Yes
+				4: JA - an answer in the earlier German format
+				5: nein
+				1: NO - a later line does not count
+				Summary: fits""");
 
-		assertThat(lines).containsOnlyKeys(1, 2, 3);
+		assertThat(lines).containsOnlyKeys(1, 2, 3, 4, 5);
 		assertThat(lines.get(1).yes()).isTrue();
-		assertThat(lines.get(1).reason()).isEqualTo("die Uhrzeit steht da");
+		assertThat(lines.get(1).reason()).isEqualTo("the time is there");
 		assertThat(lines.get(2).yes()).isFalse();
 		assertThat(lines.get(3).reason()).isEmpty();
+		assertThat(lines.get(4).yes()).isTrue();
+		assertThat(lines.get(5).yes()).isFalse();
 	}
 
 	@Test

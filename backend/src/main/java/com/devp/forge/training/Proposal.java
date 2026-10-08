@@ -14,7 +14,7 @@ public record Proposal(String prompt, String rationale, String raw, String model
 
 	private static final Pattern OPEN = Pattern.compile("(?m)^\\s*<<<\\s*$");
 	private static final Pattern CLOSE = Pattern.compile("(?m)^\\s*>>>\\s*$");
-	private static final Pattern RATIONALE = Pattern.compile("(?is)BEGRUENDUNG\\s*:?(.*?)(?:^\\s*PROMPT\\s*:|<<<)",
+	private static final Pattern RATIONALE = Pattern.compile("(?is)(?:RATIONALE|BEGRUENDUNG|BEGR\u00dcNDUNG)\\s*:?(.*?)(?:^\\s*PROMPT\\s*:|<<<)",
 			Pattern.MULTILINE);
 
 	/**

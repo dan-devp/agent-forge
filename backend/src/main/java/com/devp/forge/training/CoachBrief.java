@@ -8,7 +8,7 @@ import com.devp.forge.training.Bench.TaskScore;
 /**
  * Everything the coach gets to see, and the one place that turns it into its message.
  *
- * <p>The coach reads German like every model here. It sees the prompt it should improve, the
+ * <p>The coach sees the prompt it should improve, the
  * tools the agent has, how each train task went and the failed runs in detail, plus what was
  * already tried and rejected — so it does not propose the same thing twice. It never sees the
  * holdout tasks, and never the evals themselves: only their verdicts, the way a student sees
@@ -40,50 +40,50 @@ public record CoachBrief(
 
 	public String render() {
 		StringBuilder out = new StringBuilder();
-		out.append("# Ziel des Trainings\n")
-				.append(goal == null || goal.isBlank() ? "Die Tasks zuverlaessiger bestehen." : goal.strip())
+		out.append("# Goal of the training\n")
+				.append(goal == null || goal.isBlank() ? "Pass the tasks more reliably." : goal.strip())
 				.append("\n\n");
 
-		out.append("# Aktueller Systemprompt (v").append(agentVersion).append(")\n")
+		out.append("# Current system prompt (v").append(agentVersion).append(")\n")
 				.append("<<<\n").append(systemPrompt.strip()).append("\n>>>\n\n");
 
-		out.append("# Tools des Agents\n");
+		out.append("# The agent's tools\n");
 		if (tools.isEmpty()) {
-			out.append("Keine. Der Agent hat keine Tools, und du kannst ihm keine geben.\n\n");
+			out.append("None. The agent has no tools, and you cannot give it any.\n\n");
 		}
 		else {
 			tools.forEach(t -> out.append("- ").append(t).append('\n'));
-			out.append("Die Tools kannst du nicht aendern, nur den Prompt.\n\n");
+			out.append("You cannot change the tools, only the prompt.\n\n");
 		}
 
-		out.append("# Ergebnisse je Task (v").append(agentVersion).append(")\n");
+		out.append("# Results per task (v").append(agentVersion).append(")\n");
 		trainScores.forEach(s -> out.append("- ").append(s.taskId()).append(": ").append(s.passed()).append('/')
-				.append(s.total()).append(" bestanden\n"));
+				.append(s.total()).append(" passed\n"));
 		out.append('\n');
 
 		if (!failures.isEmpty()) {
-			out.append("# Gescheiterte Runs\n");
+			out.append("# Failed runs\n");
 			int n = 0;
 			for (FailedRun f : failures) {
 				n++;
 				out.append("## ").append(n).append(". Task ").append(f.taskId()).append(" (").append(status(f.status()))
 						.append(")\n");
-				out.append("Eingabe: ").append(oneLine(f.input())).append('\n');
+				out.append("Input: ").append(oneLine(f.input())).append('\n');
 				if (f.toolCalls().isEmpty()) {
-					out.append("Tool-Aufrufe: keine\n");
+					out.append("Tool calls: none\n");
 				}
 				else {
-					out.append("Tool-Aufrufe:\n");
+					out.append("Tool calls:\n");
 					f.toolCalls().forEach(c -> out.append("- ").append(oneLine(c)).append('\n'));
 				}
 				if (f.answer() != null) {
-					out.append("Antwort: ").append(oneLine(f.answer())).append('\n');
+					out.append("Answer: ").append(oneLine(f.answer())).append('\n');
 				}
 				if (f.error() != null) {
-					out.append("Fehler: ").append(oneLine(f.error())).append('\n');
+					out.append("Error: ").append(oneLine(f.error())).append('\n');
 				}
 				if (!f.failedVerdicts().isEmpty()) {
-					out.append("Nicht erfuellt:\n");
+					out.append("Not met:\n");
 					f.failedVerdicts().forEach(v -> out.append("- ").append(oneLine(v)).append('\n'));
 				}
 				out.append('\n');
@@ -91,31 +91,31 @@ public record CoachBrief(
 		}
 
 		if (!rejected.isEmpty()) {
-			out.append("# Bereits versucht und verworfen\n");
+			out.append("# Already tried and rejected\n");
 			rejected.forEach(a -> out.append("- ")
-					.append(a.agentVersion() == null ? "ohne Version" : "v" + a.agentVersion()).append(": ")
-					.append(oneLine(a.rationale() == null ? "(keine Begruendung)" : a.rationale())).append(" -> ")
+					.append(a.agentVersion() == null ? "no version" : "v" + a.agentVersion()).append(": ")
+					.append(oneLine(a.rationale() == null ? "(no rationale)" : a.rationale())).append(" -> ")
 					.append(oneLine(a.reason())).append('\n'));
-			out.append("Schlage etwas anderes vor.\n\n");
+			out.append("Propose something different.\n\n");
 		}
 
 		out.append("""
-				# Antwortformat
-				Antworte in genau diesem Format:
-				BEGRUENDUNG:
-				- je Aenderung eine Zeile: was du aenderst und welcher Fehler oben sie ausloest
+				# Answer format
+				Answer in exactly this format:
+				RATIONALE:
+				- one line per change: what you change and which failure above calls for it
 				PROMPT:
 				<<<
-				der vollstaendige neue Systemprompt
+				the complete new system prompt
 				>>>""");
 		return out.toString();
 	}
 
 	private static String status(String status) {
 		return switch (status) {
-			case "DONE" -> "nicht bestanden";
-			case "BUDGET_EXCEEDED" -> "Budget ueberschritten";
-			case "FAILED" -> "Fehler";
+			case "DONE" -> "failed";
+			case "BUDGET_EXCEEDED" -> "over budget";
+			case "FAILED" -> "error";
 			default -> status;
 		};
 	}

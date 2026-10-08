@@ -22,8 +22,8 @@ public final class TextEvals {
 	private TextEvals() {
 	}
 
-	private static final EvalParam CASE = EvalParam.optional("ignore-case", "Gro\u00df-/Kleinschreibung ignorieren",
-			Type.BOOLEAN, true, "Vergleich ohne Beachtung der Schreibung.");
+	private static final EvalParam CASE = EvalParam.optional("ignore-case", "Ignore case",
+			Type.BOOLEAN, true, "Compare without regard to upper and lower case.");
 
 	private static boolean contains(EvalConfig config, EvalSubject subject) {
 		String answer = subject.answer();
@@ -47,7 +47,7 @@ public final class TextEvals {
 	}
 
 	private static EvalResult noAnswer(EvalSubject subject) {
-		return EvalResult.fail("Keine Antwort (Status " + subject.status() + ")");
+		return EvalResult.fail("No answer (status " + subject.status() + ")");
 	}
 
 	@Component
@@ -59,17 +59,17 @@ public final class TextEvals {
 
 		@Override
 		public String label() {
-			return "Antwort enth\u00e4lt Text";
+			return "Answer contains text";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn der Text irgendwo in der Antwort vorkommt.";
+			return "Passes when the text appears anywhere in the answer.";
 		}
 
 		@Override
 		public List<EvalParam> params() {
-			return List.of(EvalParam.required("text", "Text", Type.STRING, "Muss in der Antwort vorkommen."), CASE);
+			return List.of(EvalParam.required("text", "Text", Type.STRING, "Must appear in the answer."), CASE);
 		}
 
 		@Override
@@ -79,8 +79,8 @@ public final class TextEvals {
 			}
 			String text = config.string("text");
 			return contains(config, subject)
-					? EvalResult.pass("Antwort enth\u00e4lt \"" + text + "\"")
-					: EvalResult.fail("Antwort enth\u00e4lt \"" + text + "\" nicht");
+					? EvalResult.pass("Answer contains \"" + text + "\"")
+					: EvalResult.fail("Answer does not contain \"" + text + "\"");
 		}
 	}
 
@@ -93,17 +93,17 @@ public final class TextEvals {
 
 		@Override
 		public String label() {
-			return "Antwort enth\u00e4lt Text nicht";
+			return "Answer does not contain text";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn der Text nirgends in der Antwort vorkommt.";
+			return "Passes when the text appears nowhere in the answer.";
 		}
 
 		@Override
 		public List<EvalParam> params() {
-			return List.of(EvalParam.required("text", "Text", Type.STRING, "Darf nicht in der Antwort vorkommen."), CASE);
+			return List.of(EvalParam.required("text", "Text", Type.STRING, "Must not appear in the answer."), CASE);
 		}
 
 		@Override
@@ -113,8 +113,8 @@ public final class TextEvals {
 			}
 			String text = config.string("text");
 			return contains(config, subject)
-					? EvalResult.fail("Antwort enth\u00e4lt \"" + text + "\"")
-					: EvalResult.pass("Antwort enth\u00e4lt \"" + text + "\" nicht");
+					? EvalResult.fail("Answer contains \"" + text + "\"")
+					: EvalResult.pass("Answer does not contain \"" + text + "\"");
 		}
 	}
 
@@ -127,18 +127,18 @@ public final class TextEvals {
 
 		@Override
 		public String label() {
-			return "Antwort passt auf Muster";
+			return "Answer matches pattern";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn der regul\u00e4re Ausdruck irgendwo in der Antwort trifft (Java-Syntax).";
+			return "Passes when the regular expression matches anywhere in the answer (Java syntax).";
 		}
 
 		@Override
 		public List<EvalParam> params() {
-			return List.of(EvalParam.required("pattern", "Regul\u00e4rer Ausdruck", Type.STRING,
-					"Java-Regex, z. B. \\b14\\b"), EvalParam.optional("ignore-case", CASE.label(), Type.BOOLEAN, false,
+			return List.of(EvalParam.required("pattern", "Regular expression", Type.STRING,
+					"Java regex, e.g. \\b14\\b"), EvalParam.optional("ignore-case", CASE.label(), Type.BOOLEAN, false,
 					CASE.description()));
 		}
 
@@ -150,8 +150,8 @@ public final class TextEvals {
 			}
 			var matcher = pattern.matcher(subject.answer());
 			return matcher.find()
-					? EvalResult.pass("Muster trifft: \"" + matcher.group() + "\"")
-					: EvalResult.fail("Muster /" + pattern.pattern() + "/ trifft nicht");
+					? EvalResult.pass("Pattern matches: \"" + matcher.group() + "\"")
+					: EvalResult.fail("Pattern /" + pattern.pattern() + "/ does not match");
 		}
 	}
 
@@ -164,17 +164,17 @@ public final class TextEvals {
 
 		@Override
 		public String label() {
-			return "Antwort passt nicht auf Muster";
+			return "Answer does not match pattern";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn der regul\u00e4re Ausdruck nirgends in der Antwort trifft.";
+			return "Passes when the regular expression matches nowhere in the answer.";
 		}
 
 		@Override
 		public List<EvalParam> params() {
-			return List.of(EvalParam.required("pattern", "Regul\u00e4rer Ausdruck", Type.STRING, "Java-Regex"),
+			return List.of(EvalParam.required("pattern", "Regular expression", Type.STRING, "Java regex"),
 					EvalParam.optional("ignore-case", CASE.label(), Type.BOOLEAN, false, CASE.description()));
 		}
 
@@ -186,8 +186,8 @@ public final class TextEvals {
 			}
 			var matcher = pattern.matcher(subject.answer());
 			return matcher.find()
-					? EvalResult.fail("Muster trifft: \"" + matcher.group() + "\"")
-					: EvalResult.pass("Muster /" + pattern.pattern() + "/ trifft nicht");
+					? EvalResult.fail("Pattern matches: \"" + matcher.group() + "\"")
+					: EvalResult.pass("Pattern /" + pattern.pattern() + "/ does not match");
 		}
 	}
 }

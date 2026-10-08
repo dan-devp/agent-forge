@@ -13,10 +13,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** The deterministic evals and the registry's validation, no Spring involved. */
 class EvalTests {
 
-	private static final EvalSubject ANSWERED = new EvalSubject("Frage", "Es ist 10:00 Uhr, 100/7 = 14 Rest 2.",
+	private static final EvalSubject ANSWERED = new EvalSubject("Question", "It is 10:00 am, 100/7 = 14 remainder 2.",
 			"DONE", List.of("currentTime", "divide", "divide"));
 
-	private static final EvalSubject SILENT = new EvalSubject("Frage", null, "BUDGET_EXCEEDED", List.of("divide"));
+	private static final EvalSubject SILENT = new EvalSubject("Question", null, "BUDGET_EXCEEDED", List.of("divide"));
 
 	private static EvalConfig cfg(String type, Object... kv) {
 		var params = new java.util.LinkedHashMap<String, Object>();
@@ -29,16 +29,17 @@ class EvalTests {
 	@Test
 	void containsIgnoresCaseByDefault() {
 		Eval eval = new TextEvals.Contains();
-		assertThat(eval.evaluate(cfg("contains", "text", "REST 2"), ANSWERED).passed()).isTrue();
-		assertThat(eval.evaluate(cfg("contains", "text", "REST 2", "ignore-case", false), ANSWERED).passed()).isFalse();
-		assertThat(eval.evaluate(cfg("contains", "text", "Uhr"), SILENT).passed()).isFalse();
+		assertThat(eval.evaluate(cfg("contains", "text", "REMAINDER 2"), ANSWERED).passed()).isTrue();
+		assertThat(eval.evaluate(cfg("contains", "text", "REMAINDER 2", "ignore-case", false), ANSWERED).passed())
+				.isFalse();
+		assertThat(eval.evaluate(cfg("contains", "text", "am"), SILENT).passed()).isFalse();
 	}
 
 	@Test
 	void notContainsFailsWithoutAnswerToo() {
 		Eval eval = new TextEvals.NotContains();
-		assertThat(eval.evaluate(cfg("not-contains", "text", "Fehler"), ANSWERED).passed()).isTrue();
-		assertThat(eval.evaluate(cfg("not-contains", "text", "Fehler"), SILENT).passed()).isFalse();
+		assertThat(eval.evaluate(cfg("not-contains", "text", "error"), ANSWERED).passed()).isTrue();
+		assertThat(eval.evaluate(cfg("not-contains", "text", "error"), SILENT).passed()).isFalse();
 	}
 
 	@Test
@@ -75,9 +76,12 @@ class EvalTests {
 
 	@Test
 	void judgeVerdictParsingIsLenientOnShapeStrictOnContent() {
-		assertThat(LlmJudgeEval.parse("URTEIL: PASS\nBEGRUENDUNG: passt.").passed()).isTrue();
+		assertThat(LlmJudgeEval.parse("VERDICT: PASS\nREASON: fits.").passed()).isTrue();
+		assertThat(LlmJudgeEval.parse("VERDICT: PASS\nREASON: fits.").rationale()).isEqualTo("fits.");
+		assertThat(LlmJudgeEval.parse("Verdict: FAIL\nReason: remainder missing").passed()).isFalse();
+		// The German labels of the earlier prompt still read.
 		assertThat(LlmJudgeEval.parse("URTEIL: PASS\nBEGRUENDUNG: passt.").rationale()).isEqualTo("passt.");
-		assertThat(LlmJudgeEval.parse("Urteil: FAIL\nBegründung: fehlt Rest").passed()).isFalse();
+		assertThat(LlmJudgeEval.parse("Urteil: FAIL\nBegr\u00fcndung: fehlt Rest").passed()).isFalse();
 		assertThat(LlmJudgeEval.parse("PASS").passed()).isTrue();
 		assertThat(LlmJudgeEval.parse("PASS or FAIL, hard to say").passed()).isFalse();
 		assertThat(LlmJudgeEval.parse("").passed()).isFalse();

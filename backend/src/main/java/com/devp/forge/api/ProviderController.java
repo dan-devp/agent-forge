@@ -26,8 +26,8 @@ public class ProviderController {
 		return switch (p) {
 			case OPENAI -> "OpenAI";
 			case ANTHROPIC -> "Anthropic";
-			case CUSTOM -> "Intern / Gateway";
-			case LOCAL -> "Lokal";
+			case CUSTOM -> "Gateway / custom";
+			case LOCAL -> "Local";
 			case TYPESAFE -> "TypeSafe (Decision)";
 		};
 	}

@@ -2,8 +2,8 @@
 id: rookie
 version: 1
 name: Rookie
-description: Ein Agent im Rohzustand, fast ohne Prompt. Das Beispiel fuer ein Training von null an.
+description: An agent in its raw state, almost without a prompt. The example for a training from scratch.
 model: local
 tools: all
 ---
-Du bist ein hilfsbereiter Assistent.
+You are a helpful assistant.

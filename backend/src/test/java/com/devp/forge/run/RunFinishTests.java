@@ -51,7 +51,7 @@ class RunFinishTests {
 
 	@Test
 	void aRunIsStillRunningWhileItIsJudgedAndFinalOnlyWithItsVerdict() {
-		tasks.create(new Task(TASK, 0, "Probe", null, null, List.of(new EvalConfig("probe", Map.of())), "Frage?"));
+		tasks.create(new Task(TASK, 0, "Probe", null, null, List.of(new EvalConfig("probe", Map.of())), "Question?"));
 
 		// The test profile's model endpoint is dead: the run fails, is judged all the same, and the
 		// synchronous caller gets the failure afterwards.

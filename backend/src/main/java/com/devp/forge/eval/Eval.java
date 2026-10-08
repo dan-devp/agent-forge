@@ -14,7 +14,7 @@ public interface Eval {
 	/** Stable key used in task files: {@code regex}, {@code tool-called}, {@code llm-judge}. */
 	String type();
 
-	/** Shown in the UI. German, because the person composing tasks reads it. */
+	/** Shown in the UI, where tasks are composed. */
 	String label();
 
 	String description();

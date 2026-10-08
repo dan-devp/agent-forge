@@ -15,8 +15,8 @@ export function Home({ status }: { status: Status | null }) {
   return (
     <div className="home">
       <div className="home-head">
-        <h1>Trainingslager</h1>
-        <p>Ein Agent wird besser, wenn man misst, woran er scheitert. Der Weg dahin hat fünf Schritte.</p>
+        <h1>Training camp</h1>
+        <p>An Agent gets better when you measure where it fails. The way there has five steps.</p>
       </div>
 
       <ol className="way">
@@ -35,7 +35,7 @@ export function Home({ status }: { status: Status | null }) {
                   {a.label}
                 </span>
                 <span className="way-hint">{a.hint}</span>
-                <span className="way-count">{n === null ? '…' : n === 0 ? 'noch nichts' : `✓ ${n} vorhanden`}</span>
+                <span className="way-count">{n === null ? '…' : n === 0 ? 'nothing yet' : `✓ ${n} so far`}</span>
               </Link>
             </li>
           )
@@ -45,26 +45,26 @@ export function Home({ status }: { status: Status | null }) {
       <div className="next-step">
         {status === null ? null : next ? (
           <>
-            <span>Als Nächstes:</span>
+            <span>Next:</span>
             <Link to={next.path} className="btn primary">
               {next.action}
             </Link>
           </>
         ) : (
           <>
-            <span>Alles da. Vergleiche die Versionen in der Matrix oder lass einen Coach trainieren.</span>
+            <span>All set. Compare the versions in the Matrix or let a Coach train.</span>
             <Link to="/runs" className="btn primary">
-              zur Matrix
+              Open the Matrix
             </Link>
             <Link to="/trainings" className="btn">
-              zu den Trainings
+              Open Trainings
             </Link>
           </>
         )}
       </div>
 
       <div className="lookup">
-        <span className="nav-group-label">Nachschlagen</span>
+        <span className="nav-group-label">Reference</span>
         <div className="lookup-tiles">
           {lookup.map((a) => (
             <Link key={a.id} to={a.path} className="lookup-tile">
@@ -74,7 +74,7 @@ export function Home({ status }: { status: Status | null }) {
                 </span>{' '}
                 {a.label} <span className="mono muted">{status ? a.count(status) : '…'}</span>
               </span>
-              <span className="way-hint">{a.hint} Vom System, nur ansehen.</span>
+              <span className="way-hint">{a.hint} Provided by the system, read only.</span>
             </Link>
           ))}
         </div>
@@ -82,7 +82,7 @@ export function Home({ status }: { status: Status | null }) {
 
       {status && (
         <p className="small faint">
-          Dateien und Datenbank liegen in <span className="mono">{status.dataDir}</span>.
+          Files and database live in <span className="mono">{status.dataDir}</span>.
         </p>
       )}
     </div>

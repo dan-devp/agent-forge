@@ -27,12 +27,12 @@ public class LlmJudgeEval implements Eval {
 	private static final Logger log = LoggerFactory.getLogger(LlmJudgeEval.class);
 
 	private static final String SYSTEM = """
-			Du bist ein strenger Pruefer. Du bekommst eine Aufgabe, die Antwort eines Agenten \
-			und ein Kriterium. Entscheide, ob die Antwort das Kriterium erfuellt.
+			You are a strict examiner. You get a task, an agent's answer and a criterion. \
+			Decide whether the answer meets the criterion.
 
-			Antworte in genau zwei Zeilen:
-			URTEIL: PASS oder FAIL
-			BEGRUENDUNG: ein Satz""";
+			Answer in exactly two lines:
+			VERDICT: PASS or FAIL
+			REASON: one sentence""";
 
 	private final ChatClientRegistry clients;
 
@@ -47,47 +47,47 @@ public class LlmJudgeEval implements Eval {
 
 	@Override
 	public String label() {
-		return "Urteil durch Judge-Model";
+		return "Verdict by a judge model";
 	}
 
 	@Override
 	public String description() {
-		return "Ein Model pr\u00fcft die Antwort gegen ein frei formuliertes Kriterium. Kostet einen Model-Aufruf.";
+		return "A model checks the answer against a criterion in plain words. Costs one model call.";
 	}
 
 	@Override
 	public List<EvalParam> params() {
 		return List.of(
-				EvalParam.required("model", "Judge-Model", Type.MODEL, "Welches Model urteilt."),
-				EvalParam.required("criterion", "Kriterium", Type.TEXT,
-						"Was die Antwort leisten muss, in einem oder zwei S\u00e4tzen."));
+				EvalParam.required("model", "Judge model", Type.MODEL, "Which model judges."),
+				EvalParam.required("criterion", "Criterion", Type.TEXT,
+						"What the answer has to achieve, in one or two sentences."));
 	}
 
 	@Override
 	public EvalResult evaluate(EvalConfig config, EvalSubject subject) {
 		if (!subject.hasAnswer()) {
-			return EvalResult.fail("Keine Antwort (Status " + subject.status() + ")");
+			return EvalResult.fail("No answer (status " + subject.status() + ")");
 		}
 		Model model;
 		try {
 			model = clients.model(config.string("model"));
 		}
 		catch (RuntimeException ex) {
-			return EvalResult.fail("Judge-Model nicht verf\u00fcgbar: " + ex.getMessage());
+			return EvalResult.fail("Judge model not available: " + ex.getMessage());
 		}
 		if (model.kind() != ModelKind.CHAT) {
-			return EvalResult.fail("'" + model.id() + "' ist ein Decision-Model und schreibt keinen Text - "
-					+ "daf\u00fcr gibt es judge-questions");
+			return EvalResult.fail("'" + model.id() + "' is a decision model and writes no text - "
+					+ "use judge-questions for it");
 		}
 
 		String user = """
-				# Aufgabe
+				# Task
 				%s
 
-				# Antwort des Agenten
+				# The agent's answer
 				%s
 
-				# Kriterium
+				# Criterion
 				%s""".formatted(subject.input(), subject.answer(), config.string("criterion"));
 
 		long start = System.currentTimeMillis();
@@ -97,7 +97,7 @@ public class LlmJudgeEval implements Eval {
 		}
 		catch (RuntimeException ex) {
 			log.warn("Judge '{}' failed: {}", model.id(), ex.getMessage());
-			return new EvalResult(false, "Judge-Aufruf fehlgeschlagen: " + ex.getMessage(), model.modelId(), null,
+			return new EvalResult(false, "Judge call failed: " + ex.getMessage(), model.modelId(), null,
 					System.currentTimeMillis() - start);
 		}
 		long duration = System.currentTimeMillis() - start;
@@ -111,16 +111,19 @@ public class LlmJudgeEval implements Eval {
 		return new EvalResult(verdict.passed(), verdict.rationale(), model.modelId(), tokens, duration);
 	}
 
-	/** Lenient on shape, strict on content: PASS must be there, and FAIL must not. */
+	/**
+	 * Lenient on shape, strict on content: PASS must be there, and FAIL must not. The German
+	 * labels of the earlier prompt are still understood.
+	 */
 	static Verdict parse(String text) {
 		String rationale = null;
 		Boolean passed = null;
 		for (String line : text.strip().split("\n")) {
 			String upper = line.toUpperCase(Locale.ROOT);
-			if (upper.startsWith("URTEIL")) {
+			if (upper.startsWith("VERDICT") || upper.startsWith("URTEIL")) {
 				passed = upper.contains("PASS") && !upper.contains("FAIL");
 			}
-			else if (upper.startsWith("BEGRUENDUNG") || upper.startsWith("BEGRÜNDUNG")) {
+			else if (upper.startsWith("REASON") || upper.startsWith("BEGRUENDUNG") || upper.startsWith("BEGR\u00dcNDUNG")) {
 				int colon = line.indexOf(':');
 				rationale = colon < 0 ? line : line.substring(colon + 1).strip();
 			}
@@ -128,9 +131,9 @@ public class LlmJudgeEval implements Eval {
 		if (passed == null) {
 			String upper = text.toUpperCase(Locale.ROOT);
 			passed = upper.contains("PASS") && !upper.contains("FAIL");
-			rationale = "Unklares Format, Rohtext: " + text.strip();
+			rationale = "Unclear format, raw text: " + text.strip();
 		}
-		return new Verdict(passed, rationale == null ? "(keine Begr\u00fcndung)" : rationale);
+		return new Verdict(passed, rationale == null ? "(no reason given)" : rationale);
 	}
 
 	record Verdict(boolean passed, String rationale) {

@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
  * failure: the question that said no <em>is</em> the reason. Any model that can judge may
  * answer. A decision model (TypeSafe) takes all questions in one call and returns a truth
  * value per question, cut at the threshold. A chat model gets the questions numbered and
- * answers JA or NEIN per line with a short reason.
+ * answers YES or NO per line with a short reason (JA and NEIN are understood as well).
  *
  * <p>Like {@link LlmJudgeEval}, the judge sees input and answer only. The cost of the one
  * call is written to the first verdict, so summing verdicts gives the true judge cost.
@@ -41,15 +41,18 @@ public class JudgeQuestionsEval implements Eval {
 	private static final double DEFAULT_THRESHOLD = 0.5;
 
 	private static final String SYSTEM = """
-			Du bist ein strenger Pruefer. Du bekommst eine Aufgabe, die Antwort eines Agenten \
-			und nummerierte Ja/Nein-Fragen zu dieser Antwort. Beantworte jede Frage einzeln.
+			You are a strict examiner. You get a task, an agent's answer and numbered yes/no \
+			questions about that answer. Answer each question on its own.
 
-			Antworte mit genau einer Zeile je Frage, in dieser Form:
-			1: JA - ein kurzer Satz
-			2: NEIN - ein kurzer Satz""";
+			Answer with exactly one line per question, in this form:
+			1: YES - one short sentence
+			2: NO - one short sentence""";
 
-	private static final Pattern LINE = Pattern.compile("^\\s*(\\d+)\\s*[:.)]\\s*(JA|NEIN)\\b\\s*[-:]?\\s*(.*)$",
+	private static final Pattern LINE = Pattern.compile("^\\s*(\\d+)\\s*[:.)]\\s*(YES|NO|JA|NEIN)\\b\\s*[-:]?\\s*(.*)$",
 			Pattern.CASE_INSENSITIVE);
+
+	/** The answers that mean yes: the prompt asks for YES, older answers said JA. */
+	private static final java.util.Set<String> YES = java.util.Set.of("YES", "JA");
 
 	private final ChatClientRegistry chat;
 	private final DecisionClientRegistry decisions;
@@ -66,23 +69,23 @@ public class JudgeQuestionsEval implements Eval {
 
 	@Override
 	public String label() {
-		return "Ja/Nein-Fragen an Judge";
+		return "Yes/no questions to a judge";
 	}
 
 	@Override
 	public String description() {
-		return "Ein Judge beantwortet jede Frage mit Ja oder Nein; jede Frage ist ein eigenes Urteil. "
-				+ "Geht mit Chat-Models und mit Decision-Models (TypeSafe) - dort alle Fragen in einem Aufruf.";
+		return "A judge answers each question with yes or no; every question is its own verdict. "
+				+ "Works with chat models and with decision models (TypeSafe) - those answer all questions in one call.";
 	}
 
 	@Override
 	public List<EvalParam> params() {
 		return List.of(
-				EvalParam.required("model", "Judge-Model", Type.JUDGE_MODEL, "Chat- oder Decision-Model."),
-				EvalParam.required("questions", "Fragen", Type.LIST,
-						"Eine Frage je Zeile, so gestellt, dass Ja bestanden hei\u00dft."),
-				EvalParam.optional("threshold", "Schwelle", Type.NUMBER, DEFAULT_THRESHOLD,
-						"Ab diesem Wert (0 bis 1) z\u00e4hlt ein Decision-Model als Ja. Chat-Models ignorieren sie."));
+				EvalParam.required("model", "Judge model", Type.JUDGE_MODEL, "Chat or decision model."),
+				EvalParam.required("questions", "Questions", Type.LIST,
+						"One question per line, asked so that yes means passed."),
+				EvalParam.optional("threshold", "Threshold", Type.NUMBER, DEFAULT_THRESHOLD,
+						"From this value (0 to 1) a decision model counts as yes. Chat models ignore it."));
 	}
 
 	/** Never called on its own: this eval always answers per question. */
@@ -96,17 +99,17 @@ public class JudgeQuestionsEval implements Eval {
 	public List<EvalResult> evaluateAll(EvalConfig config, EvalSubject subject) {
 		List<String> questions = config.strings("questions");
 		if (questions.isEmpty()) {
-			return List.of(EvalResult.fail("Keine Fragen konfiguriert"));
+			return List.of(EvalResult.fail("No questions configured"));
 		}
 		if (!subject.hasAnswer()) {
-			return each(questions, EvalResult.fail("Keine Antwort (Status " + subject.status() + ")"));
+			return each(questions, EvalResult.fail("No answer (status " + subject.status() + ")"));
 		}
 		Model model;
 		try {
 			model = chat.model(config.string("model"));
 		}
 		catch (RuntimeException ex) {
-			return each(questions, EvalResult.fail("Judge-Model nicht verf\u00fcgbar: " + ex.getMessage()));
+			return each(questions, EvalResult.fail("Judge model not available: " + ex.getMessage()));
 		}
 		return model.kind() == ModelKind.DECISION
 				? byDecision(model, questions, config.number("threshold", DEFAULT_THRESHOLD), subject)
@@ -119,8 +122,8 @@ public class JudgeQuestionsEval implements Eval {
 			keyed.put("q" + (i + 1), questions.get(i));
 		}
 		Map<String, String> state = new LinkedHashMap<>();
-		state.put("aufgabe", subject.input());
-		state.put("antwort", subject.answer());
+		state.put("task", subject.input());
+		state.put("answer", subject.answer());
 
 		long start = System.currentTimeMillis();
 		Decisions answer;
@@ -139,7 +142,7 @@ public class JudgeQuestionsEval implements Eval {
 			double value = answer.values().get(q.getKey());
 			boolean yes = value >= threshold;
 			// Locale.ROOT: the rationale is stored, and 0,93 vs 0.93 must not depend on the host.
-			String rationale = String.format(Locale.ROOT, "%s (%.2f%s)", yes ? "Ja" : "Nein", value,
+			String rationale = String.format(Locale.ROOT, "%s (%.2f%s)", yes ? "Yes" : "No", value,
 					yes ? "" : String.format(Locale.ROOT, " < %.2f", threshold));
 			results.add(costOnFirst(i++, yes, rationale, answer.model(), answer.tokens(), duration)
 					.about(q.getValue()));
@@ -153,13 +156,13 @@ public class JudgeQuestionsEval implements Eval {
 			numbered.append(i + 1).append(". ").append(questions.get(i)).append('\n');
 		}
 		String user = """
-				# Aufgabe
+				# Task
 				%s
 
-				# Antwort des Agenten
+				# The agent's answer
 				%s
 
-				# Fragen
+				# Questions
 				%s""".formatted(subject.input(), subject.answer(), numbered.toString().strip());
 
 		long start = System.currentTimeMillis();
@@ -184,8 +187,8 @@ public class JudgeQuestionsEval implements Eval {
 			Line line = lines.get(i + 1);
 			boolean yes = line != null && line.yes();
 			String rationale = line == null
-					? "Keine Antwort auf Frage " + (i + 1) + " im Judge-Text"
-					: (yes ? "Ja" : "Nein") + (line.reason().isEmpty() ? "" : ": " + line.reason());
+					? "No answer to question " + (i + 1) + " in the judge's text"
+					: (yes ? "Yes" : "No") + (line.reason().isEmpty() ? "" : ": " + line.reason());
 			results.add(costOnFirst(i, yes, rationale, model.modelId(), tokens, duration).about(questions.get(i)));
 		}
 		return results;
@@ -198,7 +201,7 @@ public class JudgeQuestionsEval implements Eval {
 			Matcher m = LINE.matcher(raw);
 			if (m.matches()) {
 				lines.putIfAbsent(Integer.parseInt(m.group(1)),
-						new Line(m.group(2).toUpperCase(Locale.ROOT).equals("JA"), m.group(3).strip()));
+						new Line(YES.contains(m.group(2).toUpperCase(Locale.ROOT)), m.group(3).strip()));
 			}
 		}
 		return lines;
@@ -215,7 +218,7 @@ public class JudgeQuestionsEval implements Eval {
 			long duration) {
 		List<EvalResult> results = new ArrayList<>();
 		for (int i = 0; i < questions.size(); i++) {
-			results.add(costOnFirst(i, false, "Judge-Aufruf fehlgeschlagen: " + ex.getMessage(), model.modelId(), null,
+			results.add(costOnFirst(i, false, "Judge call failed: " + ex.getMessage(), model.modelId(), null,
 					duration).about(questions.get(i)));
 		}
 		return results;

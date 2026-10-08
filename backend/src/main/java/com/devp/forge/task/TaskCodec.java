@@ -17,7 +17,7 @@ import com.devp.forge.store.StoreExceptions.EntityInvalidException;
  * ---
  * id: time-and-division
  * version: 1
- * name: Zeit und Rechnung
+ * name: Time and arithmetic
  * max-tool-calls: 4
  * evals:
  *   - type: tool-called
@@ -25,7 +25,7 @@ import com.devp.forge.store.StoreExceptions.EntityInvalidException;
  *   - type: regex
  *     pattern: '\b14\b'
  * ---
- * Wie spaet ist es gerade in Berlin, und was ist 100 geteilt durch 7?
+ * What time is it in Berlin right now, and what is 100 divided by 7?
  * </pre>
  *
  * <p>Regexes go in single quotes: in double quotes YAML reads {@code \b} as a backspace.

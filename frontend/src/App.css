@@ -2502,11 +2502,11 @@ a.ref:hover .ref-sign {
 }
 
 .fold-toggle::after {
-  content: 'anzeigen';
+  content: 'show';
 }
 
 .fold[open] .fold-toggle::after {
-  content: 'einklappen';
+  content: 'collapse';
 }
 
 /* What a start costs, said before the click. */

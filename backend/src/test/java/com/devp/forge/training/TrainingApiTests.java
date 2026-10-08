@@ -55,8 +55,8 @@ class TrainingApiTests {
 
 	@BeforeEach
 	void setUp() {
-		agents.create(new Agent(agentId, 0, "Trainee", null, "local", ToolAccess.ALL, "Du bist Trainee."));
-		agents.create(new Agent(coachId, 0, "Coach", null, "local", ToolAccess.NONE, "Du bist Coach."));
+		agents.create(new Agent(agentId, 0, "Trainee", null, "local", ToolAccess.ALL, "You are Trainee."));
+		agents.create(new Agent(coachId, 0, "Coach", null, "local", ToolAccess.NONE, "You are Coach."));
 	}
 
 	@AfterEach

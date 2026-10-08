@@ -32,20 +32,20 @@ function isOpen(r: SeriesRun) {
 }
 
 const STATUS_TEXT: Record<string, string> = {
-  QUEUED: 'wartet',
-  RUNNING: 'läuft',
-  CANCELLED: 'abgebrochen',
-  FAILED: 'Fehler',
-  BUDGET_EXCEEDED: 'Budget überschritten',
+  QUEUED: 'queued',
+  RUNNING: 'running',
+  CANCELLED: 'cancelled',
+  FAILED: 'error',
+  BUDGET_EXCEEDED: 'over budget',
 }
 
 function statusText(r: SeriesRun) {
-  return STATUS_TEXT[r.status] ?? (r.passed ? 'bestanden' : 'nicht bestanden')
+  return STATUS_TEXT[r.status] ?? (r.passed ? 'passed' : 'failed')
 }
 
 /** What k/n is made of, for the cell's tooltip. */
 function breakdown(runs: SeriesRun[]) {
-  if (runs.length === 0) return 'noch kein Run'
+  if (runs.length === 0) return 'no Run yet'
   const counts = new Map<string, number>()
   runs.forEach((r) => counts.set(statusText(r), (counts.get(statusText(r)) ?? 0) + 1))
   return [...counts].map(([k, v]) => `${v} ${k}`).join(' · ')
@@ -53,7 +53,7 @@ function breakdown(runs: SeriesRun[]) {
 
 function when(at: string | null) {
   if (!at) return ''
-  return new Date(at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return new Date(at).toLocaleString('en-US', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 /** Cell colour for a pair's run series: all passed sage, none rosé, some sand; anything still open makes it busy. */
@@ -215,10 +215,10 @@ export function RunsArea(p: Props) {
   const allLoaded = matrix !== null && matrix.rows.every((r) => infos[r.agentVersion] !== undefined)
 
   const switcher = (
-    <nav className="view-switch" aria-label="Ansicht">
+    <nav className="view-switch" aria-label="View">
       {(['matrix', 'history', 'try'] as const).map((v) => (
         <Link key={v} to={`/runs?${chosenAgent ? `agent=${encodeURIComponent(chosenAgent)}&` : ''}view=${v}`} className={view === v ? 'on' : ''}>
-          {v === 'matrix' ? 'Matrix' : v === 'history' ? 'Historie' : 'Ausprobieren'}
+          {v === 'matrix' ? 'Matrix' : v === 'history' ? 'History' : 'Try it'}
         </Link>
       ))}
     </nav>
@@ -260,12 +260,12 @@ export function RunsArea(p: Props) {
               </option>
             ))}
           </select>
-          <span className="sub">Wie oft besteht jede Version des Agents jeden Task?</span>
+          <span className="sub">How often does each version of the Agent pass each Task?</span>
           {openCount > 0 && (
             <div className="actions">
-              <span className="pill open">{openCount} offen</span>
+              <span className="pill open">{openCount} open</span>
               <button className="btn quiet danger sm" onClick={cancelAll} disabled={busy}>
-                Warteschlange leeren
+                Clear the queue
               </button>
             </div>
           )}
@@ -277,42 +277,42 @@ export function RunsArea(p: Props) {
               className="btn primary"
               onClick={() => runRow(matrix.currentVersion)}
               disabled={busy || rowRuns === 0}
-              title={`jeder Run ruft das Model ${matrix.modelId} auf, die Runs laufen nacheinander`}
+              title={`each Run calls the Model ${matrix.modelId}, the Runs go one after another`}
             >
-              v{matrix.currentVersion} laufen lassen
+              Run v{matrix.currentVersion}
             </button>
             <label className="n-field">
               <input type="number" min={1} max={20} value={n} onChange={(e) => setN(Math.max(1, Number(e.target.value) || 1))} />
-              Wiederholungen je Task
+              repetitions per Task
             </label>
             <span className="cost">
-              = <strong>{rowRuns} Runs</strong> ({tasks.length} Task{tasks.length === 1 ? '' : 's'} × {n}) mit <Ref kind="model" id={matrix.modelId} />
+              = <strong>{rowRuns} Runs</strong> ({tasks.length} Task{tasks.length === 1 ? '' : 's'} × {n}) with <Ref kind="model" id={matrix.modelId} />
             </span>
           </div>
         )}
 
         {!matrix ? (
-          <p className="empty">{agents.length === 0 ? 'Noch kein Agent.' : 'lädt …'}</p>
+          <p className="empty">{agents.length === 0 ? 'No Agent yet.' : 'loading …'}</p>
         ) : matrix.tasks.length === 0 ? (
-          <p className="empty">Noch kein Task. Ohne Spalten keine Matrix.</p>
+          <p className="empty">No Task yet. Without columns there is no Matrix.</p>
         ) : (
           <>
             <div className="legend-row">
               <span>
                 <span className="swatch pass" />
-                alle bestanden
+                all passed
               </span>
               <span>
                 <span className="swatch mixed" />
-                teils
+                some
               </span>
               <span>
                 <span className="swatch fail" />
-                keiner
+                none
               </span>
-              <span className="faint">Zahl = bestandene Runs von allen · Zelle anklicken zeigt, warum</span>
+              <span className="faint">Number = passed Runs out of all · click a cell to see why</span>
               <button className="btn quiet sm legend-toggle" onClick={() => setShowChecks(!showChecks)}>
-                {showChecks ? 'Prüfungen ausblenden' : 'Prüfungen je Task zeigen'}
+                {showChecks ? 'Hide checks' : 'Show checks per Task'}
               </button>
             </div>
             <div className="matrix-wrap">
@@ -383,7 +383,7 @@ function TaskHead({ id, task, showChecks }: { id: string; task: Task | undefined
     return (
       <div className="col-head" title={`Task ${id}`}>
         <span className="task-name">{id}</span>
-        <span className="task-question faint">archivierter Task</span>
+        <span className="task-question faint">archived Task</span>
       </div>
     )
   }
@@ -403,7 +403,7 @@ function TaskHead({ id, task, showChecks }: { id: string; task: Task | undefined
         </ul>
       ) : (
         <span className="task-checks-count">
-          {task.evals.length === 0 ? 'ohne Prüfung' : `${task.evals.length} Prüfung${task.evals.length === 1 ? '' : 'en'}`}
+          {task.evals.length === 0 ? 'no checks' : `${task.evals.length} check${task.evals.length === 1 ? '' : 's'}`}
         </span>
       )}
     </div>
@@ -415,13 +415,13 @@ function issues(runs: SeriesRun[]) {
   const open = runs.filter(isOpen).length
   const failed = runs.filter((r) => r.status === 'FAILED').length
   const budget = runs.filter((r) => r.status === 'BUDGET_EXCEEDED').length
-  return [open && `${open} offen`, failed && `${failed} Fehler`, budget && `${budget} Budget`].filter(Boolean).join(' · ')
+  return [open && `${open} open`, failed && `${failed} error${failed === 1 ? '' : 's'}`, budget && `${budget} over budget`].filter(Boolean).join(' · ')
 }
 
 const DECISION: Record<Decision, { text: string; tone: string }> = {
-  ACCEPTED: { text: 'Coach · angenommen', tone: 'pass' },
-  REJECTED: { text: 'Coach · verworfen', tone: 'fail' },
-  PENDING: { text: 'Coach · offen', tone: 'open' },
+  ACCEPTED: { text: 'Coach · accepted', tone: 'pass' },
+  REJECTED: { text: 'Coach · rejected', tone: 'fail' },
+  PENDING: { text: 'Coach · pending', tone: 'open' },
 }
 
 function RowView(p: {
@@ -443,12 +443,12 @@ function RowView(p: {
       <div className={`row-head ${rejected ? 'rejected' : ''}`} title={p.info ? versionTitle(p.info) : undefined}>
         <div className="row-head-top">
           <span className={`pill mono ${p.current ? 'accent' : ''}`}>v{p.row.agentVersion}</span>
-          {p.current && <span className="now">aktuell</span>}
+          {p.current && <span className="now">current</span>}
           {p.origin && (
             <Link
               to={`/trainings/${encodeURIComponent(p.origin.trainingId)}/sessions/${p.origin.sessionId}`}
               className={`pill sm ${DECISION[p.origin.decision].tone}`}
-              title="vom Coach geschrieben — zur Session"
+              title="written by the Coach — open the Session"
             >
               {DECISION[p.origin.decision].text}
             </Link>
@@ -456,14 +456,14 @@ function RowView(p: {
         </div>
         {p.change.length > 0 && <span className="row-change">{p.change.join(' · ')}</span>}
         {!p.current && (
-          <button className="btn sm go" onClick={p.onRunRow} disabled={p.busy} title={`diese ältere Version noch einmal: ${p.runs} Runs`}>
-            laufen lassen
+          <button className="btn sm go" onClick={p.onRunRow} disabled={p.busy} title={`this older version once more: ${p.runs} Runs`}>
+            run
           </button>
         )}
       </div>
       {!ran ? (
         <div className="cell empty-row" style={{ gridColumn: `span ${p.row.pairs.length}` }}>
-          Mit dieser Version lief noch kein Run.
+          No Run with this version yet.
         </div>
       ) : (
         p.row.pairs.map((pair) => {
@@ -483,8 +483,8 @@ function RowView(p: {
               title={breakdown(pair.runs)}
             >
               {(pair.taskVersions.length > 1 || pair.modelVersions.length > 1) && (
-                <span className="mixed-versions" title="Die Runs dieser Zelle liefen mit verschiedenen Task- oder Model-Versionen">
-                  gemischt
+                <span className="mixed-versions" title="The Runs in this cell used different Task or Model versions">
+                  mixed
                 </span>
               )}
               {runs.length === 0 ? (
@@ -507,12 +507,12 @@ function RowView(p: {
 }
 
 function StatusPill({ r }: { r: SeriesRun }) {
-  if (r.status === 'QUEUED') return <span className="pill">wartet</span>
-  if (r.status === 'RUNNING') return <span className="pill open">läuft</span>
-  if (r.status === 'CANCELLED') return <span className="pill">abgebrochen</span>
-  if (r.status === 'FAILED') return <span className="pill fail">Fehler</span>
-  if (r.status === 'BUDGET_EXCEEDED') return <span className="pill fail">Budget</span>
-  return <span className={`pill ${r.passed ? 'pass' : 'fail'}`}>{r.passed ? 'bestanden' : 'nicht bestanden'}</span>
+  if (r.status === 'QUEUED') return <span className="pill">queued</span>
+  if (r.status === 'RUNNING') return <span className="pill open">running</span>
+  if (r.status === 'CANCELLED') return <span className="pill">cancelled</span>
+  if (r.status === 'FAILED') return <span className="pill fail">error</span>
+  if (r.status === 'BUDGET_EXCEEDED') return <span className="pill fail">over budget</span>
+  return <span className={`pill ${r.passed ? 'pass' : 'fail'}`}>{r.passed ? 'passed' : 'failed'}</span>
 }
 
 type Tally = {
@@ -605,30 +605,30 @@ function SeriesCard(p: {
       <div className="card-head">
         <h2>Run Series</h2>
         <span className="sub">
-          <span className="pill mono">v{p.version}</span> auf „{p.taskName}“ · {runs.length} Run{runs.length === 1 ? '' : 's'}
-          {cancelled > 0 && ` · ${cancelled} abgebrochen`}
-          {tokens !== null && ` · Ø ${Math.round(tokens).toLocaleString('de-DE')} Tokens`}
-          {seconds !== null && ` · Ø ${(seconds / 1000).toFixed(1).replace('.', ',')} s`}
-          {p.pair.taskVersions.length > 1 && ` · Task-Versionen ${p.pair.taskVersions.join(', ')}`}
-          {p.pair.modelVersions.length > 1 && ` · Model-Versionen ${p.pair.modelVersions.join(', ')}`}
+          <span className="pill mono">v{p.version}</span> on "{p.taskName}" · {runs.length} Run{runs.length === 1 ? '' : 's'}
+          {cancelled > 0 && ` · ${cancelled} cancelled`}
+          {tokens !== null && ` · avg ${Math.round(tokens).toLocaleString('en-US')} tokens`}
+          {seconds !== null && ` · avg ${(seconds / 1000).toFixed(1)} s`}
+          {p.pair.taskVersions.length > 1 && ` · Task versions ${p.pair.taskVersions.join(', ')}`}
+          {p.pair.modelVersions.length > 1 && ` · Model versions ${p.pair.modelVersions.join(', ')}`}
         </span>
         <div className="actions">
           <button
             className="btn sm"
             onClick={p.onRun}
             disabled={p.busy || !p.canRun}
-            title={p.canRun ? `v${p.version} auf diesem Task, ${p.n}× nacheinander` : 'Task ist archiviert'}
+            title={p.canRun ? `v${p.version} on this Task, ${p.n}× one after another` : 'the Task is archived'}
           >
-            {p.n} weitere Run{p.n === 1 ? '' : 's'}
+            {p.n} more Run{p.n === 1 ? '' : 's'}
           </button>
           <button className="btn quiet sm" onClick={p.onClose}>
-            schließen
+            close
           </button>
         </div>
       </div>
 
       {runs.length === 0 ? (
-        <p className="empty">Noch kein Run für dieses Paar. „{p.n} weitere Runs“ startet sie.</p>
+        <p className="empty">No Run for this Pair yet. "{p.n} more Run{p.n === 1 ? '' : 's'}" starts them.</p>
       ) : (
         <>
           {tallies.length > 0 && (
@@ -638,7 +638,7 @@ function SeriesCard(p: {
                   <span className={`pill mono ${t.passed === t.total ? 'pass' : t.passed === 0 ? 'fail' : 'open'}`}>
                     {t.passed}/{t.total}
                   </span>
-                  <span className="what" title={`Prüfung ${t.index}: ${t.type}`}>
+                  <span className="what" title={`Check ${t.index}: ${t.type}`}>
                     {t.subject ?? label(t.type)}
                   </span>
                   <span className="why small muted">
@@ -657,10 +657,10 @@ function SeriesCard(p: {
           <div className="series">
             <div className="series-head small faint">
               <span>#</span>
-              <span>Zeit</span>
-              <span>Ergebnis</span>
-              <span>gescheitert an</span>
-              <span>Antwort</span>
+              <span>Time</span>
+              <span>Result</span>
+              <span>failed on</span>
+              <span>Answer</span>
               <span className="num">tok</span>
               <span className="num">s</span>
             </div>

@@ -24,7 +24,7 @@ class TrainingUnitTests {
 			---
 			id: rookie-learns
 			version: 2
-			name: Rookie lernt
+			name: Rookie learns
 			agent: rookie
 			coach: coach
 			train: [time-and-division, no-tool]
@@ -34,7 +34,7 @@ class TrainingUnitTests {
 			max-tokens: 20000
 			approval: manual
 			---
-			Tools nutzen, wo sie helfen.
+			Use tools where they help.
 			""";
 
 	@Test
@@ -48,7 +48,7 @@ class TrainingUnitTests {
 		assertThat(t.maxSteps()).isEqualTo(4);
 		assertThat(t.maxTokens()).isEqualTo(20000);
 		assertThat(t.approval()).isEqualTo(Approval.MANUAL);
-		assertThat(t.goal()).isEqualTo("Tools nutzen, wo sie helfen.");
+		assertThat(t.goal()).isEqualTo("Use tools where they help.");
 
 		String written = MarkdownWriter.write(codec.frontMatter(t), codec.body(t));
 		assertThat(codec.decode(MarkdownParser.parse(written, "t2"))).isEqualTo(t);
@@ -102,7 +102,7 @@ class TrainingUnitTests {
 		// Better on train, worse on holdout: fitted, not taught.
 		Gate.Verdict fitted = Gate.decide(best, new Score(6, 6, 1, 3));
 		assertThat(fitted.accepted()).isFalse();
-		assertThat(fitted.reason()).contains("Holdout schlechter");
+		assertThat(fitted.reason()).contains("Holdout worse");
 		// Without holdout only train counts.
 		assertThat(Gate.decide(new Score(0, 3, 0, 0), new Score(1, 3, 0, 0)).accepted()).isTrue();
 	}
@@ -110,42 +110,46 @@ class TrainingUnitTests {
 	@Test
 	void proposalTakesThePromptBetweenTheMarkersHeadingsAndAll() {
 		String answer = """
-				BEGRUENDUNG:
-				- Tools verlangt: der Agent riet die Uhrzeit.
+				RATIONALE:
+				- Tools required: the agent guessed the time.
 				PROMPT:
 				<<<
-				Du bist Rookie.
+				You are Rookie.
 
-				# Arbeitsweise
-				- Nutze Tools fuer Uhrzeit und Rechnungen.
+				# How you work
+				- Use tools for the time and for arithmetic.
 				>>>
 				""";
 		Proposal p = Proposal.parse(answer, "m", 42, 10);
 
-		assertThat(p.prompt()).startsWith("Du bist Rookie.").contains("# Arbeitsweise").endsWith("Rechnungen.");
-		assertThat(p.rationale()).isEqualTo("- Tools verlangt: der Agent riet die Uhrzeit.");
+		assertThat(p.prompt()).startsWith("You are Rookie.").contains("# How you work").endsWith("arithmetic.");
+		assertThat(p.rationale()).isEqualTo("- Tools required: the agent guessed the time.");
 		assertThat(p.tokens()).isEqualTo(42);
+		// A coach prompted in German before the switch still gets its rationale read.
+		assertThat(Proposal.parse("BEGRUENDUNG:\n- kuerzer\nPROMPT:\n<<<\nx\n>>>", "m", 1, 1).rationale())
+				.isEqualTo("- kuerzer");
 
-		assertThat(Proposal.parse("Ich wuerde den Prompt kuerzen.", "m", 1, 1).prompt()).isNull();
+		assertThat(Proposal.parse("I would shorten the prompt.", "m", 1, 1).prompt()).isNull();
 		assertThat(Proposal.parse("PROMPT:\n<<<\n\n>>>", "m", 1, 1).prompt()).isNull();
 		assertThat(Proposal.parse(null, "m", null, 1).prompt()).isNull();
 	}
 
 	@Test
 	void briefShowsTheEvidenceTheRejectedAttemptsAndTheFormat() {
-		FailedRun failed = new FailedRun("time-and-division", UUID.randomUUID(), "DONE", "Wie spaet ist es?",
-				"Etwa Mittag.", null, List.of(), List.of("tool-called: currentTime nicht aufgerufen"));
-		CoachBrief brief = new CoachBrief(null, 3, "Du bist Rookie.", List.of("currentTime - Uhrzeit"),
+		FailedRun failed = new FailedRun("time-and-division", UUID.randomUUID(), "DONE", "What time is it?",
+				"About noon.", null, List.of(), List.of("tool-called: currentTime was not called"));
+		CoachBrief brief = new CoachBrief(null, 3, "You are Rookie.", List.of("currentTime - the time"),
 				List.of(new TaskScore("time-and-division", false, 0, 3)), List.of(failed),
-				List.of(new Attempt(4, "- kuerzer", "Train nicht besser: 0/3 gegen 0/3")));
+				List.of(new Attempt(4, "- shorter", "Train not better: 0/3 vs 0/3")));
 
 		String text = brief.render();
 
-		assertThat(text).contains("# Aktueller Systemprompt (v3)\n<<<\nDu bist Rookie.\n>>>");
-		assertThat(text).contains("- time-and-division: 0/3 bestanden");
-		assertThat(text).contains("Tool-Aufrufe: keine").contains("currentTime nicht aufgerufen");
-		assertThat(text).contains("v4: - kuerzer -> Train nicht besser");
-		assertThat(text).contains("Die Tasks zuverlaessiger bestehen.");
+		assertThat(text).contains("# Current system prompt (v3)\n<<<\nYou are Rookie.\n>>>");
+		assertThat(text).contains("- time-and-division: 0/3 passed");
+		assertThat(text).contains("Tool calls: none").contains("currentTime was not called");
+		assertThat(text).contains("v4: - shorter -> Train not better");
+		assertThat(text).contains("Pass the tasks more reliably.");
+		assertThat(text).contains("RATIONALE:");
 		assertThat(text).endsWith(">>>");
 		assertThat(text).doesNotContain("Holdout");
 	}

@@ -23,7 +23,7 @@ class MarkdownWriterTests {
 		eval.put("pattern", "\\b14\\b");
 		fm.put("evals", List.of(eval));
 
-		String written = MarkdownWriter.write(fm, "Erste Zeile.\n\n# Abschnitt\n\nZweite Zeile.");
+		String written = MarkdownWriter.write(fm, "First line.\n\n# Section\n\nSecond line.");
 		MarkdownDocument read = MarkdownParser.parse(written, "test");
 
 		assertThat(read.id()).isEqualTo("demo");
@@ -34,7 +34,7 @@ class MarkdownWriterTests {
 		assertThat(read.objects("evals")).hasSize(1);
 		// The backslashes survive: YAML quoting is the writer's job, not the author's.
 		assertThat(read.objects("evals").getFirst().get("pattern")).isEqualTo("\\b14\\b");
-		assertThat(read.body()).isEqualTo("Erste Zeile.\n\n# Abschnitt\n\nZweite Zeile.");
+		assertThat(read.body()).isEqualTo("First line.\n\n# Section\n\nSecond line.");
 	}
 
 	@Test

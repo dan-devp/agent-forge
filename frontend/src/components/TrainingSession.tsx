@@ -21,12 +21,12 @@ import { Ref } from './Ref'
 const POLL_MS = 1500
 
 const STATUS: Record<SessionStatus, { label: string; tone: string }> = {
-  RUNNING: { label: 'läuft', tone: 'open' },
-  WAITING: { label: 'wartet auf dich', tone: 'accent' },
-  DONE: { label: 'fertig', tone: 'pass' },
-  STOPPED: { label: 'angehalten', tone: '' },
-  BUDGET_EXCEEDED: { label: 'Budget aufgebraucht', tone: 'open' },
-  FAILED: { label: 'Fehler', tone: 'fail' },
+  RUNNING: { label: 'running', tone: 'open' },
+  WAITING: { label: 'waiting for you', tone: 'accent' },
+  DONE: { label: 'done', tone: 'pass' },
+  STOPPED: { label: 'stopped', tone: '' },
+  BUDGET_EXCEEDED: { label: 'budget used up', tone: 'open' },
+  FAILED: { label: 'error', tone: 'fail' },
 }
 
 export function SessionStatusPill({ status }: { status: SessionStatus }) {
@@ -36,17 +36,17 @@ export function SessionStatusPill({ status }: { status: SessionStatus }) {
 
 const ratio = (passed: number, total: number) => `${passed}/${total}`
 const rate = (passed: number, total: number) => (total === 0 ? null : passed / total)
-const pct = (v: number) => `${Math.round(v * 100)} %`
+const pct = (v: number) => `${Math.round(v * 100)}%`
 const finished = (r: Run) => r.status !== 'QUEUED' && r.status !== 'RUNNING'
 
 /** What happened to a step, in one word — the only place where colour means something. */
 function outcome(step: TrainingStep, session: Session): { label: string; tone: string } {
-  if (step.seq === 0) return step.score ? { label: 'Start', tone: '' } : { label: 'misst …', tone: 'open' }
-  if (step.decision === 'ACCEPTED') return { label: 'angenommen', tone: 'pass' }
-  if (step.decision === 'REJECTED') return { label: 'verworfen', tone: 'fail' }
-  if (step.score && session.status === 'WAITING') return { label: 'wartet auf dich', tone: 'accent' }
-  if (step.agentVersion === null) return { label: 'Coach schreibt …', tone: 'open' }
-  return { label: 'misst …', tone: 'open' }
+  if (step.seq === 0) return step.score ? { label: 'start', tone: '' } : { label: 'measuring …', tone: 'open' }
+  if (step.decision === 'ACCEPTED') return { label: 'accepted', tone: 'pass' }
+  if (step.decision === 'REJECTED') return { label: 'rejected', tone: 'fail' }
+  if (step.score && session.status === 'WAITING') return { label: 'waiting for you', tone: 'accent' }
+  if (step.agentVersion === null) return { label: 'Coach is writing …', tone: 'open' }
+  return { label: 'measuring …', tone: 'open' }
 }
 
 /** The best train rate after each step: it only rises, and it is what the training achieved. */
@@ -90,17 +90,17 @@ type LiveState = { kind: 'start' | 'coach' | 'measure' | 'wait'; text: string; d
 function liveState(s: Session, live: Live | null): LiveState | null {
   if (!isOpen(s)) return null
   const step = s.steps.at(-1)
-  if (!step) return { kind: 'start', text: 'Die Session startet …', done: 0, total: 0 }
-  if (s.status === 'WAITING') return { kind: 'wait', text: `v${step.agentVersion} ist gemessen und wartet auf deine Entscheidung.`, done: 0, total: 0 }
+  if (!step) return { kind: 'start', text: 'The Session is starting …', done: 0, total: 0 }
+  if (s.status === 'WAITING') return { kind: 'wait', text: `v${step.agentVersion} is measured and waits for your decision.`, done: 0, total: 0 }
   if (step.seq > 0 && step.agentVersion === null) {
-    return { kind: 'coach', text: `Der Coach liest die gescheiterten Runs und schreibt Vorschlag ${step.seq} …`, done: 0, total: 0 }
+    return { kind: 'coach', text: `The Coach reads the failed Runs and writes proposal ${step.seq} …`, done: 0, total: 0 }
   }
   const runs = live && live.batch === step.batchId ? live.runs.filter((r) => r.status !== 'CANCELLED') : []
   const done = runs.filter(finished).length
-  const what = step.seq === 0 ? `die Ausgangslage v${step.agentVersion}` : `Vorschlag v${step.agentVersion}`
+  const what = step.seq === 0 ? `the baseline v${step.agentVersion}` : `proposal v${step.agentVersion}`
   return {
     kind: 'measure',
-    text: runs.length === 0 ? `Misst ${what} …` : `Misst ${what}: ${done} von ${runs.length} Runs fertig`,
+    text: runs.length === 0 ? `Measuring ${what} …` : `Measuring ${what}: ${done} of ${runs.length} Runs done`,
     done,
     total: runs.length,
   }
@@ -214,7 +214,7 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
   if (!session || session.id !== sid) {
     return (
       <section className="card kind t-training">
-        <p className="empty">lädt …</p>
+        <p className="empty">loading …</p>
       </section>
     )
   }
@@ -274,10 +274,10 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
               )}
             </h2>
             <p className="muted">
-              {proposals} von {s.maxSteps} Vorschlägen · {s.totalTokens.toLocaleString('de-DE')} Tokens
-              {s.maxTokens !== null && ` von ${s.maxTokens.toLocaleString('de-DE')}`}
-              {s.finalVersion !== null && ` · Prompt v${s.finalVersion} ist jetzt aktuell`}
-              {s.finalVersion === null && s.bestVersion !== null && ` · beste Version bisher v${s.bestVersion}`}
+              {proposals} of {s.maxSteps} proposals · {s.totalTokens.toLocaleString('en-US')} tokens
+              {s.maxTokens !== null && ` of ${s.maxTokens.toLocaleString('en-US')}`}
+              {s.finalVersion !== null && ` · prompt v${s.finalVersion} is now current`}
+              {s.finalVersion === null && s.bestVersion !== null && ` · best version so far v${s.bestVersion}`}
             </p>
             {s.note && !nothingToLearn && <p className="small muted">{s.note}</p>}
             {s.error && <p className="error">{s.error}</p>}
@@ -286,11 +286,11 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
             <SessionStatusPill status={s.status} />
             <div className="toolbar">
               <Link className="btn quiet sm" to={`/runs?agent=${encodeURIComponent(s.agentId)}`}>
-                zur Matrix
+                to the Matrix
               </Link>
               {isOpen(s) && (
                 <button className="btn quiet danger sm" onClick={() => perform(() => trainingsApi.stop(s.id))} disabled={busy}>
-                  anhalten
+                  stop
                 </button>
               )}
             </div>
@@ -301,14 +301,14 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
 
         {nothingToLearn && baseline ? (
           <div className="verdict pass session-callout">
-            <strong>Nichts zu lernen</strong>
+            <strong>Nothing to learn</strong>
             <span>
-              Schon die Ausgangslage v{s.startVersion} besteht alle {baseline.trainTotal} Train-Runs. Der Coach musste nichts verbessern —
-              deshalb gibt es hier nur einen Messpunkt und keine Kurve.
+              The baseline v{s.startVersion} already passes all {baseline.trainTotal} Train Runs. The Coach had nothing to improve —
+              so there is only one measurement here and no curve.
             </span>
             <span className="small">
-              Eine Kurve entsteht, wenn der Agent anfangs scheitert: ein Agent ohne Vorwissen, schwierigere Prüfungen oder Tasks, die er noch nicht
-              kennt.
+              A curve appears when the Agent fails at first: an Agent without prior knowledge, harder checks, or Tasks it does not know
+              yet.
             </span>
           </div>
         ) : (
@@ -334,8 +334,8 @@ export function SessionPage(p: { onError: (m: string) => void; onChanged: () => 
         )}
 
         <p className="small faint">
-          Gestartet {new Date(s.startedAt).toLocaleString('de-DE')} · Training v{s.trainingVersion} · Coach <Ref kind="agent" id={s.coachId} version={s.coachVersion} /> · je
-          Task {s.repetitions} Runs · Freigabe {s.approval === 'MANUAL' ? 'von Hand' : 'durch das Gate'}
+          Started {new Date(s.startedAt).toLocaleString('en-US')} · Training v{s.trainingVersion} · Coach <Ref kind="agent" id={s.coachId} version={s.coachVersion} /> ·{' '}
+          {s.repetitions} Runs per Task · approval {s.approval === 'MANUAL' ? 'by hand' : 'by the Gate'}
         </p>
       </section>
     </>
@@ -398,7 +398,7 @@ function Curve(p: {
 
   return (
     <figure className="curve">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Trainingskurve">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Training curve">
         {steps.map((st, i) =>
           p.selected === st.seq ? (
             <rect key={`sel-${st.seq}`} x={x(i) - colW / 2 + 3} y={3} width={colW - 6} height={H - 6} rx={12} className="col-selected" />
@@ -442,7 +442,7 @@ function Curve(p: {
                   {party && p.celebrate && p.celebrate.delta > 0 && (
                     // Above the dot, unless that leaves the chart: at the top it goes below.
                     <text x={x(i)} y={y(trainRate) - 30 < 12 ? y(trainRate) + 30 : y(trainRate) - 30} textAnchor="middle" className="delta">
-                      +{Math.round(p.celebrate.delta * 100)} %
+                      +{Math.round(p.celebrate.delta * 100)}%
                     </text>
                   )}
                 </>
@@ -470,10 +470,10 @@ function Curve(p: {
                 className="col-hit"
                 onClick={() => p.onSelect(st.seq)}
                 role="button"
-                aria-label={`Schritt ${st.seq}`}
+                aria-label={`Step ${st.seq}`}
               >
                 <title>
-                  {st.agentVersion !== null ? `v${st.agentVersion}` : `Schritt ${st.seq}`} – {o.label}
+                  {st.agentVersion !== null ? `v${st.agentVersion}` : `Step ${st.seq}`} – {o.label}
                   {sc ? ` · Train ${ratio(sc.trainPassed, sc.trainTotal)}` : ''}
                   {sc && sc.holdoutTotal > 0 ? ` · Holdout ${ratio(sc.holdoutPassed, sc.holdoutTotal)}` : ''}
                 </title>
@@ -483,8 +483,8 @@ function Curve(p: {
         })}
       </svg>
       <figcaption className="small muted">
-        <span className="legend best" /> beste Train-Quote · <span className="legend dot" /> angenommen · <span className="legend hollow" />{' '}
-        verworfen · <span className="legend square" /> Holdout, sieht der Coach nie · Spalte anklicken für Details
+        <span className="legend best" /> best Train rate · <span className="legend dot" /> accepted · <span className="legend hollow" />{' '}
+        rejected · <span className="legend square" /> Holdout, never seen by the Coach · click a column for details
       </figcaption>
     </figure>
   )
@@ -562,11 +562,11 @@ function StepPanel(p: {
   const sentence = decisionSentence(st, s.steps)
   const decisionWord =
     st.decision === 'ACCEPTED'
-      ? 'Angenommen'
+      ? 'Accepted'
       : st.decision === 'REJECTED'
-        ? 'Verworfen'
+        ? 'Rejected'
         : waiting
-          ? `Das Gate empfiehlt ${st.gate === 'ACCEPTED' ? 'annehmen' : 'verwerfen'}`
+          ? `The Gate recommends ${st.gate === 'ACCEPTED' ? 'accepting' : 'rejecting'}`
           : null
   const coachTokens = st.coachTokens !== null ? `Coach ${st.coachTokens} tok, ${((st.coachDurationMs ?? 0) / 1000).toFixed(1)} s` : null
 
@@ -591,45 +591,45 @@ function StepPanel(p: {
     <div className={`step-panel ${waiting ? 'waiting' : ''} ${p.celebrating ? 'celebrate' : ''}`}>
       <div className="step-panel-head">
         <h3>
-          {st.agentVersion !== null ? <span className="mono">v{st.agentVersion}</span> : <span className="mono">Schritt {st.seq}</span>}
+          {st.agentVersion !== null ? <span className="mono">v{st.agentVersion}</span> : <span className="mono">Step {st.seq}</span>}
         </h3>
         <span className={`pill ${o.tone}`}>{o.label}</span>
-        {st.baseVersion !== null && <span className="muted">aus v{st.baseVersion}</span>}
+        {st.baseVersion !== null && <span className="muted">from v{st.baseVersion}</span>}
         <span className="spacer" />
         <span className="small faint mono">
-          {[coachTokens, st.runTokens !== null ? `Messung ${st.runTokens} tok` : null].filter(Boolean).join(' · ')}
+          {[coachTokens, st.runTokens !== null ? `measurement ${st.runTokens} tok` : null].filter(Boolean).join(' · ')}
         </span>
       </div>
 
       <div className="phase">
         <span className="phase-no">①</span>
-        <span className="phase-name">Vorschlag</span>
+        <span className="phase-name">Proposal</span>
         <div className="phase-body">
           {st.seq === 0 ? (
-            <p className="muted">Ausgangslage: der Prompt von v{st.agentVersion}, so wie er war.</p>
+            <p className="muted">Baseline: the prompt of v{st.agentVersion}, as it was.</p>
           ) : st.rationale ? (
             <pre className="rationale appear">{st.rationale}</pre>
           ) : st.coachOutput === null ? (
             <div className="coach-writing">
-              <span className="muted">Der Coach schreibt einen Vorschlag …</span>
+              <span className="muted">The Coach is writing a proposal …</span>
               <span className="shimmer" />
               <span className="shimmer short" />
             </div>
           ) : (
-            <p className="muted">Der Coach hat keine Begründung geschrieben.</p>
+            <p className="muted">The Coach wrote no reasoning.</p>
           )}
         </div>
       </div>
 
       <div className="phase">
         <span className="phase-no">②</span>
-        <span className="phase-name">Messung</span>
+        <span className="phase-name">Measurement</span>
         <div className="phase-body">
           {st.agentVersion === null && st.seq > 0 ? (
-            <p className="muted">noch nicht gemessen</p>
+            <p className="muted">not measured yet</p>
           ) : !tallies ? (
             <p className="muted">
-              <span className="spinner" /> wartet auf die Runs …
+              <span className="spinner" /> waiting for the Runs …
             </p>
           ) : (
             <div className="task-tallies">
@@ -645,7 +645,7 @@ function StepPanel(p: {
                         {t.passed}/{t.total}
                       </span>
                       <RunTiles runs={t.runs} />
-                      <span className="task-tally-toggle">{open ? 'zuklappen' : 'Runs ansehen'}</span>
+                      <span className="task-tally-toggle">{open ? 'collapse' : 'view Runs'}</span>
                     </button>
                     {open && batchRuns && (
                       <TaskRuns
@@ -665,30 +665,30 @@ function StepPanel(p: {
 
       <div className="phase">
         <span className="phase-no">③</span>
-        <span className="phase-name">Entscheidung</span>
+        <span className="phase-name">Decision</span>
         <div className="phase-body">
           {st.seq === 0 ? (
-            <p className="muted">Der Startpunkt, an dem sich jeder Vorschlag messen muss.</p>
+            <p className="muted">The starting point every proposal has to beat.</p>
           ) : st.reason || sentence ? (
             <p title={st.reason ?? undefined} className="appear">
               {decisionWord && (
                 <strong>
                   {decisionWord}
-                  {st.decidedBy === 'user' && ' (von dir entschieden)'}:{' '}
+                  {st.decidedBy === 'user' && ' (decided by you)'}:{' '}
                 </strong>
               )}
               {sentence ?? st.reason}
             </p>
           ) : (
-            <p className="muted">steht noch aus</p>
+            <p className="muted">still pending</p>
           )}
           {waiting && (
             <div className="toolbar">
               <button className="btn primary sm" onClick={() => p.onDecide(true)} disabled={p.busy}>
-                annehmen
+                accept
               </button>
               <button className="btn sm" onClick={() => p.onDecide(false)} disabled={p.busy}>
-                verwerfen
+                reject
               </button>
             </div>
           )}
@@ -698,12 +698,12 @@ function StepPanel(p: {
       <div className="drawers">
         {hasDiff && (
           <button className={`btn quiet sm ${drawer === 'diff' ? 'on' : ''}`} onClick={() => open('diff')}>
-            Prompt-Diff
+            Prompt diff
           </button>
         )}
         {(st.coachInput || st.coachOutput) && (
           <button className={`btn quiet sm ${drawer === 'coach' ? 'on' : ''}`} onClick={() => open('coach')}>
-            Was der Coach sah
+            What the Coach saw
           </button>
         )}
       </div>
@@ -713,13 +713,13 @@ function StepPanel(p: {
         <div className="coach-io">
           {st.coachInput && (
             <div className="step-block">
-              <span className="lbl">Eingabe an den Coach</span>
+              <span className="lbl">Input to the Coach</span>
               <pre className="source mono">{st.coachInput}</pre>
             </div>
           )}
           {st.coachOutput && (
             <div className="step-block">
-              <span className="lbl">Antwort des Coach{st.coachModel ? ` (${st.coachModel})` : ''}</span>
+              <span className="lbl">Answer of the Coach{st.coachModel ? ` (${st.coachModel})` : ''}</span>
               <pre className="source mono">{st.coachOutput}</pre>
             </div>
           )}
@@ -752,11 +752,11 @@ function TaskRuns(p: { taskId: string; runs: Run[]; evalTypes: EvalType[]; onErr
   }, [ids]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const label = (type: string) => p.evalTypes.find((t) => t.type === type)?.label ?? type
-  const back = { from: location.pathname + location.search, label: 'zurück zur Session' }
+  const back = { from: location.pathname + location.search, label: 'back to the Session' }
 
   return (
     <div className="task-runs">
-      {p.runs.length === 0 && <p className="small muted">Kein Run in diesem Schritt.</p>}
+      {p.runs.length === 0 && <p className="small muted">No Run in this step.</p>}
       {p.runs.map((r, i) => {
         const d = details[r.id]
         const missed = d ? d.evals.filter((e) => !e.passed) : []
@@ -765,9 +765,9 @@ function TaskRuns(p: { taskId: string; runs: Run[]; evalTypes: EvalType[]; onErr
             <span className="mono muted">{i + 1}</span>
             <span>
               {r.status === 'DONE' ? (
-                <span className={`pill sm ${r.passed ? 'pass' : 'fail'}`}>{r.passed ? 'bestanden' : 'nicht bestanden'}</span>
+                <span className={`pill sm ${r.passed ? 'pass' : 'fail'}`}>{r.passed ? 'passed' : 'failed'}</span>
               ) : (
-                <span className="pill sm fail">{r.status === 'BUDGET_EXCEEDED' ? 'Budget' : r.status === 'FAILED' ? 'Fehler' : r.status}</span>
+                <span className="pill sm fail">{r.status === 'BUDGET_EXCEEDED' ? 'over budget' : r.status === 'FAILED' ? 'error' : r.status}</span>
               )}
             </span>
             <span className="task-run-body">
@@ -776,13 +776,13 @@ function TaskRuns(p: { taskId: string; runs: Run[]; evalTypes: EvalType[]; onErr
                   ✗ {e.subject ? `${e.subject} ${e.rationale ?? ''}` : e.rationale ?? label(e.type)}
                 </span>
               ))}
-              <span className="task-run-answer">{(r.answer ?? r.error ?? '').trim() || 'keine Antwort'}</span>
+              <span className="task-run-answer">{(r.answer ?? r.error ?? '').trim() || 'no answer'}</span>
             </span>
           </Link>
         )
       })}
       <Link to={`/tasks/${encodeURIComponent(p.taskId)}`} className="link small">
-        Task-Definition ansehen
+        View the Task definition
       </Link>
     </div>
   )

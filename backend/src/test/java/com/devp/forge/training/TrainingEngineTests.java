@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The loop with real stores and a real database, but a fake coach and a fake bench: the bench
- * scores a prompt by its "- Regel" lines, the coach adds one per call. No run, no model call.
+ * scores a prompt by its "- Rule" lines, the coach adds one per call. No run, no model call.
  */
 @SpringBootTest
 @Import(PostgresTestcontainer.class)
@@ -70,11 +70,11 @@ class TrainingEngineTests {
 	@BeforeEach
 	void setUp() {
 		sessions.deleteAll();
-		agents.create(new Agent(agentId, 0, "Trainee", null, "local", ToolAccess.ALL, "Du bist Trainee."));
-		agents.create(new Agent(coachId, 0, "Coach", null, "local", ToolAccess.NONE, "Du bist Coach."));
+		agents.create(new Agent(agentId, 0, "Trainee", null, "local", ToolAccess.ALL, "You are Trainee."));
+		agents.create(new Agent(coachId, 0, "Coach", null, "local", ToolAccess.NONE, "You are Coach."));
 		coachBehaviour = brief -> {
 			int n = lessons(brief.systemPrompt()) + 1;
-			return answer(brief.systemPrompt() + "\n- Regel " + n, "- Regel " + n + " gegen den Fehler");
+			return answer(brief.systemPrompt() + "\n- Rule " + n, "- Rule " + n + " against the failure");
 		};
 	}
 
@@ -89,11 +89,11 @@ class TrainingEngineTests {
 	// --- Fakes ---------------------------------------------------------------------------
 
 	private static int lessons(String prompt) {
-		return (int) prompt.lines().filter(l -> l.startsWith("- Regel")).count();
+		return (int) prompt.lines().filter(l -> l.startsWith("- Rule")).count();
 	}
 
 	private static Proposal answer(String prompt, String rationale) {
-		String raw = "BEGRUENDUNG:\n" + rationale + "\nPROMPT:\n<<<\n" + prompt + "\n>>>";
+		String raw = "RATIONALE:\n" + rationale + "\nPROMPT:\n<<<\n" + prompt + "\n>>>";
 		return Proposal.parse(raw, "fake-coach", 5, 1);
 	}
 
@@ -109,10 +109,10 @@ class TrainingEngineTests {
 			visibleWhileMeasured.add(batch.equals(current.batchId()));
 			String prompt = agents.get(agent, version).systemPrompt();
 			int passed = Math.min(lessons(prompt), 3);
-			int held = prompt.contains("auswendig") ? 0 : 3;
+			int held = prompt.contains("by heart") ? 0 : 3;
 			List<FailedRun> failures = passed < 3
-					? List.of(new FailedRun(TRAIN, UUID.randomUUID(), "DONE", "Wie spaet?", "Mittag", null, List.of(),
-							List.of("tool-called: nicht aufgerufen")))
+					? List.of(new FailedRun(TRAIN, UUID.randomUUID(), "DONE", "What time?", "Noon", null, List.of(),
+							List.of("tool-called: not called")))
 					: List.of();
 			return new Measurement(batch, new Score(passed, 3, held, 3),
 					List.of(new TaskScore(TRAIN, false, passed, 3), new TaskScore(HOLDOUT, true, held, 3)), failures,
@@ -162,7 +162,7 @@ class TrainingEngineTests {
 		Session s = engine.find(engine.start(trainingId).id());
 
 		assertThat(s.status()).isEqualTo(SessionStatus.DONE);
-		assertThat(s.note()).contains("nichts mehr zu lernen");
+		assertThat(s.note()).contains("nothing left to learn");
 		assertThat(s.steps()).extracting(Step::seq).containsExactly(0, 1, 2, 3);
 		assertThat(s.steps()).extracting(Step::agentVersion).containsExactly(1, 2, 3, 4);
 		// Every step pointed at its batch while it was still measured, not only afterwards.
@@ -171,21 +171,21 @@ class TrainingEngineTests {
 		assertThat(s.steps()).extracting(st -> st.score().train()).containsExactly("0/3", "1/3", "2/3", "3/3");
 		assertThat(s.steps().get(1).baseVersion()).isEqualTo(1);
 		assertThat(s.steps().get(1).decidedBy()).isEqualTo("gate");
-		assertThat(s.steps().get(1).coachInput()).contains("Du bist Trainee.");
-		assertThat(s.steps().get(1).rationale()).isEqualTo("- Regel 1 gegen den Fehler");
+		assertThat(s.steps().get(1).coachInput()).contains("You are Trainee.");
+		assertThat(s.steps().get(1).rationale()).isEqualTo("- Rule 1 against the failure");
 		assertThat(s.bestVersion()).isEqualTo(4);
 		assertThat(s.finalVersion()).isEqualTo(4);
 		// 4 measurements x 10 + 3 coach calls x 5
 		assertThat(s.totalTokens()).isEqualTo(55);
-		assertThat(agents.get(agentId).systemPrompt()).contains("- Regel 3");
+		assertThat(agents.get(agentId).systemPrompt()).contains("- Rule 3");
 	}
 
 	@Test
 	void rejectsWhatFitsTrainAtTheHoldoutsCostAndEndsOnTheBestPrompt() {
 		training(2, null, Approval.GATE, List.of(TRAIN));
 		coachBehaviour = brief -> lessons(brief.systemPrompt()) == 0
-				? answer(brief.systemPrompt() + "\n- Regel 1", "- Regel 1")
-				: answer(brief.systemPrompt() + "\n- Regel 2 auswendig", "- auswendig");
+				? answer(brief.systemPrompt() + "\n- Rule 1", "- Rule 1")
+				: answer(brief.systemPrompt() + "\n- Rule 2 by heart", "- by heart");
 		TrainingEngine engine = engine(Runnable::run);
 
 		Session s = engine.find(engine.start(trainingId).id());
@@ -193,11 +193,11 @@ class TrainingEngineTests {
 		assertThat(s.status()).isEqualTo(SessionStatus.DONE);
 		Step second = s.steps().get(2);
 		assertThat(second.gate()).isEqualTo(Decision.REJECTED);
-		assertThat(second.reason()).contains("Holdout schlechter");
+		assertThat(second.reason()).contains("Holdout worse");
 		assertThat(s.bestVersion()).isEqualTo(2);
 		// v3 (rejected) was on top: the best prompt comes back as v4.
 		assertThat(s.finalVersion()).isEqualTo(4);
-		assertThat(s.note()).contains("Prompt von v2 als v4 wieder aktuell");
+		assertThat(s.note()).contains("Prompt of v2 current again as v4");
 		assertThat(agents.get(agentId).systemPrompt()).isEqualTo(agents.get(agentId, 2).systemPrompt());
 		// The coach never saw the holdout task.
 		assertThat(briefs).isNotEmpty().allSatisfy(b -> assertThat(b.render()).doesNotContain(HOLDOUT));
@@ -214,7 +214,7 @@ class TrainingEngineTests {
 		assertThat(s.steps()).hasSize(4);
 		assertThat(s.steps().subList(1, 4)).extracting(Step::decision).containsOnly(Decision.REJECTED);
 		assertThat(briefs.get(2).rejected()).hasSize(2);
-		assertThat(briefs.get(2).render()).contains("Bereits versucht und verworfen");
+		assertThat(briefs.get(2).render()).contains("Already tried and rejected");
 		// Every attempt starts from v1, the best; the last attempt is covered by a copy of v1.
 		assertThat(briefs).allSatisfy(b -> assertThat(b.agentVersion()).isEqualTo(1));
 		assertThat(s.finalVersion()).isEqualTo(5);
@@ -222,8 +222,8 @@ class TrainingEngineTests {
 
 	@Test
 	void startsFromAnOlderVersionAndLeavesTheAgentAsItWasWhenNothingImproves() {
-		agents.update(new Agent(agentId, 0, "Trainee", null, "local", ToolAccess.ALL, "Du bist Trainee.\n- Regel 1"));
-		String trained = "Du bist Trainee.\n- Regel 1\n- Regel 2";
+		agents.update(new Agent(agentId, 0, "Trainee", null, "local", ToolAccess.ALL, "You are Trainee.\n- Rule 1"));
+		String trained = "You are Trainee.\n- Rule 1\n- Rule 2";
 		agents.update(new Agent(agentId, 0, "Trainee", null, "local", ToolAccess.ALL, trained));
 		training(1, null, Approval.GATE, List.of(TRAIN));
 		coachBehaviour = brief -> answer(brief.systemPrompt() + "\nSei freundlich.", "- freundlicher");
@@ -237,20 +237,20 @@ class TrainingEngineTests {
 		// Nothing beat v1, so the agent goes back to where it stood before: v3, not v1.
 		assertThat(agents.get(agentId).systemPrompt()).isEqualTo(trained);
 		assertThat(s.finalVersion()).isEqualTo(5);
-		assertThat(s.note()).contains("Prompt von v3 als v5");
+		assertThat(s.note()).contains("Prompt of v3 current again as v5");
 	}
 
 	@Test
 	void anUnusableAnswerIsARejectedStepWithoutANewVersion() {
 		training(1, null, Approval.GATE, List.of(TRAIN));
-		coachBehaviour = brief -> Proposal.parse("Ich weiss es nicht.", "fake-coach", 5, 1);
+		coachBehaviour = brief -> Proposal.parse("I do not know.", "fake-coach", 5, 1);
 		TrainingEngine engine = engine(Runnable::run);
 
 		Session s = engine.find(engine.start(trainingId).id());
 
 		Step step = s.steps().get(1);
 		assertThat(step.decision()).isEqualTo(Decision.REJECTED);
-		assertThat(step.reason()).contains("ohne Prompt");
+		assertThat(step.reason()).contains("without a prompt");
 		assertThat(step.agentVersion()).isNull();
 		assertThat(agents.versions(agentId)).hasSize(1);
 		assertThat(measured).containsExactly(1);

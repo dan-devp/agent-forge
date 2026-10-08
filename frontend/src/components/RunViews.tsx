@@ -4,25 +4,25 @@ import { runsApi, type AgentView, type Run, type Task } from '../api/client'
 import { Ref } from './Ref'
 
 const OPEN_TEXT: Partial<Record<Run['status'], { text: string; tone: string }>> = {
-  QUEUED: { text: 'wartet', tone: '' },
-  RUNNING: { text: 'läuft', tone: 'open' },
-  BUDGET_EXCEEDED: { text: 'Budget überschritten', tone: 'fail' },
-  FAILED: { text: 'Fehler', tone: 'fail' },
-  CANCELLED: { text: 'abgebrochen', tone: '' },
+  QUEUED: { text: 'queued', tone: '' },
+  RUNNING: { text: 'running', tone: 'open' },
+  BUDGET_EXCEEDED: { text: 'over budget', tone: 'fail' },
+  FAILED: { text: 'error', tone: 'fail' },
+  CANCELLED: { text: 'cancelled', tone: '' },
 }
 
 /** One pill per run: the verdict if there is one, otherwise what became of it. */
 function RunPill({ r }: { r: Run }) {
   const s = OPEN_TEXT[r.status]
   if (s) return <span className={`pill ${s.tone}`}>{s.text}</span>
-  if (r.passed === null) return <span className="pill">ohne Prüfung</span>
-  return <span className={`pill ${r.passed ? 'pass' : 'fail'}`}>{r.passed ? 'bestanden' : 'nicht bestanden'}</span>
+  if (r.passed === null) return <span className="pill">no checks</span>
+  return <span className={`pill ${r.passed ? 'pass' : 'fail'}`}>{r.passed ? 'passed' : 'failed'}</span>
 }
 
 const isOpen = (r: Run) => r.status === 'QUEUED' || r.status === 'RUNNING'
 
 function when(r: Run) {
-  return new Date(r.queuedAt ?? r.startedAt ?? '').toLocaleString('de-DE', {
+  return new Date(r.queuedAt ?? r.startedAt ?? '').toLocaleString('en-US', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -93,9 +93,9 @@ export function HistoryView(p: {
   return (
     <section className="card kind t-run">
       <div className="card-head">
-        <h2>Historie</h2>
+        <h2>History</h2>
         <select value={p.agent} onChange={(e) => p.onAgent(e.target.value)} style={{ width: 'auto' }}>
-          <option value="">alle Agents</option>
+          <option value="">all Agents</option>
           {p.agents.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -103,7 +103,7 @@ export function HistoryView(p: {
           ))}
         </select>
         <select value={task} onChange={(e) => setTask(e.target.value)} style={{ width: 'auto' }}>
-          <option value="">alle Tasks</option>
+          <option value="">all Tasks</option>
           {p.tasks.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -112,14 +112,14 @@ export function HistoryView(p: {
         </select>
         {runs && (
           <span className="sub small">
-            {runs.length} Runs in {groups.length} Start{groups.length === 1 ? '' : 's'}
+            {runs.length} Runs in {groups.length} start{groups.length === 1 ? '' : 's'}
           </span>
         )}
       </div>
       {runs === null ? (
-        <p className="empty">lädt …</p>
+        <p className="empty">loading …</p>
       ) : runs.length === 0 ? (
-        <p className="empty">Noch kein Run.</p>
+        <p className="empty">No Run yet.</p>
       ) : (
         <div className="rows">
           {groups.map((g) =>
@@ -161,11 +161,11 @@ function BatchGroup(p: { group: Group; open: boolean; onToggle: () => void; onOp
         </div>
         <div className="line">
           <span className={`pill mono ${tone}`}>
-            {passed}/{done.length} bestanden
+            {passed}/{done.length} passed
           </span>
-          {open > 0 && <span className="pill open">{open} offen</span>}
+          {open > 0 && <span className="pill open">{open} open</span>}
         </div>
-        <span className="fold-mark muted small">{p.open ? 'einklappen' : 'aufklappen'}</span>
+        <span className="fold-mark muted small">{p.open ? 'collapse' : 'expand'}</span>
       </div>
       {p.open && (
         <div className="rows batch-runs">
@@ -183,7 +183,7 @@ function RunRow({ r, onOpen, nested = false }: { r: Run; onOpen: (id: string) =>
     <div className={`row history-row ${nested ? 'nested' : ''}`} onClick={() => onOpen(r.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onOpen(r.id)}>
       <div>
         <div className="line">
-          {r.taskId ? <Ref kind="task" id={r.taskId} version={r.taskVersion} /> : <span className="muted">freie Eingabe</span>}
+          {r.taskId ? <Ref kind="task" id={r.taskId} version={r.taskVersion} /> : <span className="muted">free input</span>}
           {!nested && <Ref kind="agent" id={r.agentId} version={r.agentVersion} />}
         </div>
         {!nested && <div className="small faint">{when(r)}</div>}
@@ -192,8 +192,8 @@ function RunRow({ r, onOpen, nested = false }: { r: Run; onOpen: (id: string) =>
         <RunPill r={r} />
       </div>
       <div className="line mono small muted">
-        {r.totalTokens !== null && <span>{r.totalTokens.toLocaleString('de-DE')} tok</span>}
-        {r.durationMs !== null && <span>{(r.durationMs / 1000).toFixed(1).replace('.', ',')} s</span>}
+        {r.totalTokens !== null && <span>{r.totalTokens.toLocaleString('en-US')} tok</span>}
+        {r.durationMs !== null && <span>{(r.durationMs / 1000).toFixed(1)} s</span>}
       </div>
     </div>
   )
@@ -228,8 +228,8 @@ export function TryView(p: { agents: AgentView[]; agent: string; onError: (m: st
   return (
     <section className="card kind t-run">
       <div className="card-head">
-        <h2>Ausprobieren</h2>
-        <span className="sub">Eine freie Frage an einen Agent, ohne Prüfung. Der Run wird trotzdem aufgezeichnet.</span>
+        <h2>Try it</h2>
+        <span className="sub">A free question for an Agent, with no checks. The Run is still recorded.</span>
       </div>
       <form
         className="form"
@@ -250,21 +250,21 @@ export function TryView(p: { agents: AgentView[]; agent: string; onError: (m: st
             </select>
           </label>
           <label className="field span-2">
-            <span>Eingabe</span>
-            <textarea className="prompt" value={input} onChange={(e) => setInput(e.target.value)} required placeholder="Wie spät ist es?" />
+            <span>Input</span>
+            <textarea className="prompt" value={input} onChange={(e) => setInput(e.target.value)} required placeholder="What time is it in Berlin?" />
           </label>
         </div>
         <div className="toolbar end">
           {model && (
             <span className="cost">
-              <strong>1 Run</strong> mit dem Model <Ref kind="model" id={model} />
+              <strong>1 Run</strong> with the Model <Ref kind="model" id={model} />
             </span>
           )}
           <button type="submit" className="btn primary" disabled={busy || !agent}>
-            {busy ? 'läuft …' : 'Run starten'}
+            {busy ? 'running …' : 'Start Run'}
           </button>
         </div>
-        {busy && <p className="hint">Der Run läuft synchron. Je nach Model dauert das ein paar Sekunden bis Minuten.</p>}
+        {busy && <p className="hint">The Run is synchronous. Depending on the Model, it takes a few seconds to a few minutes.</p>}
       </form>
     </section>
   )

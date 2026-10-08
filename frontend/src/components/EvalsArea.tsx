@@ -6,12 +6,12 @@ type Props = { onError: (message: string) => void }
 
 const PARAM_TYPE: Record<EvalParam['type'], string> = {
   STRING: 'Text',
-  TEXT: 'Text, mehrzeilig',
-  NUMBER: 'Zahl',
-  BOOLEAN: 'ja/nein',
-  MODEL: 'Chat-Model',
-  JUDGE_MODEL: 'Chat- oder Decision-Model',
-  LIST: 'Liste, eine Zeile je Eintrag',
+  TEXT: 'Text, multiple lines',
+  NUMBER: 'Number',
+  BOOLEAN: 'yes/no',
+  MODEL: 'Chat Model',
+  JUDGE_MODEL: 'Chat or Decision Model',
+  LIST: 'List, one line per entry',
   TOOL: 'Tool',
 }
 
@@ -33,13 +33,13 @@ export function EvalsArea(p: Props) {
     <section className="card kind t-catalog">
       <div className="card-head">
         <h2>Evals</h2>
-        <span className="sub">Jede Prüfung sagt bestanden oder nicht. Ausgewählt und eingestellt wird sie im Task.</span>
+        <span className="sub">Each check says passed or failed. You pick and set it up in the Task.</span>
         <div className="actions">
-          <span className="pill ghost">vom System</span>
+          <span className="pill ghost">from the system</span>
         </div>
       </div>
       {evals === null ? (
-        <p className="empty">lädt …</p>
+        <p className="empty">loading …</p>
       ) : (
         <>
           {groupedTypes(evals)
@@ -58,8 +58,7 @@ export function EvalsArea(p: Props) {
               </div>
             ))}
           <p className="hint">
-            Runs ohne Antwort (Budget, Fehler) scheitern an allen Text-Evals, auch an den verneinten: wer nichts geliefert hat, hat nichts richtig
-            gemacht.
+            Runs without an answer (budget, error) fail every text Eval, the negated ones too: whoever delivered nothing did nothing right.
           </p>
         </>
       )}
@@ -75,13 +74,13 @@ function Entry({ eval: e }: { eval: EvalType }) {
         <span className="pill mono">{e.type}</span>
       </div>
       <p className="desc">{e.description}</p>
-      {EXAMPLES[e.type] && <p className="small choice-example">z. B. {EXAMPLES[e.type]}</p>}
+      {EXAMPLES[e.type] && <p className="small choice-example">e.g. {EXAMPLES[e.type]}</p>}
       {e.params.length === 0 ? (
-        <span className="hint">keine Einstellungen</span>
+        <span className="hint">no settings</span>
       ) : (
         <details className="params-fold">
           <summary>
-            {e.params.length} Einstellung{e.params.length === 1 ? '' : 'en'}: {e.params.map((pm) => pm.label).join(', ')}
+            {e.params.length} setting{e.params.length === 1 ? '' : 's'}: {e.params.map((pm) => pm.label).join(', ')}
           </summary>
           <div className="params">
             {e.params.map((pm) => (
@@ -90,7 +89,7 @@ function Entry({ eval: e }: { eval: EvalType }) {
                 <span className="meta">
                   <span className="pill ghost">{PARAM_TYPE[pm.type]}</span>
                   {pm.required ? (
-                    <span className="pill">Pflicht</span>
+                    <span className="pill">required</span>
                   ) : pm.defaultValue !== null && pm.defaultValue !== undefined ? (
                     <span className="pill mono">= {String(pm.defaultValue)}</span>
                   ) : (

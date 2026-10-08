@@ -23,7 +23,7 @@ class TaskCodecTests {
 			---
 			id: time
 			version: 2
-			name: Zeit
+			name: Time
 			max-tool-calls: 4
 			evals:
 			  - type: tool-called
@@ -32,10 +32,10 @@ class TaskCodecTests {
 			    pattern: '\\b14\\b'
 			    ignore-case: true
 			---
-			Wie spaet ist es?
+			What time is it?
 
-			# Hinweis
-			Nutze das Werkzeug.
+			# Hint
+			Use the tool.
 			""";
 
 	@Test
@@ -51,7 +51,7 @@ class TaskCodecTests {
 		assertThat(task.evals().get(1).string("pattern")).isEqualTo("\\b14\\b");
 		assertThat(task.evals().get(1).bool("ignore-case", false)).isTrue();
 		// The whole body is the input, headings included.
-		assertThat(task.input()).startsWith("Wie spaet ist es?").contains("# Hinweis");
+		assertThat(task.input()).startsWith("What time is it?").contains("# Hint");
 	}
 
 	@Test

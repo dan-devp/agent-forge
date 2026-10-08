@@ -87,7 +87,7 @@ public class TrainingEngine {
 	/** A session left open by a crash or restart has no thread any more; say so instead of showing it running. */
 	@EventListener(ApplicationReadyEvent.class)
 	public void failOrphans() {
-		int failed = sessions.failOpen("Backend neu gestartet - die Session hatte keinen Thread mehr");
+		int failed = sessions.failOpen("Backend restarted - the session had no thread left");
 		if (failed > 0) {
 			log.warn("{} training session(s) were still open after a restart and are marked FAILED", failed);
 		}
@@ -162,7 +162,7 @@ public class TrainingEngine {
 		if (s.status() != SessionStatus.WAITING || step.decision() != Decision.PENDING) {
 			throw new EntityConflictException("Step %d is not waiting for a decision.".formatted(seq));
 		}
-		String reason = (accept ? "Von Hand angenommen" : "Von Hand verworfen") + " (Gate: " + step.reason() + ")";
+		String reason = (accept ? "Accepted by hand" : "Rejected by hand") + " (gate: " + step.reason() + ")";
 		if (!sessions.decide(sessionId, seq, accept ? Decision.ACCEPTED : Decision.REJECTED, "user", reason)) {
 			throw new EntityConflictException("Step %d was decided in the meantime.".formatted(seq));
 		}
@@ -248,7 +248,7 @@ public class TrainingEngine {
 		step.measured(m);
 		step.decision = Decision.ACCEPTED;
 		step.decidedBy = "baseline";
-		step.reason = "Ausgangslage";
+		step.reason = "Baseline";
 		step.finishedAt = Instant.now();
 		sessions.updateStep(s.id(), step.toStep());
 
@@ -256,7 +256,7 @@ public class TrainingEngine {
 		state.best = m;
 		sessions.progress(s.id(), SessionStatus.RUNNING, state.bestVersion, state.tokens);
 		if (m.stopped()) {
-			return new End(SessionStatus.STOPPED, "Angehalten waehrend der Ausgangsmessung", null);
+			return new End(SessionStatus.STOPPED, "Stopped while measuring the baseline", null);
 		}
 		return null;
 	}
@@ -267,13 +267,13 @@ public class TrainingEngine {
 
 		for (int seq = 1; seq <= s.maxSteps(); seq++) {
 			if (stopRequested.contains(s.id())) {
-				return new End(SessionStatus.STOPPED, "Von Hand angehalten", null);
+				return new End(SessionStatus.STOPPED, "Stopped by hand", null);
 			}
 			if (overBudget(state)) {
 				return budgetEnd(state);
 			}
 			if (state.best.score().trainPerfect()) {
-				return new End(SessionStatus.DONE, "Alle Train-Runs bestanden - nichts mehr zu lernen", null);
+				return new End(SessionStatus.DONE, "All train runs passed - nothing left to learn", null);
 			}
 
 			Agent base = agents.get(s.agentId(), state.bestVersion);
@@ -292,8 +292,8 @@ public class TrainingEngine {
 			step.coachTokens = proposal.tokens();
 			step.coachDurationMs = proposal.durationMs();
 
-			String unusable = proposal.prompt() == null ? "Coach-Antwort ohne Prompt zwischen <<< und >>>"
-					: proposal.prompt().strip().equals(base.systemPrompt().strip()) ? "Vorschlag gleicht dem Prompt von v"
+			String unusable = proposal.prompt() == null ? "Coach answer without a prompt between <<< and >>>"
+					: proposal.prompt().strip().equals(base.systemPrompt().strip()) ? "Proposal equals the prompt of v"
 							+ base.version() : null;
 			if (unusable != null) {
 				step.reject("gate", unusable);
@@ -303,7 +303,7 @@ public class TrainingEngine {
 				continue;
 			}
 			if (overBudget(state)) {
-				step.reject("gate", "Budget mit dem Coach-Aufruf aufgebraucht - nicht mehr gemessen");
+				step.reject("gate", "Budget used up by the coach call - not measured");
 				sessions.updateStep(s.id(), step.toStep());
 				return budgetEnd(state);
 			}
@@ -321,9 +321,9 @@ public class TrainingEngine {
 			state.tokens += m.tokens();
 			step.measured(m);
 			if (m.stopped()) {
-				step.reject("user", "Angehalten waehrend der Messung");
+				step.reject("user", "Stopped during the measurement");
 				sessions.updateStep(s.id(), step.toStep());
-				return new End(SessionStatus.STOPPED, "Von Hand angehalten", null);
+				return new End(SessionStatus.STOPPED, "Stopped by hand", null);
 			}
 
 			Gate.Verdict gate = Gate.decide(state.best.score(), m.score());
@@ -342,8 +342,8 @@ public class TrainingEngine {
 				sessions.progress(s.id(), SessionStatus.WAITING, state.bestVersion, state.tokens);
 				Optional<Step> decided = awaitDecision(s.id(), seq);
 				if (decided.isEmpty()) {
-					sessions.decide(s.id(), seq, Decision.REJECTED, "user", "Session angehalten, ohne Entscheidung");
-					return new End(SessionStatus.STOPPED, "Angehalten, waehrend ein Vorschlag wartete", null);
+					sessions.decide(s.id(), seq, Decision.REJECTED, "user", "Session stopped without a decision");
+					return new End(SessionStatus.STOPPED, "Stopped while a proposal was waiting", null);
 				}
 				accepted = decided.get().decision() == Decision.ACCEPTED;
 				step.reason = decided.get().reason();
@@ -359,8 +359,8 @@ public class TrainingEngine {
 			sessions.progress(s.id(), SessionStatus.RUNNING, state.bestVersion, state.tokens);
 		}
 		return state.best.score().trainPerfect()
-				? new End(SessionStatus.DONE, "Alle Train-Runs bestanden", null)
-				: new End(SessionStatus.DONE, "Alle %d Schritte gemacht".formatted(s.maxSteps()), null);
+				? new End(SessionStatus.DONE, "All train runs passed", null)
+				: new End(SessionStatus.DONE, "All %d steps done".formatted(s.maxSteps()), null);
 	}
 
 	/** Empty when the session was stopped while waiting. */
@@ -400,7 +400,7 @@ public class TrainingEngine {
 				Agent best = agents.get(s.agentId(), settle);
 				current = agents.update(new Agent(best.id(), 0, best.name(), best.description(), best.modelId(),
 						best.tools(), best.systemPrompt()));
-				note = (note == null ? "" : note + " - ") + "Prompt von v%d als v%d wieder aktuell"
+				note = (note == null ? "" : note + " - ") + "Prompt of v%d current again as v%d"
 						.formatted(settle, current.version());
 			}
 			finalVersion = current.version();
@@ -419,7 +419,7 @@ public class TrainingEngine {
 
 	private End budgetEnd(Loop state) {
 		return new End(SessionStatus.BUDGET_EXCEEDED,
-				"Budget aufgebraucht: %d von %d Tokens".formatted(state.tokens, state.session.maxTokens()), null);
+				"Budget used up: %d of %d tokens".formatted(state.tokens, state.session.maxTokens()), null);
 	}
 
 	/** What the agent is offered, as the coach should know it: name and description. */

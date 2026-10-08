@@ -1,12 +1,12 @@
 ---
 id: no-tool
 version: 1
-name: Ohne Tool
-description: Reiner Text-Task. Prueft, dass der Agent kein Tool anfasst, wenn keines noetig ist.
+name: Without a tool
+description: A plain text task. Checks that the agent touches no tool when none is needed.
 evals:
   - type: tool-not-called
     tool: '*'
   - type: contains
-    text: Hauptstadt
+    text: capital
 ---
-Was ist die Hauptstadt von Frankreich? Antworte in einem Satz, der das Wort "Hauptstadt" enthaelt.
+What is the capital of France? Answer in one sentence that contains the word "capital".

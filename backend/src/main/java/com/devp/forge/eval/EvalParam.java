@@ -4,7 +4,7 @@ package com.devp.forge.eval;
  * One configurable parameter of an {@link Eval}.
  *
  * @param name         key in the task file
- * @param label        shown in the UI (German)
+ * @param label        shown in the UI
  * @param type         how the UI renders it and how the registry checks it
  * @param required     validation fails without it
  * @param defaultValue used when absent; {@code null} for none

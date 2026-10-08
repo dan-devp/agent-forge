@@ -21,7 +21,7 @@ class StructureAndJsonEvalTests {
 	}
 
 	private static EvalSubject answer(String text, String... tools) {
-		return new EvalSubject("Frage", text, "DONE", List.of(tools));
+		return new EvalSubject("Question", text, "DONE", List.of(tools));
 	}
 
 	@Test
@@ -31,14 +31,14 @@ class StructureAndJsonEvalTests {
 		assertThat(eval.evaluate(cfg("equals", "text", "a b"), answer("a   b")).passed()).isTrue();
 		assertThat(eval.evaluate(cfg("equals", "text", "Paris", "ignore-case", false), answer("paris")).passed())
 				.isFalse();
-		assertThat(eval.evaluate(cfg("equals", "text", "Paris"), answer("Paris ist es.")).passed()).isFalse();
+		assertThat(eval.evaluate(cfg("equals", "text", "Paris"), answer("Paris it is.")).passed()).isFalse();
 	}
 
 	@Test
 	void lengthCountsWordsOrChars() {
 		Eval eval = new StructureEvals.Length();
-		assertThat(eval.evaluate(cfg("length", "max", 3), answer("eins zwei drei")).passed()).isTrue();
-		assertThat(eval.evaluate(cfg("length", "max", 2), answer("eins zwei drei")).passed()).isFalse();
+		assertThat(eval.evaluate(cfg("length", "max", 3), answer("one two three")).passed()).isTrue();
+		assertThat(eval.evaluate(cfg("length", "max", 2), answer("one two three")).passed()).isFalse();
 		assertThat(eval.evaluate(cfg("length", "min", 5, "unit", "chars"), answer("abcd")).passed()).isFalse();
 		assertThat(eval.evaluate(cfg("length", "min", 2, "max", 4), answer("a b c")).passed()).isTrue();
 		assertThatThrownBy(() -> eval.evaluate(cfg("length"), answer("x"))).isInstanceOf(EntityInvalidException.class);
@@ -57,32 +57,32 @@ class StructureAndJsonEvalTests {
 	@Test
 	void jsonIsFoundInProseAndFences() {
 		assertThat(JsonEvals.extract("{\"a\":1}")).isPresent();
-		assertThat(JsonEvals.extract("Hier ist das JSON:\n```json\n{\"a\": 1}\n```\nFertig.")).isPresent();
-		assertThat(JsonEvals.extract("Ergebnis: {\"a\": [1, 2]} — bitte.")).isPresent();
-		assertThat(JsonEvals.extract("kein json hier")).isEmpty();
+		assertThat(JsonEvals.extract("Here is the JSON:\n```json\n{\"a\": 1}\n```\nDone.")).isPresent();
+		assertThat(JsonEvals.extract("Result: {\"a\": [1, 2]} — there you go.")).isPresent();
+		assertThat(JsonEvals.extract("no json here")).isEmpty();
 		assertThat(JsonEvals.extract("42")).isEmpty();
 	}
 
 	@Test
 	void jsonValidStrictRejectsSurroundingText() {
 		Eval eval = new JsonEvals.JsonValid();
-		assertThat(eval.evaluate(cfg("json-valid"), answer("Antwort: {\"a\":1}")).passed()).isTrue();
-		assertThat(eval.evaluate(cfg("json-valid", "strict", true), answer("Antwort: {\"a\":1}")).passed()).isFalse();
+		assertThat(eval.evaluate(cfg("json-valid"), answer("Answer: {\"a\":1}")).passed()).isTrue();
+		assertThat(eval.evaluate(cfg("json-valid", "strict", true), answer("Answer: {\"a\":1}")).passed()).isFalse();
 		assertThat(eval.evaluate(cfg("json-valid", "strict", true), answer("{\"a\":1}")).passed()).isTrue();
 	}
 
 	@Test
 	void jsonPathWalksObjectsAndArrays() {
 		Eval eval = new JsonEvals.JsonPath();
-		String json = "{\"items\":[{\"name\":\"Stift\",\"price\":2.5}],\"total\":2.5,\"ok\":true}";
-		assertThat(eval.evaluate(cfg("json-path", "path", "items[0].name", "value", "stift"), answer(json)).passed())
+		String json = "{\"items\":[{\"name\":\"pen\",\"price\":2.5}],\"total\":2.5,\"ok\":true}";
+		assertThat(eval.evaluate(cfg("json-path", "path", "items[0].name", "value", "PEN"), answer(json)).passed())
 				.isTrue();
 		assertThat(eval.evaluate(cfg("json-path", "path", "total", "value", "2.5"), answer(json)).passed()).isTrue();
 		assertThat(eval.evaluate(cfg("json-path", "path", "ok", "value", "true"), answer(json)).passed()).isTrue();
 		assertThat(eval.evaluate(cfg("json-path", "path", "items[0]"), answer(json)).passed()).isTrue();
 		assertThat(eval.evaluate(cfg("json-path", "path", "items[1].name"), answer(json)).passed()).isFalse();
 		assertThat(eval.evaluate(cfg("json-path", "path", "total", "value", "3"), answer(json)).passed()).isFalse();
-		assertThat(eval.evaluate(cfg("json-path", "path", "total"), answer("kein json")).passed()).isFalse();
+		assertThat(eval.evaluate(cfg("json-path", "path", "total"), answer("no json")).passed()).isFalse();
 	}
 
 	@Test

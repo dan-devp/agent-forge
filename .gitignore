@@ -1,6 +1,6 @@
-# Repo-weite Ignores.
-# backend/.gitignore (Gradle) und frontend/.gitignore (Node) bleiben zusaetzlich
-# bestehen und decken ihre Unterverzeichnisse ab.
+# Repository-wide ignores.
+# backend/.gitignore (Gradle) and frontend/.gitignore (Node) stay in place as well
+# and cover their subdirectories.
 
 # --- Secrets -----------------------------------------------------------------
 .env
@@ -12,7 +12,7 @@
 *.key
 !.env.example
 
-# --- Build-Ausgaben ----------------------------------------------------------
+# --- Build output ------------------------------------------------------------
 build/
 dist/
 out/
@@ -38,13 +38,13 @@ venv/
 *.swp
 *~
 
-# --- Betriebssystem ----------------------------------------------------------
+# --- Operating system --------------------------------------------------------
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 .DS_Store
 
-# --- Logs / temporaeres -------------------------------------------------------
+# --- Logs / temporary files ---------------------------------------------------
 *.log
 logs/
 tmp/

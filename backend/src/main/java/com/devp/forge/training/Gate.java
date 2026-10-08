@@ -15,16 +15,16 @@ public final class Gate {
 
 	public static Verdict decide(Score best, Score candidate) {
 		if (candidate.trainTotal() == 0) {
-			return new Verdict(false, "Keine Train-Runs gemessen");
+			return new Verdict(false, "No train runs measured");
 		}
 		if (candidate.trainRate() <= best.trainRate()) {
-			return new Verdict(false, "Train nicht besser: %s gegen %s".formatted(candidate.train(), best.train()));
+			return new Verdict(false, "Train not better: %s vs %s".formatted(candidate.train(), best.train()));
 		}
 		if (best.hasHoldout() && candidate.holdoutRate() < best.holdoutRate()) {
-			return new Verdict(false, "Holdout schlechter: %s gegen %s - auswendig gelernt statt verbessert"
+			return new Verdict(false, "Holdout worse: %s vs %s - learned by heart instead of improved"
 					.formatted(candidate.holdout(), best.holdout()));
 		}
-		String holdout = best.hasHoldout() ? ", Holdout %s -> %s".formatted(best.holdout(), candidate.holdout()) : "";
+		String holdout = best.hasHoldout() ? ", holdout %s -> %s".formatted(best.holdout(), candidate.holdout()) : "";
 		return new Verdict(true, "Train %s -> %s%s".formatted(best.train(), candidate.train(), holdout));
 	}
 

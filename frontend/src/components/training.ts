@@ -13,7 +13,7 @@ export function trainingCost(t: { train: string[]; holdout: string[]; repetition
   return { perMeasure, runs: perMeasure * (1 + t.maxSteps), coachCalls: t.maxSteps }
 }
 
-const pct = (passed: number, total: number) => (total === 0 ? '–' : `${Math.round((100 * passed) / total)} %`)
+const pct = (passed: number, total: number) => (total === 0 ? '–' : `${Math.round((100 * passed) / total)}%`)
 const share = (passed: number, total: number) => `${pct(passed, total)} (${passed}/${total})`
 
 /**
@@ -31,21 +31,21 @@ export function decisionSentence(step: TrainingStep, steps: TrainingStep[]): str
   const trend = (cp: number, ct: number, bp: number, bt: number) => Math.sign(cp * bt - bp * ct)
   const moved = (what: string, t: number, cp: number, ct: number, bp: number, bt: number) =>
     t > 0
-      ? `${what} stieg von ${share(bp, bt)} auf ${share(cp, ct)}`
+      ? `${what} rose from ${share(bp, bt)} to ${share(cp, ct)}`
       : t < 0
-        ? `${what} fiel von ${share(bp, bt)} auf ${share(cp, ct)}`
-        : `${what} blieb bei ${share(cp, ct)}`
+        ? `${what} fell from ${share(bp, bt)} to ${share(cp, ct)}`
+        : `${what} stayed at ${share(cp, ct)}`
 
   const trainTrend = trend(c.trainPassed, c.trainTotal, b.trainPassed, b.trainTotal)
   const parts = [moved('Train', trainTrend, c.trainPassed, c.trainTotal, b.trainPassed, b.trainTotal)]
   const notes: string[] = []
-  if (trainTrend === 0) notes.push('Gleichstand zählt als Zufall, nicht als Verbesserung.')
+  if (trainTrend === 0) notes.push('A tie counts as chance, not as an improvement.')
   if (c.holdoutTotal > 0 && b.holdoutTotal > 0) {
     const holdoutTrend = trend(c.holdoutPassed, c.holdoutTotal, b.holdoutPassed, b.holdoutTotal)
     parts.push(moved('Holdout', holdoutTrend, c.holdoutPassed, c.holdoutTotal, b.holdoutPassed, b.holdoutTotal))
-    if (holdoutTrend < 0) notes.push('Fällt der Holdout, war die Verbesserung auswendig gelernt.')
+    if (holdoutTrend < 0) notes.push('When the Holdout drops, the improvement was only memorized.')
   }
-  const versus = before?.agentVersion != null ? `Verglichen mit v${before.agentVersion}.` : ''
+  const versus = before?.agentVersion != null ? `Compared with v${before.agentVersion}.` : ''
   return [`${parts.join(', ')}.`, ...notes, versus].filter(Boolean).join(' ')
 }
 

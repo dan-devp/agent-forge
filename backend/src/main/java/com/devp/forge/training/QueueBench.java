@@ -101,7 +101,7 @@ public class QueueBench implements Bench {
 		List<String> tools = r.trace().stream()
 				.filter(s -> s.type() == StepType.TOOL)
 				.map(s -> "%s(%s) -> %s".formatted(s.name(), clip(s.input()),
-						s.error() != null ? "Fehler: " + clip(s.error()) : clip(s.output())))
+						s.error() != null ? "Error: " + clip(s.error()) : clip(s.output())))
 				.toList();
 		Function<RunEval, String> verdict = e -> (e.subject() != null ? e.subject() : e.type()) + ": "
 				+ clip(e.rationale());

@@ -31,8 +31,8 @@ class RunRepositoryTests {
 	}
 
 	static Run queued(UUID id, UUID batchId, String taskId, String agentId, int agentVersion) {
-		return new Run(id, batchId, taskId, 1, agentId, agentVersion, "local", 1, "mock-local-7b", 0.7, "Du bist Forge.",
-				"Wie spaet ist es?", List.of("currentTime", "divide"), RunStatus.QUEUED, null, null, 0, null, null,
+		return new Run(id, batchId, taskId, 1, agentId, agentVersion, "local", 1, "mock-local-7b", 0.7, "You are Forge.",
+				"What time is it?", List.of("currentTime", "divide"), RunStatus.QUEUED, null, null, 0, null, null,
 				null, Instant.now(), null, null, List.of(), List.of());
 	}
 
@@ -46,7 +46,7 @@ class RunRepositoryTests {
 		assertThat(read.agentVersion()).isEqualTo(2);
 		assertThat(read.modelId()).isEqualTo("local");
 		assertThat(read.temperature()).isEqualTo(0.7);
-		assertThat(read.systemPrompt()).isEqualTo("Du bist Forge.");
+		assertThat(read.systemPrompt()).isEqualTo("You are Forge.");
 		assertThat(read.tools()).containsExactly("currentTime", "divide");
 		assertThat(read.status()).isEqualTo(RunStatus.RUNNING);
 		assertThat(read.startedAt()).isNotNull();
@@ -65,7 +65,7 @@ class RunRepositoryTests {
 		repository.addStep(id, new RunStep(repository.nextStepNumber(id), StepType.TOOL, "currentTime", "{}",
 				"2026-09-17 10:00:00", null, 12L, null, Instant.now()));
 		repository.addEval(id, new RunEval(1, "tool-called", null, true, "ok", null, null, null, Instant.now()));
-		repository.addEval(id, new RunEval(2, "llm-judge", null, false, "zu knapp", "judge-1", 120, 800L, Instant.now()));
+		repository.addEval(id, new RunEval(2, "llm-judge", null, false, "too brief", "judge-1", 120, 800L, Instant.now()));
 		repository.setPassed(id, false);
 
 		Run read = repository.find(id).orElseThrow();

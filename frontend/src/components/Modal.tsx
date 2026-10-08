@@ -42,7 +42,7 @@ export function Modal({
         <div className="card-head">
           <h2>{title}</h2>
           <button className="btn quiet sm" onClick={onClose} style={{ marginLeft: 'auto' }}>
-            schließen
+            close
           </button>
         </div>
         {children}

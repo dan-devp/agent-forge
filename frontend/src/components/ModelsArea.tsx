@@ -198,20 +198,20 @@ export function ModelsArea(p: Props) {
       <section className="card kind t-model">
         <div className="card-head">
           <h2>Models</h2>
-          <span className="sub">Woher die Antworten kommen. Der Schlüssel steht nie in der Datei, nur der Name seiner Variable.</span>
+          <span className="sub">Where the answers come from. The key is never in the file, only the name of its variable.</span>
           <div className="actions">
-            <button className="btn quiet sm" onClick={reload} disabled={busy} title="Dateien neu einlesen">
-              neu laden
+            <button className="btn quiet sm" onClick={reload} disabled={busy} title="Read the files again">
+              reload
             </button>
             <button className="btn primary sm" onClick={() => setDraft({ ...EMPTY })} disabled={busy}>
-              neues Model
+              new Model
             </button>
           </div>
         </div>
         {models === null ? (
-          <p className="empty">lädt …</p>
+          <p className="empty">loading …</p>
         ) : models.length === 0 ? (
-          <p className="empty">Noch kein Model. Lege eines an — Endpunkt, Model-Id, Schlüsselvariable.</p>
+          <p className="empty">No Model yet. Create one — endpoint, model id, key variable.</p>
         ) : (
           <div className="rows">
             {models.map((m) => (
@@ -255,7 +255,7 @@ export function ModelsArea(p: Props) {
                   key={v}
                   className={`pill mono btn ${displayed.version === v ? 'accent' : ''}`}
                   onClick={() => showVersion(v)}
-                  title={v === shownDetail.model.version ? 'aktuelle Version' : 'ältere Version ansehen'}
+                  title={v === shownDetail.model.version ? 'current version' : 'view this older version'}
                 >
                   v{v}
                 </button>
@@ -269,49 +269,49 @@ export function ModelsArea(p: Props) {
                 disabled={busy || shownDetail.usedByAgents.length > 0}
                 title={
                   shownDetail.usedByAgents.length > 0
-                    ? `wird von ${shownDetail.usedByAgents.join(', ')} genutzt`
-                    : 'ins Archiv verschieben'
+                    ? `used by ${shownDetail.usedByAgents.join(', ')}`
+                    : 'move to the archive'
                 }
               >
-                löschen
+                delete
               </button>
               <button className="btn sm" onClick={() => setDraft(toDraft(shownDetail.model))} disabled={busy}>
-                bearbeiten
+                edit
               </button>
             </div>
           </div>
 
           <dl className="facts">
             <div>
-              <dt>Anbieter</dt>
+              <dt>Provider</dt>
               <dd>{providerLabel(displayed.provider, providers)}</dd>
             </div>
             <div>
-              <dt>Endpunkt</dt>
+              <dt>Endpoint</dt>
               <dd className="mono">{displayed.baseUrl}</dd>
             </div>
             <div>
-              <dt>Model beim Anbieter</dt>
+              <dt>Model at the provider</dt>
               <dd className="mono">{displayed.modelId}</dd>
             </div>
             <div>
-              <dt>Temperatur</dt>
+              <dt>Temperature</dt>
               <dd className="mono">{displayed.temperature}</dd>
             </div>
             <div>
-              <dt>Schlüssel</dt>
+              <dt>Key</dt>
               <dd className="line">
                 {displayed.local ? (
-                  <span className="muted">lokal, keiner nötig</span>
+                  <span className="muted">local, none needed</span>
                 ) : displayed.apiKeyEnv ? (
                   <>
                     <span className="mono">{displayed.apiKeyEnv}</span>
                     <span className={`pill ${displayed.keySet ? 'pass' : 'fail'}`}>
-                      {displayed.keySet ? 'gesetzt' : 'fehlt'}
+                      {displayed.keySet ? 'set' : 'missing'}
                     </span>
                   </>
                 ) : (
-                  <span className="pill fail">keine Variable</span>
+                  <span className="pill fail">no variable</span>
                 )}
               </dd>
             </div>
@@ -321,7 +321,7 @@ export function ModelsArea(p: Props) {
             </div>
             {shownDetail.usedByAgents.length > 0 && (
               <div>
-                <dt>Genutzt von</dt>
+                <dt>Used by</dt>
                 <dd className="line">
                   {shownDetail.usedByAgents.map((a) => (
                     <Ref key={a} kind="agent" id={a} />
@@ -331,7 +331,7 @@ export function ModelsArea(p: Props) {
             )}
             {displayed.description && (
               <div style={{ gridColumn: '1 / -1' }}>
-                <dt>Beschreibung</dt>
+                <dt>Description</dt>
                 <dd>{displayed.description}</dd>
               </div>
             )}
@@ -342,14 +342,14 @@ export function ModelsArea(p: Props) {
             <pre className="source mono">{view.source}</pre>
           ) : (
             <button className="link" onClick={showSource}>
-              Datei anzeigen
+              Show file
             </button>
           )}
         </section>
       )}
 
       {draft && (
-        <Modal kind="model" title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neues Model'} onClose={() => setDraft(null)}>
+        <Modal kind="model" title={isExisting ? `${draft.name || draft.id} — new version` : 'New Model'} onClose={() => setDraft(null)}>
           <form
             className="form guided"
             onSubmit={(e) => {
@@ -357,9 +357,9 @@ export function ModelsArea(p: Props) {
               save()
             }}
           >
-            <GuideStep no="①" title="Wo läuft das Model?">
+            <GuideStep no="①" title="Where does the Model run?">
               <label className="field">
-                <span>Anbieter</span>
+                <span>Provider</span>
                 <select value={draft.provider} onChange={(e) => setDraft(withProvider(draft, e.target.value as ProviderKey, providers))}>
                   {providers.map((p) => (
                     <option key={p.key} value={p.key}>
@@ -368,25 +368,25 @@ export function ModelsArea(p: Props) {
                   ))}
                 </select>
                 <span className="hint">
-                  {draft.provider === 'openai' && 'Die OpenAI-API. Braucht einen Schlüssel.'}
-                  {draft.provider === 'anthropic' && 'Über den OpenAI-kompatiblen Endpunkt von Anthropic. Chat und Tools gehen, Anthropic-eigene Funktionen nicht.'}
-                  {draft.provider === 'custom' && 'Gateway (LiteLLM, OpenRouter, …) oder eigener Server mit Schlüssel.'}
-                  {draft.provider === 'local' && 'LM Studio, Ollama, vLLM oder der Mock. Aus dem Container heißt der Host host.docker.internal.'}
+                  {draft.provider === 'openai' && 'The OpenAI API. Needs a key.'}
+                  {draft.provider === 'anthropic' && "Through Anthropic's OpenAI-compatible endpoint. Chat and Tools work, Anthropic's own features do not."}
+                  {draft.provider === 'custom' && 'A gateway (LiteLLM, OpenRouter, …) or your own server with a key.'}
+                  {draft.provider === 'local' && 'LM Studio, Ollama, vLLM or the mock. Seen from the container, the host is host.docker.internal.'}
                   {draft.provider === 'typesafe' &&
-                    'Decision-Model (Jev): beantwortet Ja/Nein-Fragen mit einem Wert zwischen 0 und 1, schreibt keinen Text. Nur als Judge in judge-questions, nicht für Agents.'}
+                    'Decision Model (Jev): answers yes/no questions with a value between 0 and 1 and writes no text. Only as a Judge in judge-questions, not for Agents.'}
                 </span>
               </label>
               {!isCloud(draft.provider) && (
                 <label className="field">
-                  <span>Adresse (Basis-URL inkl. /v1)</span>
+                  <span>Address (base URL including /v1)</span>
                   <input value={draft.baseUrl ?? ''} onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })} required className="mono" />
                 </label>
               )}
             </GuideStep>
 
-            <GuideStep no="②" title="Welches Model, unter welchem Namen?">
+            <GuideStep no="②" title="Which Model, under which name?">
               <label className="field">
-                <span>Model beim Anbieter</span>
+                <span>Model at the provider</span>
                 <input
                   value={draft.modelId}
                   onChange={(e) => setDraft({ ...draft, modelId: e.target.value })}
@@ -394,7 +394,7 @@ export function ModelsArea(p: Props) {
                   className="mono"
                   placeholder={draft.provider === 'typesafe' ? 'jev-latest' : draft.provider === 'anthropic' ? 'claude-sonnet-5-5' : 'gpt-4o-mini'}
                 />
-                <span className="hint">So, wie der Anbieter es nennt — dieser Text geht bei jedem Aufruf mit.</span>
+                <span className="hint">As the provider names it — this text goes along with every call.</span>
               </label>
               <NameField naming={draft} existing={!!isExisting} placeholder="GPT-4o mini" onChange={(n) => setDraft({ ...draft, ...n })} />
             </GuideStep>
@@ -402,25 +402,25 @@ export function ModelsArea(p: Props) {
             {draft.provider !== 'local' && (
               <GuideStep
                 no="③"
-                title="Womit meldet es sich an?"
+                title="How does it sign in?"
                 hint={
                   <>
-                    Der Schlüssel selbst steht nie in der Datei, nur der Name der Umgebungsvariable. Angeboten werden Variablen mit Präfix{' '}
-                    <code>{secrets?.prefix ?? 'API_KEY_'}</code> aus der Umgebung des Backends.
-                    {secrets && secrets.names.length === 0 && ' Derzeit ist keine gesetzt.'}
+                    The key itself never goes into the file, only the name of the environment variable. You can pick variables with the prefix{' '}
+                    <code>{secrets?.prefix ?? 'API_KEY_'}</code> from the backend's environment.
+                    {secrets && secrets.names.length === 0 && ' None is set right now.'}
                   </>
                 }
               >
                 <label className="field">
-                  <span>Schlüssel aus Umgebungsvariable</span>
+                  <span>Key from environment variable</span>
                   <select className="mono" value={draft.apiKeyEnv ?? ''} onChange={(e) => setDraft({ ...draft, apiKeyEnv: e.target.value || null })} required>
-                    <option value="">— wählen —</option>
+                    <option value="">— choose —</option>
                     {secrets?.names.map((n) => (
                       <option key={n} value={n}>
                         {n}
                       </option>
                     ))}
-                    {draft.apiKeyEnv && !secrets?.names.includes(draft.apiKeyEnv) && <option value={draft.apiKeyEnv}>{draft.apiKeyEnv} (nicht gesetzt)</option>}
+                    {draft.apiKeyEnv && !secrets?.names.includes(draft.apiKeyEnv) && <option value={draft.apiKeyEnv}>{draft.apiKeyEnv} (not set)</option>}
                   </select>
                 </label>
               </GuideStep>
@@ -428,8 +428,8 @@ export function ModelsArea(p: Props) {
 
             <Advanced
               summary={[
-                draft.provider !== 'typesafe' ? `Temperatur ${String(draft.temperature).replace('.', ',')}` : null,
-                draft.description ? 'Beschreibung gesetzt' : 'Beschreibung',
+                draft.provider !== 'typesafe' ? `temperature ${String(draft.temperature)}` : null,
+                draft.description ? 'description set' : 'description',
               ]
                 .filter(Boolean)
                 .join(' · ')}
@@ -437,7 +437,7 @@ export function ModelsArea(p: Props) {
               <div className="form-grid">
                 {draft.provider !== 'typesafe' && (
                   <label className="field">
-                    <span>Temperatur</span>
+                    <span>Temperature</span>
                     <input
                       type="number"
                       step="0.1"
@@ -446,11 +446,11 @@ export function ModelsArea(p: Props) {
                       value={draft.temperature}
                       onChange={(e) => setDraft({ ...draft, temperature: Number(e.target.value) })}
                     />
-                    <span className="hint">0 = möglichst gleiche Antworten, höher = mehr Abwechslung.</span>
+                    <span className="hint">0 = answers as alike as possible, higher = more variety.</span>
                   </label>
                 )}
                 <label className="field span-2">
-                  <span>Beschreibung, für Menschen</span>
+                  <span>Description, for people</span>
                   <textarea rows={2} value={draft.description ?? ''} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
                 </label>
               </div>
@@ -458,10 +458,10 @@ export function ModelsArea(p: Props) {
 
             <div className="toolbar end">
               <button type="button" className="btn quiet" onClick={() => setDraft(null)} disabled={busy}>
-                abbrechen
+                cancel
               </button>
               <button type="submit" className="btn primary" disabled={busy}>
-                {isExisting ? 'als neue Version speichern' : 'anlegen'}
+                {isExisting ? 'save as new version' : 'create'}
               </button>
             </div>
           </form>
@@ -469,18 +469,18 @@ export function ModelsArea(p: Props) {
       )}
 
       {confirmDelete && shownDetail && (
-        <Modal kind="model" title="Model löschen?" onClose={() => setConfirmDelete(false)}>
+        <Modal kind="model" title="Delete Model?" onClose={() => setConfirmDelete(false)}>
           <p>
-            <strong>{shownDetail.model.name}</strong> <span className="mono muted">({shownDetail.model.id})</span> wird
-            mit allen {shownDetail.versions.length} Version(en) ins Archiv verschoben. Die Id wird frei.
-            {shownDetail.runs > 0 && ` ${shownDetail.runs} Run(s) verweisen darauf und behalten Id und Version.`}
+            <strong>{shownDetail.model.name}</strong> <span className="mono muted">({shownDetail.model.id})</span> moves to
+            the archive with all {shownDetail.versions.length} version(s). The id becomes free.
+            {shownDetail.runs > 0 && ` ${shownDetail.runs} Run(s) refer to it and keep their id and version.`}
           </p>
           <div className="toolbar end">
             <button className="btn quiet" onClick={() => setConfirmDelete(false)} disabled={busy}>
-              abbrechen
+              cancel
             </button>
             <button className="btn primary" onClick={remove} disabled={busy}>
-              ins Archiv
+              archive
             </button>
           </div>
         </Modal>
@@ -490,8 +490,8 @@ export function ModelsArea(p: Props) {
 }
 
 function StatusPill({ m }: { m: ModelView }) {
-  if (!m.configured) return <span className="pill fail">nicht nutzbar</span>
-  return <span className={`pill ${m.local ? 'open' : 'pass'}`}>{m.local ? 'lokal' : 'bereit'}</span>
+  if (!m.configured) return <span className="pill fail">not usable</span>
+  return <span className={`pill ${m.local ? 'open' : 'pass'}`}>{m.local ? 'local' : 'ready'}</span>
 }
 
 function isCloud(key: ProviderKey) {

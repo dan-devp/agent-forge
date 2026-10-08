@@ -18,7 +18,7 @@ import com.devp.forge.store.StoreExceptions.EntityInvalidException;
  * model: gateway
  * tools: all          # or none, or [currentTime, divide]
  * ---
- * Du bist Forge, ...
+ * You are Forge, ...
  * </pre>
  */
 public final class AgentCodec implements EntityCodec<Agent> {

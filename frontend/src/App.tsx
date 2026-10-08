@@ -20,12 +20,12 @@ function Topbar({ status }: { status: Status | null }) {
   const area = AREAS.find((a) => location.pathname.startsWith(a.path))
   return (
     <header className="topbar">
-      <Link to="/" className="brand" title={status ? `Daten in ${status.dataDir}` : undefined}>
+      <Link to="/" className="brand" title={status ? `Data in ${status.dataDir}` : undefined}>
         <span className="dot" />
         agent forge
       </Link>
       {area && (
-        <nav className="crumbs" aria-label="Pfad">
+        <nav className="crumbs" aria-label="Path">
           <span className="sep">/</span>
           <span className="current">{area.label}</span>
         </nav>

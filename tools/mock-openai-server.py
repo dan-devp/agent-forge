@@ -9,23 +9,26 @@ Replaces LM Studio / Ollama / vLLM in tests: same route POST /v1/chat/completion
 response shape. Logs every request so it is visible which path and which model arrive.
 
 Agent: the mock follows its system prompt just enough for a training to show progress.
-It requests a tool only if the tool is offered, the system prompt speaks of tools
-('Tool' or 'Werkzeug'), and the question needs it (time -> currentTime, 'geteilt' ->
-divide, with the numbers from the question). Once tool results are present it answers with
-them, so time-and-division passes. Asked for a capital, it answers 'Paris.' - unless the
-system prompt asks for a full sentence that picks up the terms of the question. A rookie
-with a one-line prompt therefore guesses and fails; a prompt that learned both rules passes.
+It requests a tool only if the tool is offered, the system prompt speaks of tools, and the
+question needs it (time -> currentTime, 'divided by' -> divide, with the numbers from the
+question). Once tool results are present it answers with them, so time-and-division passes.
+Asked for a capital, it answers 'Paris.' - unless the system prompt asks for a complete
+sentence that picks up the terms of the question. A rookie with a one-line prompt therefore
+guesses and fails; a prompt that learned both rules passes.
 
-Judges: a chat request whose user message has a '# Fragen' section gets one line per
-question ('1: JA - ...'). POST /v1/systemone plays a TypeSafe decision model (Jev) and
+Judges: a chat request whose user message has a '# Questions' section gets one line per
+question ('1: YES - ...'). POST /v1/systemone plays a TypeSafe decision model (Jev) and
 answers every Noul question with a truth value. Both say yes when a word of five or
 more letters from the question appears in the judged answer, else no - crude, but
 deterministic, and it gives a verification both outcomes.
 
-Coach: a request whose user message has '# Aktueller Systemprompt' is a training coach.
+Coach: a request whose user message has '# Current system prompt' is a training coach.
 It adds one rule per call, read off the failed verdicts: tools first, then - for a missing
 term - a useless 'answer briefly' that the gate rejects, and after that rejection the rule
 that works. So a mock training shows an accepted step, a rejected one and a recovery.
+
+Agents, tasks and prompts written in German before the switch to English still work: every
+marker is also understood in its German form.
 """
 import json
 import re
@@ -33,10 +36,24 @@ import sys
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-TOOL_RULE = ("Nutze die verfuegbaren Tools fuer Uhrzeit und Rechnungen, statt zu raten. "
-             "Wo kein Tool noetig ist, rufst du keines auf.")
-BRIEF_RULE = "Antworte knapp, ohne Einleitung."
-SENTENCE_RULE = "Antworte in einem vollstaendigen Satz, der die Begriffe der Frage aufgreift."
+TOOL_RULE = ("Use the available tools for the time and for arithmetic instead of guessing. "
+             "Where no tool is needed, call none.")
+BRIEF_RULE = "Answer briefly, without an introduction."
+SENTENCE_RULE = "Answer in a complete sentence that picks up the terms of the question."
+
+
+def section(text, *markers):
+    """The text after the first marker found, or None. Markers come in English and German."""
+    for m in markers:
+        if m in text:
+            return text.split(m, 1)[1]
+    return None
+
+
+def cut(text, *markers):
+    for m in markers:
+        text = text.split(m, 1)[0]
+    return text
 
 
 def speaks_of_tools(system):
@@ -45,9 +62,9 @@ def speaks_of_tools(system):
 
 def needed_tools(user):
     needed = []
-    if re.search(r"spaet|spät|uhrzeit|wie viel uhr", user, re.I):
+    if re.search(r"what time|time is it|spaet|spät|uhrzeit|wie viel uhr", user, re.I):
         needed.append("currentTime")
-    if re.search(r"geteilt|rechne", user, re.I):
+    if re.search(r"divided|calculate|geteilt|rechne", user, re.I):
         needed.append("divide")
     return needed
 
@@ -56,7 +73,7 @@ def tool_args(name, user):
     if name == "currentTime":
         return {"timeZone": "Europe/Berlin"}
     if name == "divide":
-        m = re.search(r"(\d+)\s*geteilt durch\s*(\d+)", user)
+        m = re.search(r"(\d+)\s*(?:divided by|geteilt durch)\s*(\d+)", user)
         return {"dividend": int(m.group(1)), "divisor": int(m.group(2))} if m else {"dividend": 100, "divisor": 7}
     return {}
 
@@ -64,16 +81,17 @@ def tool_args(name, user):
 def answer_from_tools(messages, system, user):
     results = [m.get("content") or "" for m in messages if m.get("role") == "tool"]
     if not results:
-        if "Hauptstadt" in user:
-            if re.search(r"vollstaendigen satz|begriffe der frage", system, re.I):
-                return "Die Hauptstadt von Frankreich ist Paris."
+        if re.search(r"capital|hauptstadt", user, re.I):
+            if re.search(r"complete sentence|terms of the question|vollstaendigen satz|begriffe der frage", system, re.I):
+                return ("Die Hauptstadt von Frankreich ist Paris." if "Hauptstadt" in user
+                        else "The capital of France is Paris.")
             return "Paris."
-        return "Antwort vom lokalen Mock-Modell."
+        return "Answer from the local mock model."
     parts = []
     for r in results:
         if re.search(r"\d{4}-\d{2}-\d{2}", r):
-            parts.append("Es ist %s." % r)
-        elif "geteilt" in r:
+            parts.append("It is %s." % r)
+        elif "divided" in r or "geteilt" in r:
             parts.append(r + ".")
         else:
             parts.append(r)
@@ -85,33 +103,36 @@ def says_yes(question, answer):
     return any(w in answer.lower() for w in words)
 
 
+QUESTIONS = ("# Questions", "# Fragen")
+
+
 def judge_lines(user):
-    answer = user.split("# Antwort des Agenten", 1)[-1].split("# Fragen", 1)[0]
-    questions = re.findall(r"(?m)^\s*(\d+)\.\s*(.+)$", user.split("# Fragen", 1)[1])
-    return "\n".join("%s: %s - Mock-Judge" % (n, "JA" if says_yes(q, answer) else "NEIN")
+    answer = cut(section(user, "# The agent's answer", "# Antwort des Agenten") or user, *QUESTIONS)
+    questions = re.findall(r"(?m)^\s*(\d+)\.\s*(.+)$", section(user, *QUESTIONS))
+    return "\n".join("%s: %s - mock judge" % (n, "YES" if says_yes(q, answer) else "NO")
                      for n, q in questions)
 
 
 def coach_answer(brief):
     prompt = brief.split("<<<\n", 1)[1].split("\n>>>", 1)[0] if "<<<\n" in brief else ""
-    failures = brief.split("# Gescheiterte Runs", 1)[1] if "# Gescheiterte Runs" in brief else ""
-    failures = failures.split("# Bereits versucht", 1)[0].split("# Antwortformat", 1)[0]
-    rejected = brief.split("# Bereits versucht", 1)[1] if "# Bereits versucht" in brief else ""
+    tried = ("# Already tried", "# Bereits versucht")
+    failures = cut(section(brief, "# Failed runs", "# Gescheiterte Runs") or "", *tried, "# Answer format", "# Antwortformat")
+    rejected = section(brief, *tried) or ""
 
     if "tool-called" in failures and TOOL_RULE not in prompt:
-        rule, why = TOOL_RULE, "Der Agent hat Uhrzeit und Rechnung geraten, tool-called sagte Nein."
-    elif "contains" in failures and BRIEF_RULE not in prompt and "knapp" not in rejected:
-        rule, why = BRIEF_RULE, "Die Antwort traf den gesuchten Begriff nicht, vielleicht war sie zu ausschweifend."
+        rule, why = TOOL_RULE, "The agent guessed the time and the arithmetic, tool-called said no."
+    elif "contains" in failures and BRIEF_RULE not in prompt and "briefly" not in rejected:
+        rule, why = BRIEF_RULE, "The answer missed the term it was asked for, maybe it was too wordy."
     elif "contains" in failures and SENTENCE_RULE not in prompt:
-        rule, why = SENTENCE_RULE, "Die Antwort war ein einzelnes Wort, der Begriff aus der Frage fehlte (contains)."
+        rule, why = SENTENCE_RULE, "The answer was a single word, the term from the question was missing (contains)."
     else:
-        rule, why = "Pruefe deine Antwort, bevor du sie abschickst.", "Kein klarer Befund mehr."
-    return "BEGRUENDUNG:\n- %s %s\nPROMPT:\n<<<\n%s\n\n%s\n>>>" % (rule, why, prompt.strip(), rule)
+        rule, why = "Check your answer before you send it.", "No clear finding left."
+    return "RATIONALE:\n- %s %s\nPROMPT:\n<<<\n%s\n\n%s\n>>>" % (rule, why, prompt.strip(), rule)
 
 
 def system_one(req):
     state = req.get("state")
-    answer = state.get("antwort", "") if isinstance(state, dict) else str(state)
+    answer = state.get("answer", state.get("antwort", "")) if isinstance(state, dict) else str(state)
     answers = {}
     for key, q in (req.get("questions") or {}).items():
         text = q.get("instructions") if isinstance(q, dict) else q
@@ -170,7 +191,7 @@ class Handler(BaseHTTPRequestHandler):
         has_results = any(m.get("role") == "tool" for m in messages)
         system = "\n".join(text_of(m.get("content")) for m in messages if m.get("role") == "system")
         user = next((text_of(m.get("content")) for m in reversed(messages) if m.get("role") == "user"), "")
-        coach = "# Aktueller Systemprompt" in user
+        coach = "# Current system prompt" in user or "# Aktueller Systemprompt" in user
         print("REQ path=%s model=%s msgs=%s tools=%s results=%s%s" % (
             self.path, req.get("model"), len(messages), offered, has_results, " coach" if coach else ""),
             flush=True)
@@ -188,7 +209,8 @@ class Handler(BaseHTTPRequestHandler):
             message = {"role": "assistant", "content": None, "tool_calls": calls}
             finish = "tool_calls"
         else:
-            content = judge_lines(user) if "# Fragen" in user else answer_from_tools(messages, system, user)
+            content = (judge_lines(user) if any(q in user for q in QUESTIONS)
+                       else answer_from_tools(messages, system, user))
             message = {"role": "assistant", "content": content}
             finish = "stop"
 

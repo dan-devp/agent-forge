@@ -64,8 +64,8 @@ function toAccess(d: Draft): ToolAccess {
 }
 
 function accessLabel(t: ToolAccess) {
-  if (t === 'all') return 'alle Tools'
-  if (t === 'none') return 'keine Tools'
+  if (t === 'all') return 'all Tools'
+  if (t === 'none') return 'no Tools'
   return t.length === 1 ? '1 Tool' : `${t.length} Tools`
 }
 
@@ -220,25 +220,25 @@ export function AgentsArea(p: Props) {
       <section className="card kind t-agent">
         <div className="card-head">
           <h2>Agents</h2>
-          <span className="sub">Ein Model mit Anweisungen und den Tools, die es benutzen darf</span>
+          <span className="sub">A Model with instructions and the Tools it may use</span>
           <div className="actions">
-            <button className="btn quiet sm" onClick={reload} disabled={busy} title="Dateien neu einlesen">
-              neu laden
+            <button className="btn quiet sm" onClick={reload} disabled={busy} title="Read the files again">
+              reload
             </button>
             <button
               className="btn primary sm"
               onClick={() => setDraft({ ...EMPTY, model: models[0]?.id ?? '' })}
               disabled={busy || models.length === 0}
-              title={models.length === 0 ? 'zuerst ein Model anlegen' : undefined}
+              title={models.length === 0 ? 'create a Model first' : undefined}
             >
-              neuer Agent
+              new Agent
             </button>
           </div>
         </div>
         {agents === null ? (
-          <p className="empty">lädt …</p>
+          <p className="empty">loading …</p>
         ) : agents.length === 0 ? (
-          <p className="empty">Noch kein Agent. Ein Agent ist ein Model plus ein Systemprompt.</p>
+          <p className="empty">No Agent yet. An Agent is a Model plus a system prompt.</p>
         ) : (
           <div className="rows">
             {agents.map((a) => (
@@ -261,19 +261,19 @@ export function AgentsArea(p: Props) {
                   {a.modelExists ? (
                     <Ref kind="model" id={a.model} title={modelName(a.model)} />
                   ) : (
-                    <span className="pill fail">Model {a.model} fehlt</span>
+                    <span className="pill fail">Model {a.model} missing</span>
                   )}
                   <span className="muted small">{accessLabel(a.tools)}</span>
                 </div>
                 <div className="line">
                   {a.missingTools.length > 0 ? (
                     <span className="pill fail" title={a.missingTools.join(', ')}>
-                      unbekanntes Tool
+                      unknown Tool
                     </span>
                   ) : a.modelExists ? (
-                    <span className="pill pass">bereit</span>
+                    <span className="pill pass">ready</span>
                   ) : (
-                    <span className="pill fail">Model fehlt</span>
+                    <span className="pill fail">Model missing</span>
                   )}
                 </div>
               </div>
@@ -292,7 +292,7 @@ export function AgentsArea(p: Props) {
                   key={v}
                   className={`pill mono btn ${displayed.version === v ? 'accent' : ''}`}
                   onClick={() => showVersion(v)}
-                  title={v === shownDetail.agent.version ? 'aktuelle Version' : 'ältere Version ansehen'}
+                  title={v === shownDetail.agent.version ? 'current version' : 'view this older version'}
                 >
                   v{v}
                 </button>
@@ -301,10 +301,10 @@ export function AgentsArea(p: Props) {
             <span className="sub mono small">{shownDetail.agent.id}</span>
             <div className="actions">
               <button className="btn quiet danger sm" onClick={() => setConfirmDelete(true)} disabled={busy}>
-                löschen
+                delete
               </button>
               <button className="btn sm" onClick={() => setDraft(toDraft(shownDetail.agent))} disabled={busy}>
-                bearbeiten
+                edit
               </button>
             </div>
           </div>
@@ -314,7 +314,7 @@ export function AgentsArea(p: Props) {
               <dt>Model</dt>
               <dd className="line">
                 <Ref kind="model" id={displayed.model} link={displayed.modelExists} />
-                {!displayed.modelExists && <span className="pill fail">fehlt</span>}
+                {!displayed.modelExists && <span className="pill fail">missing</span>}
               </dd>
             </div>
             <div>
@@ -327,7 +327,7 @@ export function AgentsArea(p: Props) {
                   </span>
                 ))}
                 {displayed.missingTools.map((t) => (
-                  <span key={t} className="pill mono fail" title="kein registriertes Tool mit diesem Namen">
+                  <span key={t} className="pill mono fail" title="no registered Tool with this name">
                     {t}
                   </span>
                 ))}
@@ -339,7 +339,7 @@ export function AgentsArea(p: Props) {
             </div>
             {displayed.description && (
               <div style={{ gridColumn: '1 / -1' }}>
-                <dt>Beschreibung</dt>
+                <dt>Description</dt>
                 <dd>{displayed.description}</dd>
               </div>
             )}
@@ -351,14 +351,14 @@ export function AgentsArea(p: Props) {
             <pre className="source mono">{view.source}</pre>
           ) : (
             <button className="link" onClick={showSource}>
-              Datei anzeigen
+              Show file
             </button>
           )}
         </section>
       )}
 
       {draft && (
-        <Modal kind="agent" title={isExisting ? `${draft.name || draft.id} — neue Version` : 'Neuer Agent'} onClose={() => setDraft(null)}>
+        <Modal kind="agent" title={isExisting ? `${draft.name || draft.id} — new version` : 'New Agent'} onClose={() => setDraft(null)}>
           <form
             className="form guided"
             onSubmit={(e) => {
@@ -366,7 +366,7 @@ export function AgentsArea(p: Props) {
               save()
             }}
           >
-            <GuideStep no="①" title="Wer antwortet?">
+            <GuideStep no="①" title="Who answers?">
               <NameField naming={draft} existing={!!isExisting} placeholder="Rookie" onChange={(n) => setDraft({ ...draft, ...n })} />
               <label className="field">
                 <span>Model</span>
@@ -377,40 +377,40 @@ export function AgentsArea(p: Props) {
                     .map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name} · {m.modelId}
-                        {m.configured ? '' : ' (nicht nutzbar)'}
+                        {m.configured ? '' : ' (not usable)'}
                       </option>
                     ))}
                 </select>
-                <span className="hint">Das Model schreibt die Antworten. Decision-Models urteilen nur und fehlen hier deshalb.</span>
+                <span className="hint">The Model writes the answers. Decision Models only judge, so they are not listed here.</span>
               </label>
             </GuideStep>
 
             <GuideStep
               no="②"
-              title="Wie soll er sich verhalten?"
-              hint="Der Systemprompt steht vor jeder Frage: Rolle, Regeln, Ton. Ihn schreibt im Training der Coach um."
+              title="How should it behave?"
+              hint="The system prompt comes before every question: role, rules, tone. In a Training, the Coach rewrites it."
             >
               <label className="field">
-                <span>Systemprompt</span>
+                <span>System prompt</span>
                 <textarea
                   className="prompt"
                   value={draft.systemPrompt}
                   onChange={(e) => setDraft({ ...draft, systemPrompt: e.target.value })}
                   required
-                  placeholder="Du bist …"
+                  placeholder="You are …"
                 />
               </label>
             </GuideStep>
 
             <GuideStep
               no="③"
-              title="Welche Tools darf er benutzen?"
-              hint="Nur angebotene Tools kann das Model aufrufen. Von einem Tool, das nicht auf der Liste steht, weiß es nichts."
+              title="Which Tools may it use?"
+              hint="The Model can only call the Tools it is offered. It knows nothing of a Tool that is not on the list."
             >
               <div className="segment">
                 {(['all', 'none', 'list'] as Mode[]).map((m) => (
                   <button key={m} type="button" className={draft.mode === m ? 'on' : ''} onClick={() => setDraft({ ...draft, mode: m })}>
-                    {m === 'all' ? 'alle' : m === 'none' ? 'keine' : 'Auswahl'}
+                    {m === 'all' ? 'all' : m === 'none' ? 'none' : 'selection'}
                   </button>
                 ))}
               </div>
@@ -437,29 +437,29 @@ export function AgentsArea(p: Props) {
                   {draft.picked
                     .filter((n) => !tools.some((t) => t.name === n))
                     .map((n) => (
-                      <label key={n} className="check-pill on" title="nicht registriert — bleibt in der Liste">
+                      <label key={n} className="check-pill on" title="not registered — stays on the list">
                         <input type="checkbox" checked onChange={() => setDraft({ ...draft, picked: draft.picked.filter((x) => x !== n) })} />
                         {n} ?
                       </label>
                     ))}
-                  {tools.length === 0 && <span className="hint">Kein Tool registriert.</span>}
+                  {tools.length === 0 && <span className="hint">No Tool registered.</span>}
                 </div>
               )}
             </GuideStep>
 
-            <Advanced summary={draft.description ? 'Beschreibung gesetzt' : 'Beschreibung, für Menschen'}>
+            <Advanced summary={draft.description ? 'description set' : 'description, for people'}>
               <label className="field">
-                <span>Beschreibung</span>
+                <span>Description</span>
                 <textarea rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
               </label>
             </Advanced>
 
             <div className="toolbar end">
               <button type="button" className="btn quiet" onClick={() => setDraft(null)} disabled={busy}>
-                abbrechen
+                cancel
               </button>
               <button type="submit" className="btn primary" disabled={busy}>
-                {isExisting ? 'als neue Version speichern' : 'anlegen'}
+                {isExisting ? 'save as new version' : 'create'}
               </button>
             </div>
           </form>
@@ -467,18 +467,18 @@ export function AgentsArea(p: Props) {
       )}
 
       {confirmDelete && shownDetail && (
-        <Modal kind="agent" title="Agent löschen?" onClose={() => setConfirmDelete(false)}>
+        <Modal kind="agent" title="Delete Agent?" onClose={() => setConfirmDelete(false)}>
           <p>
-            <strong>{shownDetail.agent.name}</strong> <span className="mono muted">({shownDetail.agent.id})</span> wird
-            mit allen {shownDetail.versions.length} Version(en) ins Archiv verschoben. Die Id wird frei.
-            {shownDetail.runs > 0 && ` ${shownDetail.runs} Run(s) verweisen darauf und behalten Id und Version.`}
+            <strong>{shownDetail.agent.name}</strong> <span className="mono muted">({shownDetail.agent.id})</span> moves to
+            the archive with all {shownDetail.versions.length} version(s). The id becomes free.
+            {shownDetail.runs > 0 && ` ${shownDetail.runs} Run(s) refer to it and keep their id and version.`}
           </p>
           <div className="toolbar end">
             <button className="btn quiet" onClick={() => setConfirmDelete(false)} disabled={busy}>
-              abbrechen
+              cancel
             </button>
             <button className="btn primary" onClick={remove} disabled={busy}>
-              ins Archiv
+              archive
             </button>
           </div>
         </Modal>
@@ -496,7 +496,7 @@ function VersionChange({ agent, prev }: { agent: AgentView; prev: AgentView | nu
   if (prev === undefined) {
     return (
       <div className="field">
-        <span>Systemprompt</span>
+        <span>System prompt</span>
         <pre className="prose">{agent.systemPrompt}</pre>
       </div>
     )
@@ -504,7 +504,7 @@ function VersionChange({ agent, prev }: { agent: AgentView; prev: AgentView | nu
   if (prev === null) {
     return (
       <div className="field">
-        <span>Systemprompt · erste Version</span>
+        <span>System prompt · first version</span>
         <pre className="prose">{agent.systemPrompt}</pre>
       </div>
     )
@@ -512,7 +512,7 @@ function VersionChange({ agent, prev }: { agent: AgentView; prev: AgentView | nu
   const change = changeOf(agent, prev, [prev])
   return (
     <div className="field version-change">
-      <span>Systemprompt · Änderungen gegenüber v{prev.version}</span>
+      <span>System prompt · changes since v{prev.version}</span>
       <span className="line">
         {change.map((c) => (
           <span key={c} className="pill sm">

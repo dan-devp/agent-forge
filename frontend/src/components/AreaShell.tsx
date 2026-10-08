@@ -18,7 +18,7 @@ export function AreaShell(p: Props) {
 
   return (
     <div className="area">
-      <aside className="sidebar" aria-label="Bereiche">
+      <aside className="sidebar" aria-label="Areas">
         {GROUPS.map((g) => (
           <div key={g} className="nav-group">
             <span className="nav-group-label">{GROUP_LABEL[g]}</span>
@@ -55,7 +55,7 @@ export function AreaShell(p: Props) {
             <div className="card-head">
               <h2>{current.label}</h2>
             </div>
-            <p className="empty">Dieser Bereich kommt als Nächstes. Die API dafür steht bereits.</p>
+            <p className="empty">This area comes next. Its API is already in place.</p>
           </section>
         ) : (
           <Outlet />

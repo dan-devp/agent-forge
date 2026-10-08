@@ -30,7 +30,7 @@ public final class StructureEvals {
 	}
 
 	private static EvalResult noAnswer(EvalSubject subject) {
-		return EvalResult.fail("Keine Antwort (Status " + subject.status() + ")");
+		return EvalResult.fail("No answer (status " + subject.status() + ")");
 	}
 
 	/** One right answer. {@code contains} is too lenient when "14" must be the whole reply. */
@@ -43,22 +43,22 @@ public final class StructureEvals {
 
 		@Override
 		public String label() {
-			return "Antwort ist genau";
+			return "Answer is exactly";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn die ganze Antwort dem Text entspricht. Leerraum an den R\u00e4ndern z\u00e4hlt nicht.";
+			return "Passes when the whole answer equals the text. Whitespace at the edges does not count.";
 		}
 
 		@Override
 		public List<EvalParam> params() {
 			return List.of(
-					EvalParam.required("text", "Erwartete Antwort", Type.STRING, "Die einzige richtige Antwort."),
-					EvalParam.optional("ignore-case", "Gro\u00df-/Kleinschreibung ignorieren", Type.BOOLEAN, true,
-							"Vergleich ohne Beachtung der Schreibung."),
-					EvalParam.optional("collapse-whitespace", "Leerraum zusammenfassen", Type.BOOLEAN, true,
-							"Mehrere Leerzeichen und Zeilenumbr\u00fcche z\u00e4hlen wie eines."));
+					EvalParam.required("text", "Expected answer", Type.STRING, "The one right answer."),
+					EvalParam.optional("ignore-case", "Ignore case", Type.BOOLEAN, true,
+							"Compare without regard to upper and lower case."),
+					EvalParam.optional("collapse-whitespace", "Collapse whitespace", Type.BOOLEAN, true,
+							"Several spaces and line breaks count as one."));
 		}
 
 		@Override
@@ -69,8 +69,8 @@ public final class StructureEvals {
 			String expected = normalize(config.string("text"), config);
 			String actual = normalize(subject.answer(), config);
 			return expected.equals(actual)
-					? EvalResult.pass("Antwort entspricht \"" + config.string("text") + "\"")
-					: EvalResult.fail("Antwort ist \"" + shorten(subject.answer().strip()) + "\", erwartet \""
+					? EvalResult.pass("Answer equals \"" + config.string("text") + "\"")
+					: EvalResult.fail("Answer is \"" + shorten(subject.answer().strip()) + "\", expected \""
 							+ config.string("text") + "\"");
 		}
 
@@ -96,20 +96,20 @@ public final class StructureEvals {
 
 		@Override
 		public String label() {
-			return "Antwortl\u00e4nge";
+			return "Answer length";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn die Antwort zwischen min und max liegt (Zeichen oder W\u00f6rter). Mindestens eins von beiden angeben.";
+			return "Passes when the answer is between min and max (characters or words). Give at least one of the two.";
 		}
 
 		@Override
 		public List<EvalParam> params() {
 			return List.of(
-					EvalParam.optional("min", "Mindestens", Type.NUMBER, null, "Untergrenze, leer = keine."),
-					EvalParam.optional("max", "H\u00f6chstens", Type.NUMBER, null, "Obergrenze, leer = keine."),
-					EvalParam.optional("unit", "Einheit", Type.STRING, "words", "words oder chars."));
+					EvalParam.optional("min", "At least", Type.NUMBER, null, "Lower bound, empty = none."),
+					EvalParam.optional("max", "At most", Type.NUMBER, null, "Upper bound, empty = none."),
+					EvalParam.optional("unit", "Unit", Type.STRING, "words", "words or chars."));
 		}
 
 		@Override
@@ -128,12 +128,12 @@ public final class StructureEvals {
 			}
 			String answer = subject.answer().strip();
 			int count = unit.equals("chars") ? answer.length() : answer.split("\\s+").length;
-			String label = unit.equals("chars") ? "Zeichen" : "W\u00f6rter";
+			String label = unit.equals("chars") ? "characters" : "words";
 			if (min >= 0 && count < min) {
-				return EvalResult.fail("%d %s, mindestens %d verlangt".formatted(count, label, min));
+				return EvalResult.fail("%d %s, at least %d required".formatted(count, label, min));
 			}
 			if (max >= 0 && count > max) {
-				return EvalResult.fail("%d %s, h\u00f6chstens %d erlaubt".formatted(count, label, max));
+				return EvalResult.fail("%d %s, at most %d allowed".formatted(count, label, max));
 			}
 			return EvalResult.pass("%d %s".formatted(count, label));
 		}
@@ -149,17 +149,17 @@ public final class StructureEvals {
 
 		@Override
 		public String label() {
-			return "H\u00f6chstens N Tool-Aufrufe";
+			return "At most N tool calls";
 		}
 
 		@Override
 		public String description() {
-			return "Besteht, wenn der Run nicht mehr als N Tool-Aufrufe gemacht hat. Unabh\u00e4ngig vom Budget des Tasks.";
+			return "Passes when the run made no more than N tool calls. Independent of the task's budget.";
 		}
 
 		@Override
 		public List<EvalParam> params() {
-			return List.of(EvalParam.required("max", "H\u00f6chstens", Type.NUMBER, "Erlaubte Aufrufe insgesamt, 0 = keiner."));
+			return List.of(EvalParam.required("max", "At most", Type.NUMBER, "Calls allowed in total, 0 = none."));
 		}
 
 		@Override
@@ -170,8 +170,8 @@ public final class StructureEvals {
 			}
 			int calls = subject.calledTools().size();
 			return calls <= max
-					? EvalResult.pass("%d Tool-Aufruf(e), erlaubt %d".formatted(calls, max))
-					: EvalResult.fail("%d Tool-Aufrufe, erlaubt %d (%s)".formatted(calls, max,
+					? EvalResult.pass("%d tool call(s), %d allowed".formatted(calls, max))
+					: EvalResult.fail("%d tool calls, %d allowed (%s)".formatted(calls, max,
 							String.join(", ", subject.calledTools())));
 		}
 	}
