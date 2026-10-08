@@ -87,6 +87,7 @@ export function RunsArea(p: Props) {
   const [busy, setBusy] = useState(false)
   const [evalTypes, setEvalTypes] = useState<EvalType[]>([])
   const [showChecks, setShowChecks] = useState(false)
+  const [allTasks, setAllTasks] = useState(false)
   // What each row is: the version's recipe, and whether a coach wrote it. Kept per agent, so a
   // switch never shows the previous agent's versions.
   const [versions, setVersions] = useState<{ agentId: string; map: Record<number, AgentView> }>({ agentId: '', map: {} })
@@ -179,9 +180,19 @@ export function RunsArea(p: Props) {
     }
   }
 
+  // A task this agent never ran is an empty column; once others have runs, it is folded away.
+  const used = new Set(
+    matrix ? matrix.rows.flatMap((r) => r.pairs.filter((c) => c.runs.some((x) => x.status !== 'CANCELLED')).map((c) => c.taskId)) : [],
+  )
+  const unused = matrix ? matrix.tasks.filter((t) => !used.has(t)) : []
+  const folded = !allTasks && used.size > 0 && unused.length > 0
+  const columns = matrix ? (folded ? matrix.tasks.filter((t) => used.has(t)) : matrix.tasks) : []
+  // A row run takes what the matrix shows: every current task, or only the visible ones.
+  const runTasks = folded ? columns.filter((t) => tasks.some((x) => x.id === t)) : null
+
   const runRow = (version: number) =>
     perform(async () => {
-      await runsApi.batch({ agent: agentId, agentVersion: version, repetitions: n })
+      await runsApi.batch({ agent: agentId, agentVersion: version, tasks: runTasks ?? undefined, repetitions: n })
     })
 
   const runPair = (version: number, task: string) =>
@@ -206,8 +217,9 @@ export function RunsArea(p: Props) {
     selected && matrix
       ? matrix.rows.find((r) => r.agentVersion === selected.version)?.pairs.find((c) => c.taskId === selected.task) ?? null
       : null
-  // A batch without a task list runs every current task; that is what the count says.
-  const rowRuns = tasks.length * n
+  // The count says what the button starts: without a task list a batch runs every current task.
+  const rowTasks = runTasks ? runTasks.length : tasks.length
+  const rowRuns = rowTasks * n
   const infos = versions.agentId === agentId ? versions.map : {}
   const origins = coach.agentId === agentId ? coach.map : {}
   const allInfos = Object.values(infos)
@@ -286,7 +298,7 @@ export function RunsArea(p: Props) {
               repetitions per Task
             </label>
             <span className="cost">
-              = <strong>{rowRuns} Runs</strong> ({tasks.length} Task{tasks.length === 1 ? '' : 's'} × {n}) with <Ref kind="model" id={matrix.modelId} />
+              = <strong>{rowRuns} Runs</strong> ({rowTasks} Task{rowTasks === 1 ? '' : 's'} × {n}) with <Ref kind="model" id={matrix.modelId} />
             </span>
           </div>
         )}
@@ -311,17 +323,24 @@ export function RunsArea(p: Props) {
                 none
               </span>
               <span className="faint">Number = passed Runs out of all · click a cell to see why</span>
-              <button className="btn quiet sm legend-toggle" onClick={() => setShowChecks(!showChecks)}>
-                {showChecks ? 'Hide checks' : 'Show checks per Task'}
-              </button>
+              <span className="legend-toggle">
+                {used.size > 0 && unused.length > 0 && (
+                  <button className="btn quiet sm" onClick={() => setAllTasks(!allTasks)} title="Tasks this Agent has never run">
+                    {folded ? `+ ${unused.length} Task${unused.length === 1 ? '' : 's'} without Runs` : 'only Tasks with Runs'}
+                  </button>
+                )}
+                <button className="btn quiet sm" onClick={() => setShowChecks(!showChecks)}>
+                  {showChecks ? 'Hide checks' : 'Show checks per Task'}
+                </button>
+              </span>
             </div>
             <div className="matrix-wrap">
-              <div className="matrix" style={{ gridTemplateColumns: `minmax(12rem, 15rem) repeat(${matrix.tasks.length}, minmax(9.5rem, 1fr))` }}>
+              <div className="matrix" style={{ gridTemplateColumns: `minmax(12rem, 15rem) repeat(${columns.length}, minmax(9.5rem, 1fr))` }}>
                 <div className="corner">
                   <span>Version ↓</span>
                   <span>Task →</span>
                 </div>
-                {matrix.tasks.map((t) => (
+                {columns.map((t) => (
                   <TaskHead key={t} id={t} task={taskOf(t)} showChecks={showChecks} />
                 ))}
 
@@ -335,7 +354,7 @@ export function RunsArea(p: Props) {
                   return (
                     <RowView
                       key={row.agentVersion}
-                      row={row}
+                      row={folded ? { ...row, pairs: row.pairs.filter((c) => used.has(c.taskId)) } : row}
                       current={row.agentVersion === matrix.currentVersion}
                       info={info}
                       change={info && allLoaded ? changeOf(info, i === 0 ? null : prev ?? null, allInfos) : []}

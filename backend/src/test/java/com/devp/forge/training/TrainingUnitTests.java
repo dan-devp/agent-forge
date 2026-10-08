@@ -129,6 +129,11 @@ class TrainingUnitTests {
 		assertThat(Proposal.parse("BEGRUENDUNG:\n- kuerzer\nPROMPT:\n<<<\nx\n>>>", "m", 1, 1).rationale())
 				.isEqualTo("- kuerzer");
 
+		// A wrong closing marker or none at all still yields the prompt: the gate measures it anyway.
+		assertThat(Proposal.parse("RATIONALE:\n- x\nPROMPT:\n<<<\nYou are Rookie.\n- Be brief.\n<<<", "m", 1, 1).prompt())
+				.isEqualTo("You are Rookie.\n- Be brief.");
+		assertThat(Proposal.parse("PROMPT:\n<<<\nYou are Rookie.\n", "m", 1, 1).prompt()).isEqualTo("You are Rookie.");
+
 		assertThat(Proposal.parse("I would shorten the prompt.", "m", 1, 1).prompt()).isNull();
 		assertThat(Proposal.parse("PROMPT:\n<<<\n\n>>>", "m", 1, 1).prompt()).isNull();
 		assertThat(Proposal.parse(null, "m", null, 1).prompt()).isNull();
